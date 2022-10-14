@@ -56,28 +56,28 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "unexpected error reading request")
-		log.Println("error reading request body: %s", err)
+		fmt.Fprint(w, "unexpected error reading request\n")
+		log.Printf("error reading request body: %s\n", err)
 		return
 	}
 
 	csr, err := readCSR(contentType, body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "error reading csr")
-		log.Println("error reading csr: %s", err)
+		fmt.Fprint(w, "error reading csr\n")
+		log.Printf("error reading csr: %s\n", err)
 		return
 	}
 
 	if csr.SignatureAlgorithm != SignatureAlgorithm {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "unsupported signature algorithm: %s, use %s instead",
+		fmt.Fprintf(w, "unsupported signature algorithm: %s, use %s instead\n",
 			csr.SignatureAlgorithm, SignatureAlgorithm)
 		return
 	}
 	if csr.PublicKeyAlgorithm != PublicKeyAlgorithm {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "unsupported public key algorithm: %s, use %s instead",
+		fmt.Fprintf(w, "unsupported public key algorithm: %s, use %s instead\n",
 			csr.PublicKeyAlgorithm, PublicKeyAlgorithm)
 		return
 	}
@@ -101,7 +101,7 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 	crt, err := x509.CreateCertificate(rand.Reader, &clientCertTemplate, &c.Crt, csr.PublicKey, &c.Key)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "unexpected error creating certificate: %s", err)
+		fmt.Fprintf(w, "unexpected error creating certificate: %s\n", err)
 		return
 	}
 
@@ -109,14 +109,14 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 
 	if contentType == "application/octet-stream" {
 		if _, err := fmt.Fprint(w, crt); err != nil {
-			log.Printf("error writing cert response %s", err)
+			log.Printf("error writing cert response %s\n", err)
 		}
 		return
 	}
 
 	// encode crt as pem and send
 	if err := pem.Encode(w, &pem.Block{Bytes: crt}); err != nil {
-		log.Printf("error writing cert response %s", err)
+		log.Printf("error writing cert response %s\n", err)
 	}
 }
 
