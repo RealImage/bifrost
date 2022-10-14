@@ -99,7 +99,7 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// this should not fail because of the above check
-	ecdsaPubKey := csr.PublicKey.(ecdsa.PublicKey)
+	ecdsaPubKey := csr.PublicKey.(*ecdsa.PublicKey)
 
 	// calculate expiry
 	notBefore := time.Now()
@@ -119,7 +119,7 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 
 		SerialNumber: big.NewInt(2),
 		Issuer:       c.Crt.Subject,
-		Subject:      pkix.Name{CommonName: UUID(ecdsaPubKey).String()},
+		Subject:      pkix.Name{CommonName: UUID(*ecdsaPubKey).String()},
 		NotBefore:    notBefore,
 		NotAfter:     notAfter,
 		KeyUsage:     x509.KeyUsageDigitalSignature,

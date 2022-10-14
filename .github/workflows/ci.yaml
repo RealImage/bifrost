@@ -1,0 +1,41 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+  release:
+
+env:
+  go_version: 1.19
+  golangcilint_version: v1.48.0
+
+jobs:
+  build:
+    name: Test, and build everything.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkou code
+        uses: actions/checkout@v3
+      - name: Setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.go_version }}
+      - name: Lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: ${{ env.golangcilint_version }}
+      - name: Make binaries
+        run: |
+          go test ./... -race -cover
+          go build ./cmd/issuer
+      - name: Upload binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: bifrost
+          path: issuer
