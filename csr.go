@@ -3,6 +3,7 @@ package bifrost
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
@@ -14,11 +15,22 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 )
 
-// RequestSignature sends a CSR to url and returns a signed certificate
-// parsed from the response.
+// RequestCertificateKey sends a certificate request to url and returns the signed certificate
+// along with the locally generated private key.
+func RequestCertificateKey(ctx context.Context,
+	url string, template *x509.CertificateRequest) (*x509.Certificate, *ecdsa.PrivateKey, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error generating key %w", err)
+	}
+	crt, err := RequestCertificate(ctx, url, key, template)
+	return crt, key, err
+}
+
+// RequestCertificate sends a certificate request to url and returns the signed certificate.
 // If template is nil, a default template is used.
 // The CommonName is the UUID of the public key by default.
-func RequestSignature(ctx context.Context, url string, privateKey ecdsa.PrivateKey, template *x509.CertificateRequest) (*tls.Certificate, error) {
+func RequestCertificate(ctx context.Context, url string, privateKey *ecdsa.PrivateKey, template *x509.CertificateRequest) (*x509.Certificate, error) {
 	if template == nil {
 		// default template
 		template = &x509.CertificateRequest{
@@ -55,13 +67,16 @@ func RequestSignature(ctx context.Context, url string, privateKey ecdsa.PrivateK
 		return nil, err
 	}
 
-	tlsCert := tls.Certificate{
-		Certificate: [][]byte{
-			cert.Raw,
-		},
-		PrivateKey: privateKey,
-		Leaf:       cert,
-	}
+	return cert, nil
+}
 
-	return &tlsCert, nil
+// Convert an x509.Certificate to a tls.Certificate
+func X509ToTLSCertificate(crt *x509.Certificate, key *ecdsa.PrivateKey) *tls.Certificate {
+	return &tls.Certificate{
+		Certificate: [][]byte{
+			crt.Raw,
+		},
+		PrivateKey: key,
+		Leaf:       crt,
+	}
 }
