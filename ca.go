@@ -50,7 +50,7 @@ type CA struct {
 // Only the CommonName is filled in the new certificate.
 // It is always set to the UUID of the requesting Public Key.
 func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		fmt.Fprintf(w, "method %s not allowed", r.Method)
 		return
@@ -59,9 +59,13 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get(ctHeader)
 	switch contentType {
 	case ctPlain, ctOctet:
+	case "":
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Content-Type header required")
+		return
 	default:
 		w.WriteHeader(http.StatusUnsupportedMediaType)
-		fmt.Fprintf(w, "unsupported content type %s", contentType)
+		fmt.Fprintf(w, "unsupported Content-Type %s", contentType)
 		return
 	}
 
@@ -129,9 +133,9 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", contentType)
+	w.Header().Set(ctHeader, contentType)
 
-	if contentType == "application/octet-stream" {
+	if contentType == ctOctet {
 		if _, err := fmt.Fprint(w, crt); err != nil {
 			log.Printf("error writing cert response %s\n", err)
 		}
@@ -147,9 +151,9 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 func readCSR(contentType string, body []byte) (*x509.CertificateRequest, error) {
 	csr := body
 	switch contentType {
-	case "application/octet-stream":
+	case ctOctet:
 		// der
-	case "text/plain":
+	case ctPlain:
 		// pem
 		block, _ := pem.Decode(body)
 		if block == nil {
