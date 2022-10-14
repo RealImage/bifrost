@@ -1,0 +1,84 @@
+openapi: 3.1.0
+info:
+  title: Bifrost Issuer
+  description: >
+    Bifrost Issuer issues certificates in response to certificate requests.
+  contact:
+    email: "support@qubewire.com"
+  license:
+    name: CLOSED
+    identifier: CLOSED
+    url: https://bifrost.services.qubewire.com/
+  version: 0.0.1
+servers:
+  - url: "https://bifrost.services.qubewire.com/"
+paths:
+  /:
+    post:
+      operationId: issueCertificate
+      summary: Fetch a signed authentication certificate
+      description: >
+        Hello
+      requestBody:
+        content:
+          "text/plain":
+            schema:
+              type: string
+              example: >
+                -----BEGIN CERTIFICATE REQUEST-----
+                MIHIMHACAQAwDjEMMAoGA1UEAwwDYXNkMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcD
+                QgAEVJQBcKxJshLf1q7n2Ny82x8gSdCeORhzTx3UOMDwHB+z2w6jZpsnDYvU5rzz
+                brdUoaBjkA82y67IR2FOJajGDaAAMAoGCCqGSM49BAMCA0gAMEUCIQCLhW9S+/tn
+                bU4zNCvrU1yQAj08iNZLk2eJKus08Nrd9gIgeWHqxNPAMp4le3+9XTvQUCJqc+13
+                K84BHAeb/nDpq+8=
+                -----END CERTIFICATE REQUEST-----
+          "application/octet-stream":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Issue Certificate
+          content:
+            "text/plain":
+              schema:
+                type: string
+                example: >
+                  -----BEGIN CERTIFICATE-----
+                  MIIBcTCCARgCCQCdZeJe6CYRUDAKBggqhkjOPQQDAjBBMRQwEgYDVQQKDAtRdWJl
+                  IENpbmVtYTESMBAGA1UECwwJUXViZSBXaXJlMRUwEwYDVQQDDAxCaWZyb3N0IENB
+                  IDEwHhcNMjIxMDE0MTQxODIyWhcNMzIxMDExMTQxODIyWjBBMRQwEgYDVQQKDAtR
+                  dWJlIENpbmVtYTESMBAGA1UECwwJUXViZSBXaXJlMRUwEwYDVQQDDAxCaWZyb3N0
+                  IENBIDEwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARUlAFwrEmyEt/WrufY3Lzb
+                  HyBJ0J45GHNPHdQ4wPAcH7PbDqNmmycNi9TmvPNut1ShoGOQDzbLrshHYU4lqMYN
+                  MAoGCCqGSM49BAMCA0cAMEQCIHowWM7sKmmBcJ19sWQf6lqUp2ywUhD5oXaf85Tu
+                  +7+kAiBJaDq0BbnSdNk4P4fmt8WbDyYAmRJQnY5WirXslUGNpw==
+                  -----END CERTIFICATE-----
+            "application/octet-stream":
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Bad Request
+          content:
+            "text/plain":
+              schema:
+                type: string
+        "405":
+          description: Method Not Allowed
+          content:
+            "text/plain":
+              schema:
+                type: string
+        "415":
+          description: Unsupported Media Type
+          content:
+            "text/plain":
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            "text/plain":
+              schema:
+                type: string
