@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -21,6 +22,9 @@ const (
 	ctHeader = "Content-Type"
 	ctPlain  = "text/plain"
 	ctOctet  = "application/octet-stream"
+
+	// 9000 hours is ~ 12.3 months
+	defaultIssueDuration = time.Duration(9000 * time.Hour)
 )
 
 // CA is the world's simplest Certificate Authority.
@@ -30,6 +34,10 @@ const (
 type CA struct {
 	Crt x509.Certificate
 	Key ecdsa.PrivateKey
+
+	// IssueDuration is the duration of the certificate's validity from the time of issue
+	// If zero, default is used.
+	IssueDuration time.Duration
 }
 
 // IssueCertificate issues a certificate if a valid certificate request is read from the request.
@@ -37,6 +45,10 @@ type CA struct {
 // Requests carrying a content-type of "text/plain" should have a PEM encoded certificate request.
 // Requests carrying a content-type of "application/octet-stream" should submit the ASN.1 DER
 // encoded form instead.
+//
+// The Subject from the Certificate Request is ignored.
+// Only the CommonName is filled in the new certificate.
+// It is always set to the UUID of the requesting Public Key.
 func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -82,6 +94,18 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// this should not fail because of the above check
+	ecdsaPubKey := csr.PublicKey.(ecdsa.PublicKey)
+
+	// calculate expiry
+	notBefore := time.Now()
+	var notAfter time.Time
+	if c.IssueDuration == 0 {
+		notAfter = notBefore.Add(defaultIssueDuration)
+	} else {
+		notAfter = notBefore.Add(c.IssueDuration)
+	}
+
 	clientCertTemplate := x509.Certificate{
 		Signature:          csr.Signature,
 		SignatureAlgorithm: csr.SignatureAlgorithm,
@@ -91,9 +115,9 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 
 		SerialNumber: big.NewInt(2),
 		Issuer:       c.Crt.Subject,
-		Subject:      csr.Subject,
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(1, 0, 0),
+		Subject:      pkix.Name{CommonName: UUID(ecdsaPubKey).String()},
+		NotBefore:    notBefore,
+		NotAfter:     notAfter,
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
