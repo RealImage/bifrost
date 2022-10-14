@@ -48,7 +48,7 @@ Then pass the certificate and private key as environment variables to the binary
 
 3. Then run the binary passing these new files along:
 
-        env CRT_PEM=$(cat crt.pem) KEY_PEM=$(cat key.pem) ./issuer
+        ./issuer
 
 4. Generate a client key, a CSR, and get it signed by the issuer:
 

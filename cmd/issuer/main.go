@@ -1,44 +1,33 @@
 package main
 
 import (
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/RealImage/bifrost"
+	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/kelseyhightower/envconfig"
 )
 
 var spec = struct {
 	Host   string `default:"127.0.0.1"`
 	Port   int16  `default:"7777"`
-	CrtPem string `envconfig:"CRT_PEM" required:"true"`
-	KeyPem string `envconfig:"KEY_PEM" required:"true"`
+	CrtUri string `envconfig:"CRT_URI" default:"crt.pem"`
+	KeyUri string `envconfig:"KEY_URI" default:"key.pem"`
 }{}
 
 func main() {
 	envconfig.MustProcess("", &spec)
 
-	block, _ := pem.Decode([]byte(spec.CrtPem))
-	if block == nil {
-		log.Fatal("invalid crt pem")
-	}
-
-	crt, err := x509.ParseCertificate(block.Bytes)
+	crt, err := cafiles.GetCrtUri(spec.CrtUri)
 	if err != nil {
-		log.Fatalf("error parsing certificate %s", err)
+		log.Fatalf("error getting crt: %s", err)
 	}
 
-	block, _ = pem.Decode([]byte(spec.KeyPem))
-	if block == nil {
-		log.Fatal("invalid key pem")
-	}
-
-	key, err := x509.ParseECPrivateKey(block.Bytes)
+	key, err := cafiles.GetKeyUri(spec.KeyUri)
 	if err != nil {
-		log.Fatalf("error parsing key %s", err)
+		log.Fatalf("error getting key: %s", err)
 	}
 
 	ca := bifrost.CA{
