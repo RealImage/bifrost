@@ -13,7 +13,7 @@ import (
 
 var spec = struct {
 	Host   string `default:"127.0.0.1"`
-	Port   int16  `default:"8080"`
+	Port   int16  `default:"7777"`
 	CrtPem string `envconfig:"CRT_PEM" required:"true"`
 	KeyPem string `envconfig:"KEY_PEM" required:"true"`
 }{}
