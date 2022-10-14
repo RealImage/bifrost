@@ -19,12 +19,12 @@ import (
 func GetCrtUri(uri string) (*x509.Certificate, error) {
 	crtPem, err := getPemFile(uri)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
 	}
 
 	crt, err := x509.ParseCertificate(crtPem)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing certificate: %w", err)
+		return nil, fmt.Errorf("error parsing certificate uri %s: %w", uri, err)
 	}
 
 	return crt, nil
@@ -34,12 +34,12 @@ func GetCrtUri(uri string) (*x509.Certificate, error) {
 func GetKeyUri(uri string) (*ecdsa.PrivateKey, error) {
 	keyPem, err := getPemFile(uri)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
 	}
 
 	key, err := x509.ParseECPrivateKey(keyPem)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing key: %w", err)
+		return nil, fmt.Errorf("error parsing key uri %s: %w", uri, err)
 	}
 
 	return key, nil
@@ -57,7 +57,7 @@ func getPemFile(uri string) ([]byte, error) {
 		pemData, err = os.ReadFile(url.Path)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("error fetching pem file")
+		return nil, fmt.Errorf("error fetching pem file: %w", err)
 	}
 
 	block, _ := pem.Decode(pemData)
@@ -67,11 +67,32 @@ func getPemFile(uri string) ([]byte, error) {
 	return block.Bytes, nil
 }
 
+func parseUri(uri string) (*url.URL, error) {
+	url, err := url.Parse(uri)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing uri %w", err)
+	}
+
+	switch s := url.Scheme; s {
+	case "", "file", "s3":
+	default:
+		return nil, fmt.Errorf("unknown uri scheme %s", s)
+	}
+
+	return url, nil
+}
+
 func getS3File(urlpath string) ([]byte, error) {
 	urlparts := strings.Split(urlpath, "/")
 	bucket := urlparts[0]
+	if len(urlparts) < 2 {
+		return nil, fmt.Errorf("invalid s3 uri")
+	}
 	key := strings.Join(urlparts[1:], "/")
-	sess := session.Must(session.NewSession(&aws.Config{}))
+
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
 	svc := s3.New(sess)
 
 	rawObject, err := svc.GetObject(
@@ -88,19 +109,4 @@ func getS3File(urlpath string) ([]byte, error) {
 		return nil, err
 	}
 	return body, nil
-}
-
-func parseUri(uri string) (*url.URL, error) {
-	url, err := url.Parse(uri)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing uri %s: %w", url, err)
-	}
-
-	switch s := url.Scheme; s {
-	case "", "file", "s3":
-	default:
-		return nil, fmt.Errorf("unknown uri scheme %s", s)
-	}
-
-	return url, nil
 }
