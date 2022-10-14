@@ -143,7 +143,7 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// encode crt as pem and send
-	if err := pem.Encode(w, &pem.Block{Bytes: crt}); err != nil {
+	if err := pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt}); err != nil {
 		log.Printf("error writing cert response %s\n", err)
 	}
 }

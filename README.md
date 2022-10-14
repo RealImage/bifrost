@@ -50,7 +50,12 @@ Then pass the certificate and private key as environment variables to the binary
 
         env CRT_PEM=$(cat crt.pem) KEY_PEM=$(cat key.pem) ./issuer
 
-4. Optionally, create a new private key and a certificate signing request:
+4. Generate a client key, a CSR, and get it signed by the issuer:
 
         openssl ecparam -out clientkey.pem -name prime256v1 -genkey -noout
         openssl req -new -key clientkey.pem -sha256 -out csr.pem
+        curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" localhost:8080 >clientcrt.pem
+
+5. Admire your shiny new client certificate:
+
+        openssl x509 -in clientcrt.pem -noout -text

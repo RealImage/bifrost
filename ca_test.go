@@ -57,10 +57,12 @@ kectkmknatSWyA0L
 
 func TestCA_IssueCertificate(t *testing.T) {
 	randReader := rand.New(rand.NewSource(42))
+
 	key, err := ecdsa.GenerateKey(elliptic.P256(), randReader)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	template := x509.Certificate{
 		SerialNumber:          big.NewInt(2),
 		Subject:               pkix.Name{CommonName: "Issuer Test CA"},
