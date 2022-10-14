@@ -13,7 +13,7 @@ import (
 var spec = struct {
 	Address string `default:"127.0.0.1:8080"`
 	CrtPem  string `envconfig:"CRT_PEM" required:"true"`
-	KeyPem  string `envconfig:"CRT_PEM" required:"true"`
+	KeyPem  string `envconfig:"KEY_PEM" required:"true"`
 }{}
 
 func main() {
@@ -44,6 +44,7 @@ func main() {
 		Key: *key,
 	}
 
+	log.Printf("server listening on %s\n", spec.Address)
 	http.HandleFunc("/", ca.IssueCertificate)
 	http.ListenAndServe(spec.Address, nil)
 }
