@@ -14,12 +14,19 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 )
 
-// RequestSignature sends a CSR to url and returns a signed certificate parsed from the response.
-//
-// If template is nil, a default template is used. The CommonName is the UUID of the public key by default.
+// RequestSignature sends a CSR to url and returns a signed certificate
+// parsed from the response.
+// If template is nil, a default template is used.
+// The CommonName is the UUID of the public key by default.
 func RequestSignature(ctx context.Context, url string, privateKey ecdsa.PrivateKey, template *x509.CertificateRequest) (*tls.Certificate, error) {
 	if template == nil {
-		template = newTemplate(UUID(privateKey.PublicKey).String())
+		// default template
+		template = &x509.CertificateRequest{
+			Subject: pkix.Name{
+				CommonName: UUID(privateKey.PublicKey).String(),
+			},
+			SignatureAlgorithm: SignatureAlgorithm,
+		}
 	}
 
 	csr, err := x509.CreateCertificateRequest(rand.Reader, template, privateKey)
@@ -32,12 +39,11 @@ func RequestSignature(ctx context.Context, url string, privateKey ecdsa.PrivateK
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected response status: %d %s", resp.StatusCode, resp.Status)
 	}
-
-	defer resp.Body.Close()
 
 	certDer, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -58,15 +64,4 @@ func RequestSignature(ctx context.Context, url string, privateKey ecdsa.PrivateK
 	}
 
 	return &tlsCert, nil
-}
-
-func newTemplate(name string) *x509.CertificateRequest {
-	return &x509.CertificateRequest{
-		Subject: pkix.Name{
-			CommonName:         name,
-			Organization:       []string{"Qube Cinema"},
-			OrganizationalUnit: []string{"Qube Wire"},
-		},
-		SignatureAlgorithm: SignatureAlgorithm,
-	}
 }
