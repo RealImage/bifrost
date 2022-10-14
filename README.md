@@ -17,8 +17,8 @@ import (
 
 func main() {
   // TODO: handle errors
-  key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-  crt, _ := bifrost.RequestSignature(context.Background, "https://bifrost", key, nil)
+  key, _ := ecdsa.GenerateCertificate(elliptic.P256(), rand.Reader)
+  crt, _ := bifrost.RequestSignature(context.Background(), "https://bifrost", key, nil)
   ...
 }
 ```
