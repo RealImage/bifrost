@@ -52,5 +52,8 @@ func main() {
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "OK!")
 	})
-	http.ListenAndServe(address, nil)
+
+	if err := http.ListenAndServe(address, nil); err != http.ErrServerClosed {
+		log.Fatal(err)
+	}
 }
