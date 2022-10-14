@@ -38,6 +38,12 @@ type CA struct {
 // Requests carrying a content-type of "application/octet-stream" should submit the ASN.1 DER
 // encoded form instead.
 func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprintf(w, "method %s not allowed", r.Method)
+		return
+	}
+
 	contentType := r.Header.Get(ctHeader)
 	switch contentType {
 	case ctPlain, ctOctet:
