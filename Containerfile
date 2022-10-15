@@ -7,10 +7,6 @@ COPY . .
 RUN go test ./... -cover
 RUN go build ./cmd/issuer
 
-FROM gcr.io/distroless/static as authz
-COPY --from=builder /src/authz /
-ENTRYPOINT ["/authz"]
-
 FROM gcr.io/distroless/static as issuer
 # uses lambda-web-adapter to run our standard HTTP app in a lambda
 # https://github.com/awslabs/aws-lambda-web-adapter
