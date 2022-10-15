@@ -56,7 +56,12 @@ Bifrost issuer takes care of issuing certificates signed by the single root cert
 A web server that supports verifying TLS client certificates is required to implement
 the remaining portion of the authentication system.
 
-#### [Issuer](cmd/issuer)
+#### [`bfid`](cmd/bfid)
+
+`bfid` returns the UUID for a private key.
+If namespace isn't provided, NamespaceBifrost is used.
+
+#### [`issuer`](cmd/issuer)
 
 `issuer` signs certificates with a configured private key and self-signed certificate.
 Certificate Requests must be signed with an ECDSA P256 Private Key
@@ -104,10 +109,11 @@ certificates with the new root.
 #### Go toolchain
 
 `go build ./cmd/issuer`
+`go build ./cmd/bifd`
 
 #### Container
 
-`podman build -t ghcr.io/RealImage/bifrost-ca --target=issuer .`
+`podman build -t ghcr.io/RealImage/bifrost .`
 
 ### Run CA
 
@@ -132,10 +138,13 @@ Then pass the certificate and private key as environment variables to the binary
     # ecdsa private key
     openssl ecparam -out clientkey.pem -name prime256v1 -genkey -noout
 
-    # csr
-    openssl req -new -key clientkey.pem -sha256 -out csr.pem
+    # generate bifrost uuid
+    ./bifd clientkey.pem
+
+    # certificate signing request
+    openssl req -new -key clientkey.pem -sha256 -subj "/CN=$(./bfid clientkey.pem)" -out csr.pem
   
-    # crt
+    # fetch certificate
     curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" localhost:8080 >clientcrt.pem
     ```
 

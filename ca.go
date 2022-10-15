@@ -40,7 +40,7 @@ type CA struct {
 	Key *ecdsa.PrivateKey
 
 	// IdentityNamespace is the identity namespace for this CA.
-	// If unset, Namespace_Bifrost is used.
+	// If unset, NamespaceBifrost is used.
 	IdentityNamespace uuid.UUID
 
 	// IssueDuration is the duration of the certificate's validity starting at the time of issue.
@@ -111,6 +111,18 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 	// this should not fail because of the above check
 	ecdsaPubKey := csr.PublicKey.(*ecdsa.PublicKey)
 
+	// set default id namespace if empty
+	if c.IdentityNamespace == uuid.Nil {
+		c.IdentityNamespace = NamespaceBifrost
+	}
+
+	clientID := UUID(c.IdentityNamespace, *ecdsaPubKey).String()
+	if subName := csr.Subject.CommonName; clientID != csr.Subject.CommonName {
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprintf(w, "subject common name is %s but should be %s, wrong namespace?\n", subName, clientID)
+		return
+	}
+
 	serialNumber, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -119,11 +131,7 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if (c.IdentityNamespace == uuid.UUID{}) {
-		c.IdentityNamespace = Namespace_Bifrost
-	}
-
-	// set issue duration
+	// set default issue duration if empty
 	if c.IssueDuration == 0 {
 		c.IssueDuration = defaultIssueDuration
 	}
@@ -134,7 +142,7 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 
 	clientCertTemplate := x509.Certificate{
 		Issuer:  c.Crt.Subject,
-		Subject: pkix.Name{CommonName: UUID(c.IdentityNamespace, *ecdsaPubKey).String()},
+		Subject: pkix.Name{CommonName: clientID},
 
 		Signature:          csr.Signature,
 		SignatureAlgorithm: csr.SignatureAlgorithm,
