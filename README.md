@@ -5,6 +5,21 @@ The Go library can be used to fetch signed certificates from a bifrost issuer CA
 
 ![My First CA](docs/my-first-ca.jpg)
 
+## Namespaces & Identities
+
+Namespaces allow bifrost to support multiple tenants easily.
+Bifrost calls them identity namespaces because they are used to identify bifrost clients uniquely.
+Names in a bifrost namespace are synthesized by appending the X and Y curve points
+of a client's ecdsa P256 public key in binary big-endian form sequentially.
+
+Client identities are generated as deterministic identities derived from private keys.
+A key-pair's public key X and Y curve points are hashed along with the identity namespace.
+The tuple of NamespaceID and Client Public Key will produce stable deterministic UUIDs.
+
+In pseudo-code,
+
+`newUUID = UUIDv5(sha1(NamespaceClientIdentity, PublicKey.X.Bytes() + PublicKey.Y.Bytes())`
+
 ## Use library
 
 Use bifrost to request a certificate from a Bifrost CA.
@@ -18,7 +33,7 @@ import (
 )
 
 // identity namespaces allow clients to use the same keys and authenticate with many bifrost CAs.
-Namespace_ID = uuid.MustParse("DAC7ED60-C6EB-4AD5-A082-4F154174E9C7")
+Namespace_ID = uuid.MustParse("b934ff92-44b5-4b66-a1d6-6bf91b20bb6d")
 
 func main() {
   // TODO: handle errors
@@ -36,6 +51,10 @@ Bifrost does not handle TLS termination or certificate verification.
 API Gateway APIs in mTLS authentication mode is one tool that can handle both of these functions.
 
 ### Architecture
+
+Bifrost issuer takes care of issuing certificates signed by the single root certificate.
+A web server that supports verifying TLS client certificates is required to implement
+the remaining portion of the authentication system.
 
 #### [Issuer](cmd/issuer)
 
