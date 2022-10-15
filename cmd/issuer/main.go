@@ -31,8 +31,8 @@ func main() {
 	}
 
 	ca := bifrost.CA{
-		Crt: *crt,
-		Key: *key,
+		Crt: crt,
+		Key: key,
 	}
 
 	address := fmt.Sprintf("%s:%d", spec.Host, spec.Port)

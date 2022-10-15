@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -52,7 +51,7 @@ func getPemFile(uri string) ([]byte, error) {
 	}
 	var pemData []byte
 	if url.Scheme == "s3" {
-		pemData, err = getS3File(url.Path)
+		pemData, err = getS3Key(url.Host, url.Path[1:])
 	} else {
 		pemData, err = os.ReadFile(url.Path)
 	}
@@ -82,26 +81,18 @@ func parseUri(uri string) (*url.URL, error) {
 	return url, nil
 }
 
-func getS3File(urlpath string) ([]byte, error) {
-	urlparts := strings.Split(urlpath, "/")
-	bucket := urlparts[0]
-	if len(urlparts) < 2 {
-		return nil, fmt.Errorf("invalid s3 uri")
-	}
-	key := strings.Join(urlparts[1:], "/")
+var sess = session.Must(session.NewSessionWithOptions(session.Options{
+	SharedConfigState: session.SharedConfigEnable,
+}))
 
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	svc := s3.New(sess)
-
-	rawObject, err := svc.GetObject(
+func getS3Key(bucket, key string) ([]byte, error) {
+	rawObject, err := s3.New(sess).GetObject(
 		&s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(key),
 		})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting s3 object: %w", err)
 	}
 
 	body, err := io.ReadAll(rawObject.Body)
