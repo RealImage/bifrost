@@ -33,13 +33,24 @@ var testCases = []struct {
 	{
 		contentType: ctPlain,
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+MIHpMIGRAgEAMC8xLTArBgNVBAMMJGY0MjhjYjJjLWU4N2QtNWU3NC04ODcwLTRh
+OTNkZTJjMGZjMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABE7LuwRmLiltBYWi
+5JTvmNCX3+8WIugE7rfu/XdBr/a1by0Om8cuegaS3dydDPYdsu444Y0SO4fyg7VP
+cxVE1segADAKBggqhkjOPQQDAgNHADBEAiBbytm3m7IC3jd5+6KO9BYeh1Pq5nnJ
+bRPubf2g/+QjlwIgBDQQN7a1Y2hD8CwX/5Wl/NUL4518VNuptjUC83lYk3E=
+-----END CERTIFICATE REQUEST-----`),
+	},
+	{
+		contentType: ctPlain,
+		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIHIMHACAQAwDjEMMAoGA1UEAwwDYWJjMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcD
 QgAEVJQBcKxJshLf1q7n2Ny82x8gSdCeORhzTx3UOMDwHB+z2w6jZpsnDYvU5rzz
 brdUoaBjkA82y67IR2FOJajGDaAAMAoGCCqGSM49BAMCA0gAMEUCIQDOM2Un8MXG
 EjA3auHdzeQX6BLlgCHP3A/q5nthVhB7KwIgOBb0xt0IOKEy7EVdn8QRA8FnmSwK
 MpvZPekgC/o5cnM=
 -----END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusOK,
+		expectedCode: http.StatusForbidden,
+		expectedBody: []byte(("subject common name is abc but should be 3d2f781d-f2ed-5891-a164-19e51ac9033a, wrong namespace?\n")),
 	},
 	{
 		contentType: ctPlain,
@@ -99,6 +110,11 @@ func TestCA_IssueCertificate(t *testing.T) {
 
 			if ct := resp.Header.Get(ctHeader); ct != "" && ct != tc.contentType {
 				t.Fatalf("expected response Content-Type %s, actual %s\n", tc.contentType, ct)
+			}
+
+			// default status code
+			if tc.expectedCode == 0 {
+				tc.expectedCode = http.StatusOK
 			}
 
 			if resp.StatusCode != tc.expectedCode {

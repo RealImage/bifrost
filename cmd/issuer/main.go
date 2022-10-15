@@ -16,7 +16,7 @@ var spec = struct {
 	Port        int16     `default:"7777"`
 	CrtUri      string    `envconfig:"CRT_URI" default:"crt.pem"`
 	KeyUri      string    `envconfig:"KEY_URI" default:"key.pem"`
-	IDNamespace uuid.UUID `envconfig:"ID_NAMESPACE" default:"1512daa4-ddc1-41d1-8673-3fd19d2f338d"`
+	IDNamespace uuid.UUID `envconfig:"ID_NAMESPACE"`
 }{}
 
 func main() {

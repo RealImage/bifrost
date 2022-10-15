@@ -8,17 +8,20 @@ info:
   license:
     name: CLOSED
     identifier: CLOSED
-    url: https://bifrost.services.qubewire.com/
+    url: https://bifrost.services.qubewire.com
   version: 0.0.1
+security: []
 servers:
-  - url: "https://bifrost.services.qubewire.com/"
+  - url: "https://bifrost.services.qubewire.com"
 paths:
   /:
     post:
       operationId: issueCertificate
       summary: Fetch a signed authentication certificate
       description: >
-        Hello
+        Send a Certificate Request in plain text or binary and receive a signed certificate.
+        Response content type mirrors the request. A 403 response status code usually indicates
+        that the client is using an incorrect namespace UUID.
       requestBody:
         content:
           "text/plain":
@@ -38,7 +41,7 @@ paths:
               format: binary
       responses:
         "200":
-          description: Issue Certificate
+          description: Issue Certificate.
           content:
             "text/plain":
               schema:
@@ -59,25 +62,31 @@ paths:
                 type: string
                 format: binary
         "400":
-          description: Bad Request
+          description: Bad Request. Invalid Certificate Request.
           content:
             "text/plain":
               schema:
                 type: string
+        "403":
+          description: Forbidden. Certificate CommonName must be the client uuid.
+          content: 
+            "text/plain":
+              schema: 
+                type: string
         "405":
-          description: Method Not Allowed
+          description: Method Not Allowed.
           content:
             "text/plain":
               schema:
                 type: string
         "415":
-          description: Unsupported Media Type
+          description: Unsupported Media Type.
           content:
             "text/plain":
               schema:
                 type: string
         "500":
-          description: Internal Server Error
+          description: Internal Server Error.
           content:
             "text/plain":
               schema:
