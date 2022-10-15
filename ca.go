@@ -13,6 +13,8 @@ import (
 	"math/big"
 	"net/http"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -36,6 +38,10 @@ const (
 type CA struct {
 	Crt *x509.Certificate
 	Key *ecdsa.PrivateKey
+
+	// IdentityNamespace is the identity namespace for this CA.
+	// If unset, Namespace_Bifrost is used.
+	IdentityNamespace uuid.UUID
 
 	// IssueDuration is the duration of the certificate's validity starting at the time of issue.
 	// If zero, the default value is used.
@@ -113,6 +119,10 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if (c.IdentityNamespace == uuid.UUID{}) {
+		c.IdentityNamespace = Namespace_Bifrost
+	}
+
 	// set issue duration
 	if c.IssueDuration == 0 {
 		c.IssueDuration = defaultIssueDuration
@@ -124,7 +134,7 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 
 	clientCertTemplate := x509.Certificate{
 		Issuer:  c.Crt.Subject,
-		Subject: pkix.Name{CommonName: UUID(*ecdsaPubKey).String()},
+		Subject: pkix.Name{CommonName: UUID(c.IdentityNamespace, *ecdsaPubKey).String()},
 
 		Signature:          csr.Signature,
 		SignatureAlgorithm: csr.SignatureAlgorithm,

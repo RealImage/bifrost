@@ -17,10 +17,14 @@ import (
   "github.com/RealImage/bifrost"
 )
 
+// identity namespaces allow clients to use the same keys and authenticate with many bifrost CAs.
+Namespace_ID = uuid.MustParse("DAC7ED60-C6EB-4AD5-A082-4F154174E9C7")
+
 func main() {
   // TODO: handle errors
+  idNamespace = uuid.Must()
   key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-  crt, _ := bifrost.RequestCertificate(context.Background(), "https://bifrost", key)
+  crt, _ := bifrost.RequestCertificate(context.Background(), "https://bifrost", Namespace_ID, key)
   ...
 }
 ```

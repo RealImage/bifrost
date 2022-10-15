@@ -7,14 +7,16 @@ import (
 
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/cafiles"
+	"github.com/google/uuid"
 	"github.com/kelseyhightower/envconfig"
 )
 
 var spec = struct {
-	Host   string `default:"127.0.0.1"`
-	Port   int16  `default:"7777"`
-	CrtUri string `envconfig:"CRT_URI" default:"crt.pem"`
-	KeyUri string `envconfig:"KEY_URI" default:"key.pem"`
+	Host        string    `default:"127.0.0.1"`
+	Port        int16     `default:"7777"`
+	CrtUri      string    `envconfig:"CRT_URI" default:"crt.pem"`
+	KeyUri      string    `envconfig:"KEY_URI" default:"key.pem"`
+	IDNamespace uuid.UUID `envconfig:"ID_NAMESPACE" default:"1512daa4-ddc1-41d1-8673-3fd19d2f338d"`
 }{}
 
 func main() {
@@ -31,8 +33,9 @@ func main() {
 	}
 
 	ca := bifrost.CA{
-		Crt: crt,
-		Key: key,
+		Crt:               crt,
+		Key:               key,
+		IdentityNamespace: spec.IDNamespace,
 	}
 
 	address := fmt.Sprintf("%s:%d", spec.Host, spec.Port)

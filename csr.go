@@ -11,14 +11,15 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/hashicorp/go-retryablehttp"
 )
 
 // RequestCertificate sends a certificate request to url and returns the signed certificate.
-func RequestCertificate(ctx context.Context, url string, privateKey *ecdsa.PrivateKey) (*x509.Certificate, error) {
+func RequestCertificate(ctx context.Context, url string, namespace uuid.UUID, privateKey *ecdsa.PrivateKey) (*x509.Certificate, error) {
 	template := x509.CertificateRequest{
 		Subject: pkix.Name{
-			CommonName: UUID(privateKey.PublicKey).String(),
+			CommonName: UUID(namespace, privateKey.PublicKey).String(),
 		},
 		SignatureAlgorithm: SignatureAlgorithm,
 	}
