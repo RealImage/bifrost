@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"math/big"
 	"net/http"
 	"time"
@@ -23,20 +24,21 @@ const (
 	ctPlain  = "text/plain"
 	ctOctet  = "application/octet-stream"
 
-	// 9000 hours is ~ 12.3 months
-	defaultIssueDuration = time.Duration(9000 * time.Hour)
+	// 730 hours is ~ 1 month
+	defaultIssueDuration = time.Duration(730)
 )
 
 // CA is the world's simplest Certificate Authority.
-//
-// The only operation supported is issuing certificates signed by the single private key
+// The only supported operation is to issue client certificates.
+// Client certificates are signed by the configured root certificate and private key.
 // and self signed root certificate configured.
+// The root certificate and private key are not validated. This is your responsibility.
 type CA struct {
-	Crt x509.Certificate
-	Key ecdsa.PrivateKey
+	Crt *x509.Certificate
+	Key *ecdsa.PrivateKey
 
-	// IssueDuration is the duration of the certificate's validity from the time of issue
-	// If zero, default is used.
+	// IssueDuration is the duration of the certificate's validity starting at the time of issue.
+	// If zero, the default value is used.
 	IssueDuration time.Duration
 }
 
@@ -46,9 +48,15 @@ type CA struct {
 // Requests carrying a content-type of "application/octet-stream" should submit the ASN.1 DER
 // encoded form instead.
 //
-// The Subject from the Certificate Request is ignored.
-// Only the CommonName is filled in the new certificate.
-// It is always set to the UUID of the requesting Public Key.
+// Certificate Template:
+// Issuer is Subject of the root certificate
+// Subject CommonName alone is set to the UUID of the client public key
+// Signature Algorithm: ECDSA with SHA256
+// PublicKey Algorithm: ECDSA
+// KeyUsage: DigitalSignature | KeyEncipherment | DataEncipherment
+// ExtendedKeyUsage: ClientAuth
+// NotBefore: now
+// NotAfter: 1 month from now
 func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -58,11 +66,7 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 
 	contentType := r.Header.Get(ctHeader)
 	switch contentType {
-	case ctPlain, ctOctet:
-	case "":
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "Content-Type header required")
-		return
+	case "", ctPlain, ctOctet:
 	default:
 		w.WriteHeader(http.StatusUnsupportedMediaType)
 		fmt.Fprintf(w, "unsupported Content-Type %s", contentType)
@@ -101,35 +105,46 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 	// this should not fail because of the above check
 	ecdsaPubKey := csr.PublicKey.(*ecdsa.PublicKey)
 
-	// calculate expiry
-	notBefore := time.Now()
-	var notAfter time.Time
-	if c.IssueDuration == 0 {
-		notAfter = notBefore.Add(defaultIssueDuration)
-	} else {
-		notAfter = notBefore.Add(c.IssueDuration)
+	serialNumber, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "random error\n")
+		log.Printf("error creating random certificate serial: %s\n", err)
+		return
 	}
 
+	// set issue duration
+	if c.IssueDuration == 0 {
+		c.IssueDuration = defaultIssueDuration
+	}
+
+	// calculate expiry
+	notBefore := time.Now()
+	notAfter := notBefore.Add(c.IssueDuration)
+
 	clientCertTemplate := x509.Certificate{
+		Issuer:  c.Crt.Subject,
+		Subject: pkix.Name{CommonName: UUID(*ecdsaPubKey).String()},
+
 		Signature:          csr.Signature,
 		SignatureAlgorithm: csr.SignatureAlgorithm,
 
 		PublicKeyAlgorithm: csr.PublicKeyAlgorithm,
 		PublicKey:          csr.PublicKey,
 
-		SerialNumber: big.NewInt(2),
-		Issuer:       c.Crt.Subject,
-		Subject:      pkix.Name{CommonName: UUID(*ecdsaPubKey).String()},
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageDataEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+
+		SerialNumber: serialNumber,
 		NotBefore:    notBefore,
 		NotAfter:     notAfter,
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
 
-	crt, err := x509.CreateCertificate(rand.Reader, &clientCertTemplate, &c.Crt, csr.PublicKey, &c.Key)
+	crt, err := x509.CreateCertificate(rand.Reader, &clientCertTemplate, c.Crt, csr.PublicKey, c.Key)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "unexpected error creating certificate: %s\n", err)
+		fmt.Fprint(w, "unexpected error creating certificate\n")
+		log.Printf("error creating certificate %s\n", err)
 		return
 	}
 
@@ -137,14 +152,14 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 
 	if contentType == ctOctet {
 		if _, err := fmt.Fprint(w, crt); err != nil {
-			log.Printf("error writing cert response %s\n", err)
+			log.Printf("error writing der cert response %s\n", err)
 		}
 		return
 	}
 
-	// encode crt as pem and send
+	// send crt pem
 	if err := pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt}); err != nil {
-		log.Printf("error writing cert response %s\n", err)
+		log.Printf("error writing pem cert response %s\n", err)
 	}
 }
 
@@ -153,7 +168,7 @@ func readCSR(contentType string, body []byte) (*x509.CertificateRequest, error) 
 	switch contentType {
 	case ctOctet:
 		// der
-	case ctPlain:
+	case "", ctPlain:
 		// pem
 		block, _ := pem.Decode(body)
 		if block == nil {

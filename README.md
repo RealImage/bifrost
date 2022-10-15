@@ -3,6 +3,8 @@
 Bifrost is a tiny mTLS authentication toolkit.
 The Go library can be used to fetch signed certificates from a bifrost issuer CA server.
 
+![My First CA](docs/my-first-ca.jpg)
+
 ## Use library
 
 Use bifrost to request a certificate from a Bifrost CA.
@@ -23,15 +25,27 @@ func main() {
 }
 ```
 
-## [Issuer](cmd/issuer)
+## Certificate Authority
 
-The issuer signs certificates with a configured private key and self-signed certificate.
+The bifrost Certificate Authority issues X.509 certificates for TLS client authentication.
+Bifrost does not handle TLS termination or certificate verification.
+API Gateway APIs in mTLS authentication mode is one tool that can handle both of these functions.
+
+### Architecture
+
+[issuer](cmd/issuer) signs certificates with a configured private key and self-signed certificate.
 Certificate Requests must be signed with an ECDSA P256 Private Key
 using the ECDSA SHA256 Signature Algorithm.
 
 ### Build
 
+#### Go toolchain
+
 `go build ./cmd/issuer`
+
+#### Container
+
+`podman build -t ghcr.io/RealImage/bifrost-ca --target=issuer .`
 
 ### Run CA
 

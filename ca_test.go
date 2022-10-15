@@ -82,8 +82,8 @@ func TestCA_IssueCertificate(t *testing.T) {
 	}
 
 	ca := CA{
-		Crt: *crt,
-		Key: *key,
+		Crt: crt,
+		Key: key,
 	}
 
 	for i, tc := range testCases {
