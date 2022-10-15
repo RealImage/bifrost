@@ -19,8 +19,8 @@ import (
 
 func main() {
   // TODO: handle errors
-  key, _ := ecdsa.GenerateCertificate(elliptic.P256(), rand.Reader)
-  crt, _ := bifrost.RequestSignature(context.Background(), "https://bifrost", key, nil)
+  key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+  crt, _ := bifrost.RequestCertificate(context.Background(), "https://bifrost", key)
   ...
 }
 ```
@@ -33,9 +33,48 @@ API Gateway APIs in mTLS authentication mode is one tool that can handle both of
 
 ### Architecture
 
-[issuer](cmd/issuer) signs certificates with a configured private key and self-signed certificate.
+#### [Issuer](cmd/issuer)
+
+`issuer` signs certificates with a configured private key and self-signed certificate.
 Certificate Requests must be signed with an ECDSA P256 Private Key
 using the ECDSA SHA256 Signature Algorithm.
+
+`issuer` can read the private key and root certificate in PEM form from files or s3.
+It looks for `crt.pem` and `key.pem` in the same directory by default.
+
+```bash
+env CRT_URI=s3://bifrost-trust-store/crt.pem KEY_URI=./key.pem ./issuer
+```
+
+#### [AWS API Gateway HTTP API mTLS](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-mutual-tls.html)
+
+An AWS API Gateway HTTP API configured with a custom domain and mTLS authentication, work well with bifrost.
+API Gateway mTLS expects an `s3://` uri that points to a PEM certificate bundle.
+Client certificates must be signed with at least one of the certificates from the bundle.
+This allows API Gateway and `issuer` to share the same certificate PEM bundle.
+
+##### Key Rotation
+
+Assume that an s3 bucket, `bifrost-trust-store` exists, with versioning turned on.
+
+s3://bifrost-trust-store:
+
+- crt.pem
+- key.pem
+
+crt.pem contains one or more PEM encoded root certificates.
+key.pem contains exactly one PEM encoded private key that corresponds to the first certificate in crt.pem.
+
+To replace the current signing certificate and key:
+
+1. Create the new ECDSA key-pair and self-signed certificate.
+2. Create a new revision of `s3://bifrost-trust-store/crt.pem` containing the new certificate as the first in the file.
+3. Create a new revision of `s3://bifrost-trust-store/key.pem` replacing its contents entirely with that of the new key.
+
+API Gateway will pick up the updated client trust bundle in crt.pem.
+This allows it to trust certificates issued with the new certificate as well as any older certificates.
+Bifrost issuer only uses the first certificate from crt.pem along with key.pem, so it will start issuing
+certificates with the new root.
 
 ### Build
 
@@ -54,22 +93,29 @@ Then pass the certificate and private key as environment variables to the binary
 
 1. Create ECDSA P256 Private Key in PEM format:
 
-        openssl ecparam -out key.pem -name prime256v1 -genkey -noout
+    `openssl ecparam -out key.pem -name prime256v1 -genkey -noout`
 
 2. Create 10 year self-signed certificate from the newly generated key:
 
-        openssl req -new -key key.pem -x509 -nodes -days 3650 -out crt.pem
+    `openssl req -new -key key.pem -x509 -nodes -days 3650 -out crt.pem`
 
-3. Then run the binary passing these new files along:
+3. Run the binary:
 
-        ./issuer
+    `./issuer`
 
-4. Generate a client key, a CSR, and get it signed by the issuer:
+4. Generate a client key, a CSR, and get it signed by `issuer`:
 
-        openssl ecparam -out clientkey.pem -name prime256v1 -genkey -noout
-        openssl req -new -key clientkey.pem -sha256 -out csr.pem
-        curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" localhost:8080 >clientcrt.pem
+    ```bash
+    # ecdsa private key
+    openssl ecparam -out clientkey.pem -name prime256v1 -genkey -noout
+
+    # csr
+    openssl req -new -key clientkey.pem -sha256 -out csr.pem
+  
+    # crt
+    curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" localhost:8080 >clientcrt.pem
+    ```
 
 5. Admire your shiny new client certificate:
 
-        openssl x509 -in clientcrt.pem -noout -text
+    `openssl x509 -in clientcrt.pem -noout -text`
