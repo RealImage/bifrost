@@ -59,13 +59,15 @@ the remaining portion of the authentication system.
 #### [`bfid`](cmd/bfid)
 
 `bfid` prints the UUID derived from a bifrost identity.
-If the `-namespace` option flag isn't provided, NamespaceBifrost is used.
-If environment variable `BFID_NAMESPACE=<uuid>` is set, it has precedence over the flag.
 
 `bfid` takes only one input file and prints the UUID associated with it.
 The input file must be a PEM encoded file containing an ECDSA public key or private key.
 Public keys must be in PKIX DER, ASN.1 format.
 Private keys can either be in SEC.1 or PKCS#8 DER, ASN.1 format.
+
+The Bifrost Identifier Namespace may be set by passing the `-namespace` option flag
+or the environment variable `BFID_NAMESPACE`. The environment variable takes precedence over the flag.
+If unset, `bifrost.Namespace` is used.
 
 #### [`issuer`](cmd/issuer)
 
@@ -75,6 +77,14 @@ using the ECDSA SHA256 Signature Algorithm.
 
 `issuer` can read the private key and root certificate in PEM form from files or s3.
 It looks for `crt.pem` and `key.pem` in the same directory by default.
+
+The `BFID_NAMESPACE` environment variable sets the Bifrost Identifier Namespace to use.
+If unset, `bifrost.Namespace` is used.
+
+`issuer` exposes prometheus format metrics at the `/metrics` path.
+This can be used as a health check endpoint for the service.
+Metrics can also be pushed to your server using the `METRICS_PUSH_URL` environment variable.
+`issuer` uses the Victoria Metrics [metrics](https://github.com/VictoriaMetrics/metrics) package.
 
 ```bash
 env CRT_URI=s3://bifrost-trust-store/crt.pem KEY_URI=./key.pem ./issuer
@@ -156,3 +166,13 @@ Then pass the certificate and private key as environment variables to the binary
 5. Admire your shiny new client certificate:
 
     `openssl x509 -in clientcrt.pem -noout -text`
+
+## Fishy Benchmarks
+
+A toy benchmark for your favourite toy CA.
+
+![my-first-benchmark.jpg](docs/my-first-benchmark.jpg)
+
+`issuer` issued a thousand certificates on my Macbook Pro M1 Pro in 8s.
+With a mean response time of 8ms this is objectively the fastest CA on the planet.
+Statisticians hate this one weird trick.

@@ -16,6 +16,6 @@ COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.3.3 /lambda-adapter /opt
 COPY --from=builder /src/bfid /
 COPY --from=builder /src/issuer /
 ENV PORT=8080
-ENV READINESS_CHECK_PATH="/health"
+ENV READINESS_CHECK_PATH="/metrics"
 ENV REMOVE_BASE_PATH=""
 ENTRYPOINT ["/issuer"]

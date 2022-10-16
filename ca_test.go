@@ -105,7 +105,7 @@ func TestCA_IssueCertificate(t *testing.T) {
 			}
 			req.Header.Set(ctHeader, tc.contentType)
 			rr := httptest.NewRecorder()
-			ca.IssueCertificate(rr, req)
+			ca.ServeHTTP(rr, req)
 			resp := rr.Result()
 
 			if ct := resp.Header.Get(ctHeader); ct != "" && ct != tc.contentType {

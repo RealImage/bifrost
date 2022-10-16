@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/cafiles"
@@ -12,11 +13,12 @@ import (
 )
 
 var spec = struct {
-	Host        string    `default:"127.0.0.1"`
-	Port        int16     `default:"7777"`
-	CrtUri      string    `envconfig:"CRT_URI" default:"crt.pem"`
-	KeyUri      string    `envconfig:"KEY_URI" default:"key.pem"`
-	IDNamespace uuid.UUID `envconfig:"BFID_NAMESPACE"`
+	Host           string    `default:"127.0.0.1"`
+	Port           int16     `default:"7777"`
+	MetricsPushUrl string    `envconfig:"METRICS_PUSH_URL"`
+	CrtUri         string    `envconfig:"CRT_URI" default:"crt.pem"`
+	KeyUri         string    `envconfig:"KEY_URI" default:"key.pem"`
+	IDNamespace    uuid.UUID `envconfig:"BFID_NAMESPACE"`
 }{}
 
 func main() {
@@ -32,6 +34,12 @@ func main() {
 		log.Fatalf("error getting key: %s", err)
 	}
 
+	if url := spec.MetricsPushUrl; url != "" {
+		pushInterval := time.Second * 15
+		log.Printf("pushing metrics to %s every %.2fs\n", url, pushInterval.Seconds())
+		bifrost.Metrics.InitPush(url, pushInterval, "")
+	}
+
 	ca := bifrost.CA{
 		Crt:               crt,
 		Key:               key,
@@ -40,9 +48,9 @@ func main() {
 
 	address := fmt.Sprintf("%s:%d", spec.Host, spec.Port)
 	log.Printf("server listening on %s\n", address)
-	http.HandleFunc("/", ca.IssueCertificate)
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "OK!")
+	http.Handle("/", ca)
+	http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		bifrost.Metrics.WritePrometheus(w)
 	})
 
 	if err := http.ListenAndServe(address, nil); err != http.ErrServerClosed {

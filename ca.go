@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/google/uuid"
 )
 
@@ -30,17 +31,33 @@ const (
 	defaultIssueDuration = time.Duration(730)
 )
 
+var (
+	// Metrics captures metrics on bifrost execution
+	Metrics = metrics.NewSet()
+
+	requestDuration = Metrics.NewSummary("bifrost_requests_duration_seconds")
+)
+
 // CA is the world's simplest Certificate Authority.
 // The only supported operation is to issue client certificates.
 // Client certificates are signed by the configured root certificate and private key.
-// and self signed root certificate configured.
-// The root certificate and private key are not validated. This is your responsibility.
+//
+// Client Certificate Template:
+//
+// Issuer is set to the Subject of the root certificate.
+// Subject CommonName is set to the UUID of the client public key.
+// Signature Algorithm: ECDSA with SHA256
+// PublicKey Algorithm: ECDSA
+// KeyUsage: DigitalSignature | KeyEncipherment | DataEncipherment
+// ExtendedKeyUsage: ClientAuth
+// NotBefore: now
+// NotAfter: 1 month from now (default)
 type CA struct {
 	Crt *x509.Certificate
 	Key *ecdsa.PrivateKey
 
 	// IdentityNamespace is the identity namespace for this CA.
-	// If unset, NamespaceBifrost is used.
+	// If unset, Namespace is used.
 	IdentityNamespace uuid.UUID
 
 	// IssueDuration is the duration of the certificate's validity starting at the time of issue.
@@ -48,22 +65,16 @@ type CA struct {
 	IssueDuration time.Duration
 }
 
-// IssueCertificate issues a certificate if a valid certificate request is read from the request.
+// ServeHTTP issues a certificate if a valid certificate request is read from the request.
 //
 // Requests carrying a content-type of "text/plain" should have a PEM encoded certificate request.
 // Requests carrying a content-type of "application/octet-stream" should submit the ASN.1 DER
 // encoded form instead.
 //
-// Certificate Template:
-// Issuer is Subject of the root certificate
-// Subject CommonName alone is set to the UUID of the client public key
-// Signature Algorithm: ECDSA with SHA256
-// PublicKey Algorithm: ECDSA
-// KeyUsage: DigitalSignature | KeyEncipherment | DataEncipherment
-// ExtendedKeyUsage: ClientAuth
-// NotBefore: now
-// NotAfter: 1 month from now
-func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
+// Request [metrics](https://github.com/VictoriaMetrics/metrics) are exposed via `bifrost.Metrics`.
+func (c CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
+
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		fmt.Fprintf(w, "method %s not allowed", r.Method)
@@ -111,12 +122,13 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 	// this should not fail because of the above check
 	ecdsaPubKey := csr.PublicKey.(*ecdsa.PublicKey)
 
-	// set default id namespace if empty
-	if c.IdentityNamespace == uuid.Nil {
-		c.IdentityNamespace = NamespaceBifrost
+	// use bifrost id namespace if empty
+	idNamespace := c.IdentityNamespace
+	if idNamespace == uuid.Nil {
+		idNamespace = Namespace
 	}
 
-	clientID := UUID(c.IdentityNamespace, *ecdsaPubKey).String()
+	clientID := UUID(idNamespace, *ecdsaPubKey).String()
 	if subName := csr.Subject.CommonName; clientID != csr.Subject.CommonName {
 		w.WriteHeader(http.StatusForbidden)
 		fmt.Fprintf(w, "subject common name is %s but should be %s, wrong namespace?\n", subName, clientID)
@@ -132,13 +144,14 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// set default issue duration if empty
-	if c.IssueDuration == 0 {
-		c.IssueDuration = defaultIssueDuration
+	issueDuration := c.IssueDuration
+	if issueDuration == 0 {
+		issueDuration = defaultIssueDuration
 	}
 
 	// calculate expiry
 	notBefore := time.Now()
-	notAfter := notBefore.Add(c.IssueDuration)
+	notAfter := notBefore.Add(issueDuration)
 
 	clientCertTemplate := x509.Certificate{
 		Issuer:  c.Crt.Subject,
@@ -179,6 +192,8 @@ func (c *CA) IssueCertificate(w http.ResponseWriter, r *http.Request) {
 	if err := pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt}); err != nil {
 		log.Printf("error writing pem cert response %s\n", err)
 	}
+
+	requestDuration.Update(time.Since(startTime).Seconds())
 }
 
 func readCSR(contentType string, body []byte) (*x509.CertificateRequest, error) {
