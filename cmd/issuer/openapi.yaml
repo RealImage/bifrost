@@ -91,3 +91,14 @@ paths:
             "text/plain":
               schema:
                 type: string
+  /metrics:
+    get: 
+      operationId: metrics
+      summary: Prometheus text exposition format metrics
+      responses: 
+        200: 
+          description: Return bifrost issuer metrics
+          content:
+            "text/plain":
+              schema:
+                type: string

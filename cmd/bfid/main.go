@@ -32,7 +32,7 @@ func init() {
 		flag.PrintDefaults()
 		fmt.Fprint(os.Stderr, usageTrailer)
 	}
-	flag.StringVar(&namespace, "namespace", bifrost.NamespaceBifrost.String(),
+	flag.StringVar(&namespace, "namespace", bifrost.Namespace.String(),
 		"Bifrost Identity Namespace")
 	flag.Parse()
 }
