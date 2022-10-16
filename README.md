@@ -58,8 +58,14 @@ the remaining portion of the authentication system.
 
 #### [`bfid`](cmd/bfid)
 
-`bfid` returns the UUID for a private key.
-If namespace isn't provided, NamespaceBifrost is used.
+`bfid` prints the UUID derived from a bifrost identity.
+If the `-namespace` option flag isn't provided, NamespaceBifrost is used.
+If environment variable `BFID_NAMESPACE=<uuid>` is set, it has precedence over the flag.
+
+`bfid` takes only one input file and prints the UUID associated with it.
+The input file must be a PEM encoded file containing an ECDSA public key or private key.
+Public keys must be in PKIX DER, ASN.1 format.
+Private keys can either be in SEC.1 or PKCS#8 DER, ASN.1 format.
 
 #### [`issuer`](cmd/issuer)
 
@@ -117,6 +123,8 @@ certificates with the new root.
 
 ### Run CA
 
+`issuer` is the server and `curl` + `bfid` are the client.
+
 First create the CA material.
 Then pass the certificate and private key as environment variables to the binary.
 
@@ -138,10 +146,7 @@ Then pass the certificate and private key as environment variables to the binary
     # ecdsa private key
     openssl ecparam -out clientkey.pem -name prime256v1 -genkey -noout
 
-    # generate bifrost uuid
-    ./bifd clientkey.pem
-
-    # certificate signing request
+    # certificate request with CommonName set to UUID of public key using `bfid`
     openssl req -new -key clientkey.pem -sha256 -subj "/CN=$(./bfid clientkey.pem)" -out csr.pem
   
     # fetch certificate
