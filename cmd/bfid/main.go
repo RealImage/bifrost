@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/RealImage/bifrost"
 	"github.com/google/uuid"
@@ -50,7 +51,16 @@ func main() {
 	var filedata []byte
 	switch len(os.Args) {
 	case 1:
-		filedata, err = io.ReadAll(os.Stdin)
+		done := make(chan struct{})
+		go func() {
+			filedata, err = io.ReadAll(os.Stdin)
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(time.Second * 2):
+			err = fmt.Errorf("timed out waiting for stdin")
+		}
 	case 2:
 		filedata, err = os.ReadFile(os.Args[1])
 	default:
