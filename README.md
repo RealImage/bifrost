@@ -1,28 +1,29 @@
 # Bifrost
 
 Bifrost is a tiny mTLS authentication toolkit.
-The Go library can be used to fetch signed certificates from a bifrost issuer CA server.
+The CA [`issuer`](#issuer) issues signed certificates.
+The [`bifrost`](#bifrost-go) Go library fetches signed certificates an issuer.
 
 ![My First CA](docs/my-first-ca.jpg)
 
 ## Namespaces & Identities
 
-Namespaces allow bifrost to support multiple tenants easily.
-Bifrost calls them identity namespaces because they are used to identify bifrost clients uniquely.
-Names in a bifrost namespace are synthesized by appending the X and Y curve points
+Identity Namespaces allow bifrost to support multiple tenants.
+The combination of a Namespace and a Name must be universally unique.
+Bifrost Identity names are synthesized from the SHA1 hash of the public key.
+Specifically, names are synthesized by appending the X and Y curve points
 of a client's ecdsa P256 public key in binary big-endian form sequentially.
 
-Client identities are generated as deterministic identities derived from private keys.
-A key-pair's public key X and Y curve points are hashed along with the identity namespace.
+The namespace and name are SHA1 hashed to produce the identity UUID.
 The tuple of NamespaceID and Client Public Key will produce stable deterministic UUIDs.
 
 In pseudo-code,
 
 `newUUID = UUIDv5(sha1(NamespaceClientIdentity, PublicKey.X.Bytes() + PublicKey.Y.Bytes())`
 
-## Use library
+## Bifrost Go
 
-Use bifrost to request a certificate from a Bifrost CA.
+Use `bifrost` to request a certificate from a Bifrost CA.
 
 ```go
 import (
