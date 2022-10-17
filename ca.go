@@ -28,7 +28,7 @@ const (
 	ctOctet  = "application/octet-stream"
 
 	// 730 hours is ~ 1 month
-	defaultIssueDuration = time.Duration(730)
+	defaultIssueDuration = time.Duration(730 * time.Hour)
 )
 
 var (
@@ -51,7 +51,8 @@ var (
 // KeyUsage: DigitalSignature | KeyEncipherment | DataEncipherment
 // ExtendedKeyUsage: ClientAuth
 // NotBefore: now
-// NotAfter: 1 month from now (default)
+// NotAfter: 1 month from now (default, minimum 1 hour)
+// Mini
 type CA struct {
 	Crt *x509.Certificate
 	Key *ecdsa.PrivateKey
@@ -145,7 +146,7 @@ func (c CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// set default issue duration if empty
 	issueDuration := c.IssueDuration
-	if issueDuration == 0 {
+	if issueDuration == 0 || issueDuration < time.Hour {
 		issueDuration = defaultIssueDuration
 	}
 

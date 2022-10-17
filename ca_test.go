@@ -17,21 +17,14 @@ import (
 )
 
 var testCases = []struct {
-	contentType  string
-	requestBody  []byte
-	expectedCode int
-	expectedBody []byte
+	contentType   string
+	requestMethod string
+	requestBody   []byte
+	expectedCode  int
+	expectedBody  []byte
 }{
+	// good request
 	{
-		expectedCode: http.StatusBadRequest,
-	},
-	{
-		contentType:  ctPlain,
-		requestBody:  []byte(""),
-		expectedCode: http.StatusBadRequest,
-	},
-	{
-		contentType: ctPlain,
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIHpMIGRAgEAMC8xLTArBgNVBAMMJGY0MjhjYjJjLWU4N2QtNWU3NC04ODcwLTRh
 OTNkZTJjMGZjMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABE7LuwRmLiltBYWi
@@ -40,20 +33,23 @@ cxVE1segADAKBggqhkjOPQQDAgNHADBEAiBbytm3m7IC3jd5+6KO9BYeh1Pq5nnJ
 bRPubf2g/+QjlwIgBDQQN7a1Y2hD8CwX/5Wl/NUL4518VNuptjUC83lYk3E=
 -----END CERTIFICATE REQUEST-----`),
 	},
+	// bad
 	{
-		contentType: ctPlain,
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIHIMHACAQAwDjEMMAoGA1UEAwwDYWJjMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcD
-QgAEVJQBcKxJshLf1q7n2Ny82x8gSdCeORhzTx3UOMDwHB+z2w6jZpsnDYvU5rzz
-brdUoaBjkA82y67IR2FOJajGDaAAMAoGCCqGSM49BAMCA0gAMEUCIQDOM2Un8MXG
-EjA3auHdzeQX6BLlgCHP3A/q5nthVhB7KwIgOBb0xt0IOKEy7EVdn8QRA8FnmSwK
-MpvZPekgC/o5cnM=
------END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusForbidden,
-		expectedBody: []byte(("subject common name is abc but should be 3d2f781d-f2ed-5891-a164-19e51ac9033a, wrong namespace?\n")),
+		requestMethod: http.MethodGet,
+		expectedCode:  http.StatusMethodNotAllowed,
 	},
 	{
-		contentType: ctPlain,
+		contentType:  "application/json",
+		expectedCode: http.StatusUnsupportedMediaType,
+	},
+	{
+		expectedCode: http.StatusBadRequest,
+	},
+	{
+		requestBody:  []byte(""),
+		expectedCode: http.StatusBadRequest,
+	},
+	{
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIHJMHACAQAwDjEMMAoGA1UECgwDYXNkMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcD
 QgAEVJQBcKxJshLf1q7n2Ny82x8gSdCeORhzTx3UOMDwHB+z2w6jZpsnDYvU5rzz
@@ -64,16 +60,29 @@ kectkmknatSWyA0L
 		expectedCode: http.StatusBadRequest,
 		expectedBody: []byte("unsupported signature algorithm: ECDSA-SHA512, use ECDSA-SHA256 instead\n"),
 	},
+	{
+		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+MIHIMHACAQAwDjEMMAoGA1UEAwwDYWJjMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcD
+QgAEVJQBcKxJshLf1q7n2Ny82x8gSdCeORhzTx3UOMDwHB+z2w6jZpsnDYvU5rzz
+brdUoaBjkA82y67IR2FOJajGDaAAMAoGCCqGSM49BAMCA0gAMEUCIQDOM2Un8MXG
+EjA3auHdzeQX6BLlgCHP3A/q5nthVhB7KwIgOBb0xt0IOKEy7EVdn8QRA8FnmSwK
+MpvZPekgC/o5cnM=
+-----END CERTIFICATE REQUEST-----`),
+		expectedCode: http.StatusForbidden,
+		expectedBody: []byte(("subject common name is abc but should be 3d2f781d-f2ed-5891-a164-19e51ac9033a, wrong namespace?\n")),
+	},
 }
 
 func TestCA_IssueCertificate(t *testing.T) {
 	randReader := rand.New(rand.NewSource(42))
 
+	// create new private key
 	key, err := ecdsa.GenerateKey(elliptic.P256(), randReader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// create root certificate
 	template := x509.Certificate{
 		SerialNumber:          big.NewInt(2),
 		Subject:               pkix.Name{CommonName: "Issuer Test CA"},
@@ -87,10 +96,7 @@ func TestCA_IssueCertificate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	crt, err := x509.ParseCertificate(crtDer)
-	if err != nil {
-		t.Fatal(err)
-	}
+	crt, _ := x509.ParseCertificate(crtDer)
 
 	ca := CA{
 		Crt: crt,
@@ -99,11 +105,18 @@ func TestCA_IssueCertificate(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			req, err := http.NewRequest(http.MethodPost, "/", bytes.NewReader(tc.requestBody))
+			method := http.MethodPost
+			if tc.requestMethod != "" {
+				method = tc.requestMethod
+			}
+
+			req, err := http.NewRequest(method, "/", bytes.NewReader(tc.requestBody))
 			if err != nil {
 				t.Fatal(err)
 			}
-			req.Header.Set(ctHeader, tc.contentType)
+			if ct := tc.contentType; ct != "" {
+				req.Header.Set(ctHeader, ct)
+			}
 			rr := httptest.NewRecorder()
 			ca.ServeHTTP(rr, req)
 			resp := rr.Result()
