@@ -174,6 +174,7 @@ A toy benchmark for your favourite toy CA.
 
 ![my-first-benchmark.jpg](docs/my-first-benchmark.jpg)
 
-`issuer` issued a thousand certificates on my Macbook Pro M1 Pro in 8s.
+`issuer` issued 10,000 certificates on my Macbook Pro M1 Pro in ~82s.
+The slowest request completed in 115ms.
 With a mean response time of 8ms this is objectively the fastest CA on the planet.
 Statisticians hate this one weird trick.
