@@ -37,7 +37,9 @@ func main() {
 	if url := spec.MetricsPushUrl; url != "" {
 		pushInterval := time.Second * 15
 		log.Printf("pushing metrics to %s every %.2fs\n", url, pushInterval.Seconds())
-		bifrost.Metrics.InitPush(url, pushInterval, "")
+		if err := bifrost.Metrics.InitPush(url, pushInterval, ""); err != nil {
+			log.Fatalf("error setting up metrics push: %s\n", err)
+		}
 	}
 
 	ca := bifrost.CA{
