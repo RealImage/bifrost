@@ -2,7 +2,7 @@
 
 Bifrost is a tiny mTLS authentication toolkit.
 The CA [`issuer`](#issuer) issues signed certificates.
-The [`bifrost`](#bifrost-go) Go library fetches signed certificates an issuer.
+The [`bifrost`](#bifrost-go) Go library fetches signed certificates from an issuer.
 
 ![My First CA](docs/my-first-ca.jpg)
 
@@ -30,17 +30,17 @@ import (
   "crypto/ecdsa"
   "crypto/elliptic"
 
+  "github.com/google/uuid"
   "github.com/RealImage/bifrost"
 )
 
 // identity namespaces allow clients to use the same keys and authenticate with many bifrost CAs.
-Namespace_ID = uuid.MustParse("b934ff92-44b5-4b66-a1d6-6bf91b20bb6d")
+IdentityNamespace = uuid.MustParse("228b9676-998e-489a-8468-92d46a94a32d")
 
 func main() {
   // TODO: handle errors
-  idNamespace = uuid.Must()
   key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-  crt, _ := bifrost.RequestCertificate(context.Background(), "https://bifrost", Namespace_ID, key)
+  crt, _ := bifrost.RequestCertificate(ctx, "https://bifrost", IdentityNamespace, key)
   ...
 }
 ```
