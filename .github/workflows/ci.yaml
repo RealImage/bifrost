@@ -32,10 +32,11 @@ jobs:
           version: ${{ env.golangcilint_version }}
       - name: Make binaries
         run: |
-          go test ./... -race -cover
-          go build ./cmd/issuer
+          go test -race -cover ./...
+          mkdir -p build
+          go build -o build ./...
       - name: Upload binaries
         uses: actions/upload-artifact@v3
         with:
           name: bifrost
-          path: issuer
+          path: build/*

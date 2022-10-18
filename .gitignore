@@ -1,4 +1,2 @@
 *.pem
-/issuer*
-/bfid*
-/bouncer*
+/build
