@@ -3,6 +3,7 @@
 Bifrost is a tiny mTLS authentication toolkit.
 The CA [`issuer`](#issuer) issues signed certificates.
 The [`bifrost`](#bifrost-go) Go library fetches signed certificates from an issuer.
+[`bouncer`](#bouncer) is a tiny mTLS authenticating reverse proxy for development.
 
 ![My First CA](docs/my-first-ca.jpg)
 
@@ -70,6 +71,15 @@ The Bifrost Identifier Namespace may be set by passing the `-namespace` option f
 or the environment variable `BFID_NAMESPACE`. The environment variable takes precedence over the flag.
 If unset, `bifrost.Namespace` is used.
 
+#### [`bouncer`](cmd/bouncer)
+
+`bouncer` is a TLS reverse proxy that authenticates requests using client certificates.
+Authenticated requests are proxied to the backend url.
+
+```bash
+env BACKEND_URL=http://127.0.0.1:5000 ./bouncer
+```
+
 #### [`issuer`](cmd/issuer)
 
 `issuer` signs certificates with a configured private key and self-signed certificate.
@@ -125,12 +135,14 @@ certificates with the new root.
 
 #### Go toolchain
 
+`go build ./cmd/bfid`
+`go build ./cmd/bouncer`
 `go build ./cmd/issuer`
-`go build ./cmd/bifd`
 
 #### Container
 
-`podman build -t ghcr.io/RealImage/bifrost .`
+`podman build -t gcr.io/RealImage/bifrost-bouncer --target=bouncer .`
+`podman build -t ghcr.io/RealImage/bifrost-issuer --target=issuer .`
 
 ### Run CA
 

@@ -55,6 +55,6 @@ func main() {
 	}
 
 	if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
-		log.Printf("error listening and serving: %s\n", err)
+		log.Fatal(err)
 	}
 }

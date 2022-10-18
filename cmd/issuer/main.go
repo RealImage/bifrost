@@ -52,7 +52,7 @@ func main() {
 		bifrost.Metrics.WritePrometheus(w)
 	})
 
-	if err := http.ListenAndServe(address, nil); err != http.ErrServerClosed {
+	if err := http.ListenAndServe(address, nil); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
 }
