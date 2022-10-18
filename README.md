@@ -1,5 +1,7 @@
 # Bifrost
 
+[![CI](https://github.com/RealImage/WireApp/actions/workflows/ci.yaml/badge.svg)](https://github.com/RealImage/WireApp/actions/workflows/ci.yaml) [![Container Images](https://github.com/RealImage/WireApp/actions/workflows/images.yaml/badge.svg)](https://github.com/RealImage/WireApp/actions/workflows/images.yaml)
+
 Bifrost is a tiny mTLS authentication toolkit.
 The CA [`issuer`](#issuer) issues signed certificates.
 The [`bifrost`](#bifrost-go) Go library fetches signed certificates from an issuer.
