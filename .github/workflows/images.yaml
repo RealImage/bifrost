@@ -49,7 +49,7 @@ jobs:
         with:
           image: ${{ env.IMAGE_BASE_NAME }}-bouncer
           build-args: go_version=${{ env.go_version }}
-          extra-args: --target=bouncer``
+          extra-args: --target=bouncer
           tags: >
             latest
             ${{ env.SHORT_SHA }}
