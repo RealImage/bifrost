@@ -8,21 +8,18 @@ import (
 
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/cafiles"
-	"github.com/google/uuid"
+	"github.com/RealImage/bifrost/internal/config"
 	"github.com/kelseyhightower/envconfig"
 )
 
 var spec = struct {
-	Host           string    `default:"127.0.0.1"`
-	Port           int16     `default:"7777"`
-	MetricsPushUrl string    `envconfig:"METRICS_PUSH_URL"`
-	CrtUri         string    `envconfig:"CRT_URI" default:"crt.pem"`
-	KeyUri         string    `envconfig:"KEY_URI" default:"key.pem"`
-	IDNamespace    uuid.UUID `envconfig:"BFID_NAMESPACE"`
+	config.Spec
+	Port           int16  `default:"7777"`
+	MetricsPushUrl string `envconfig:"METRICS_PUSH_URL"`
 }{}
 
 func main() {
-	envconfig.MustProcess("", &spec)
+	envconfig.MustProcess(config.Prefix, &spec)
 
 	crt, err := cafiles.GetCrtUri(spec.CrtUri)
 	if err != nil {
