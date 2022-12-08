@@ -1,21 +1,12 @@
 ARG GO_VERSION="1.19"
 
 FROM docker.io/library/golang:${GO_VERSION}-alpine as builder
-ARG ZIG_VERSION="0.10.0"
-RUN apk add --quiet --no-cache --update \
-  build-base git
-RUN wget -qO- https://ziglang.org/download/${ZIG_VERSION}/zig-linux-x86_64-${ZIG_VERSION}.tar.xz \
-  | unxz | tar x -C /usr/local/bin --strip-components 1 \
-  zig-linux-x86_64-${ZIG_VERSION}/zig \
-  zig-linux-x86_64-${ZIG_VERSION}/lib
+RUN apk add --quiet --no-cache --update git
 WORKDIR /src
 COPY . .
 ENV GOPRIVATE="github.com/RealImage/*"
 RUN mkdir /build
-RUN env CGO_ENABLED=1 \
-  CC="zig cc -target x86_64-linux-musl" \
-  CXX="zig c++ -target x86_64-linux-musl" \
-  go build -o /build ./...
+RUN go build -o /build ./...
 
 FROM gcr.io/distroless/static as bouncer
 COPY --from=builder /build/bouncer /
