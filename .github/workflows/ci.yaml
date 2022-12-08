@@ -76,7 +76,7 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         id: build_bouncer_image
         with:
-          image: ${{ github.repository }}
+          image: ${{ github.repository }}-bouncer
           build-args: GO_VERSION=${{ env.GO_VERSION }}
           extra-args: --target=bouncer
           tags: >
@@ -89,7 +89,7 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         id: build_issuer_image
         with:
-          image: ${{ github.repository }}
+          image: ${{ github.repository }}-issuer
           build-args: GO_VERSION=${{ env.GO_VERSION }}
           extra-args: --target=issuer
           tags: >
