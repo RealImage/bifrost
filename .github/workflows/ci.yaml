@@ -1,4 +1,4 @@
-name: Continuous Integration
+name: CI
 
 on:
   push:
@@ -10,31 +10,94 @@ on:
   release:
 
 env:
-  go_version: 1.19
-  golangcilint_version: v1.48.0
+  GO_VERSION: 1.19
 
 jobs:
-  build:
-    name: Test, and build everything.
+  lint:
+    name: Lint Go code.
     runs-on: ubuntu-latest
+    env:
+      GOLANGCILINT_VERSION: v1.50
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Setup go
         uses: actions/setup-go@v3
         with:
-          go-version: ${{ env.go_version }}
+          go-version: ${{ env.GO_VERSION }}
       - name: Lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: ${{ env.golangcilint_version }}
-      - name: Make binaries
+          version: ${{ env.GOLANGCILINT_VERSION }}
+
+  build:
+    name: Build binary
+    runs-on: ubuntu-latest
+    env:
+      ZIG_VERSION: 0.10.0
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Setup zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - name: Build binary
         run: |
-          go test -race -cover ./...
-          mkdir -p build
-          go build -o build ./...
-      - name: Upload binaries
+          env CGO_ENABLED=1 \
+            CC="zig cc -target x86_64-linux-musl" \
+            CXX="zig c++ -target x86_64-linux-musl" \
+            go build
+      - name: Upload binary
         uses: actions/upload-artifact@v3
         with:
           name: bifrost
-          path: build/*
+          path: bifrost
+      - name: Update Github release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          append_body: true
+          generate_release_notes: true
+          files: bifrost
+
+  images:
+    name: Build and push images to ghcr.io
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set environment variables
+        run: |
+          echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)" >>"$GITHUB_ENV"
+      - name: Build image
+        uses: redhat-actions/buildah-build@v2
+        id: build_image
+        with:
+          image: ${{ github.repository }}
+          build-args: |
+            GO_VERSION=${{ env.GO_VERSION }}
+            ZIG_VERSION=${{ env.ZIG_VERSION }}
+          tags: >
+            latest
+            ${{ env.SHORT_SHA }}
+            ${{ github.sha }}
+            ${{ github.event.release.tag_name }}
+          containerfiles: Dockerfile
+      - name: Push image
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          image: ${{ steps.build_image.outputs.image }}
+          tags: ${{ steps.build_image.outputs.tags }}
