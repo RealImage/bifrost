@@ -9,6 +9,10 @@ on:
       - main
   release:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   GO_VERSION: 1.19
 
@@ -57,13 +61,10 @@ jobs:
           generate_release_notes: true
           files: build/**
 
-  images:
+  bouncer_image:
     if: startsWith(github.ref, 'refs/tags/')
-    name: Build and push images to ghcr.io
+    name: Build bouncer image
     runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
-      cancel-in-progress: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -74,24 +75,11 @@ jobs:
           echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)" >>"$GITHUB_ENV"
       - name: Build bouncer image
         uses: redhat-actions/buildah-build@v2
-        id: build_bouncer_image
+        id: build_image
         with:
           image: ${{ github.repository }}-bouncer
           build-args: GO_VERSION=${{ env.GO_VERSION }}
           extra-args: --target=bouncer
-          tags: >
-            latest
-            ${{ env.SHORT_SHA }}
-            ${{ github.sha }}
-            ${{ github.event.release.tag_name }}
-          containerfiles: Dockerfile
-      - name: Build issuer image
-        uses: redhat-actions/buildah-build@v2
-        id: build_issuer_image
-        with:
-          image: ${{ github.repository }}-issuer
-          build-args: GO_VERSION=${{ env.GO_VERSION }}
-          extra-args: --target=issuer
           tags: >
             latest
             ${{ env.SHORT_SHA }}
@@ -104,13 +92,39 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          image: ${{ steps.build_bouncer_image.outputs.image }}
-          tags: ${{ steps.build_bouncer_image.outputs.tags }}
+          image: ${{ steps.build_image.outputs.image }}
+          tags: ${{ steps.build_image.outputs.tags }}
+
+  issuer_image:
+    if: startsWith(github.ref, 'refs/tags/')
+    name: Build issuer image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set environment variables
+        run: |
+          echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)" >>"$GITHUB_ENV"
+      - name: Build issuer image
+        uses: redhat-actions/buildah-build@v2
+        id: build_image
+        with:
+          image: ${{ github.repository }}-issuer
+          build-args: GO_VERSION=${{ env.GO_VERSION }}
+          extra-args: --target=issuer
+          tags: >
+            latest
+            ${{ env.SHORT_SHA }}
+            ${{ github.sha }}
+            ${{ github.event.release.tag_name }}
+          containerfiles: Dockerfile
       - name: Push issuer image
         uses: redhat-actions/push-to-registry@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          image: ${{ steps.build_issuer_image.outputs.image }}
-          tags: ${{ steps.build_issuer_image.outputs.tags }}
+          image: ${{ steps.build_image.outputs.image }}
+          tags: ${{ steps.build_image.outputs.tags }}
