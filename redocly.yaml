@@ -1,0 +1,5 @@
+# See https://redocly.com/docs/cli/configuration/
+
+apis:
+  issuer@0.0.1:
+    root: cmd/issuer/openapi.yaml
