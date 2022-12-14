@@ -12,10 +12,18 @@ The [`bifrost`](#bifrost-go) Go library fetches signed certificates from an issu
 ## Releases
 
 Bifrost binaries are available on the [releases](https://github.com/RealImage/bifrost/releases) page.
-Container images for bouncer and issuer can be pulled from ghcr.io:
+
+Container images can be pulled from ghcr.io.
+
+[bifrost-bouncer](ghcr.io/realimage/bifrost-bouncer):
 
 ```console
 podman pull ghcr.io/realimage/bifrost-bouncer
+```
+
+[bifrost-issuer](ghcr.io/realimage/bifrost-issuer):
+
+```console
 podman pull ghcr.io/realimage/bifrost-issuer
 ```
 
@@ -147,14 +155,26 @@ certificates with the new root.
 
 #### Go toolchain
 
-`go build ./cmd/bfid`
-`go build ./cmd/bouncer`
-`go build ./cmd/issuer`
+Build Go binaries on your machine:
 
-#### Container
+```console
+mkdir build
+go build -o build ./...
+```
 
-`podman build -t gcr.io/RealImage/bifrost-bouncer --target=bouncer .`
-`podman build -t ghcr.io/RealImage/bifrost-issuer --target=issuer .`
+#### Containers
+
+bouncer:
+
+```console
+podman build -t gcr.io/realimage/bifrost-bouncer --target=bouncer .
+```
+
+issuer:
+
+```console
+podman build -t ghcr.io/realimage/bifrost-issuer --target=issuer .
+```
 
 ### Run CA
 
