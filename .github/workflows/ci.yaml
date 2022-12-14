@@ -67,8 +67,8 @@ jobs:
             build/*
             cmd/issuer/openapi.yaml
 
-  images:
-    name: Deploy container image
+  bouncer_image:
+    name: Deploy bouncer container image
     runs-on: ubuntu-latest
     env:
       IMAGE_REGISTRY: <ecr-registry>.ecr.us-east-1.amazonaws.com
@@ -88,9 +88,73 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         id: build_image
         with:
-          image: ${{ github.repository }}
-          build-args: |
-            GO_VERSION=${{ env.GO_VERSION }}
+          image: ${{ github.repository }}-bouncer
+          build-args: GO_VERSION=${{ env.GO_VERSION }}
+          extra-args: --target=bouncer
+          tags: >
+            ${{ env.LATEST_TAG }}
+            ${{ env.SHORT_SHA }}
+            ${{ github.sha }}
+            ${{ env.PR_TAG }}
+            ${{ github.event.release.tag_name }}
+          containerfiles: Dockerfile
+      - name: Push to ghcr.io
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          image: ${{ steps.build_image.outputs.image }}
+          tags: ${{ steps.build_image.outputs.tags }}
+      # on release events deploy to ECR and update lambda function code
+      - name: Log in to AWS ECR
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: redhat-actions/podman-login@v1
+        with:
+          username: ${{ secrets.QW_AWS_ACCESS_KEY_ID_PROD }}
+          password: ${{ secrets.QW_AWS_SECRET_ACCESS_KEY_PROD }}
+          registry: ${{ env.IMAGE_REGISTRY_PROD }}
+      - name: Push to AWS ECR
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          image: ${{ github.event.repository.name }}
+          tags: ${{ github.sha }}
+      - name: Update lambda image
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.QW_AWS_ACCESS_KEY_ID_PROD }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.QW_AWS_SECRET_ACCESS_KEY_PROD }}
+          AWS_REGION: us-east-1
+        run: |
+          aws lambda update-function-code \
+            --function-name="$LAMBDA_FUNC_NAME" \
+            --image-uri="${{ env.IMAGE_REGISTRY }}/${{ github.event.repository.name }}:${{ github.sha }}"
+
+  issuer_image:
+    name: Deploy issuer container image
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_REGISTRY: <ecr-registry>.ecr.us-east-1.amazonaws.com
+      LAMBDA_FUNC_NAME: arn:aws:lambda:us-east-1:071723317281:function:dcp-schema-validator
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+      # set env vars
+      - run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)" >>"$GITHUB_ENV"
+      - if: github.ref == 'refs/heads/main'
+        run: echo "LATEST_TAG=latest" >>"$GITHUB_ENV"
+      - if: github.event_name == 'pull_request'
+        run: echo "PR_TAG=pr-${{ github.event.pull_request.number }}" >>"$GITHUB_ENV"
+      - name: Build image
+        uses: redhat-actions/buildah-build@v2
+        id: build_image
+        with:
+          image: ${{ github.repository }}-issuer
+          build-args: GO_VERSION=${{ env.GO_VERSION }}
           tags: >
             ${{ env.LATEST_TAG }}
             ${{ env.SHORT_SHA }}
