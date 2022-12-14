@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -28,12 +29,15 @@ func main() {
 		log.Fatalf("error parsing backend url: %s", err)
 	}
 
-	crt, err := cafiles.GetCrtUri(spec.CrtUri)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	crt, err := cafiles.GetCertificate(ctx, spec.CrtUri)
 	if err != nil {
 		log.Fatalf("error getting crt: %s", err)
 	}
 
-	key, err := cafiles.GetKeyUri(spec.KeyUri)
+	key, err := cafiles.GetPrivateKey(ctx, spec.KeyUri)
 	if err != nil {
 		log.Fatalf("error getting key: %s", err)
 	}

@@ -2,8 +2,15 @@ package bifrost
 
 import (
 	"crypto/ecdsa"
+	"crypto/x509"
 
 	"github.com/google/uuid"
+)
+
+// Signature and Public Key Algorithms
+const (
+	SignatureAlgorithm = x509.ECDSAWithSHA256
+	PublicKeyAlgorithm = x509.ECDSA
 )
 
 // Namespace is the default UUID Namespace for Bifrost identities.

@@ -1,4 +1,4 @@
-package bifrost
+package tinyca
 
 import (
 	"crypto/ecdsa"
@@ -14,15 +14,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/RealImage/bifrost"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/google/uuid"
 )
 
 const (
-	// Supported Algorithms
-	SignatureAlgorithm = x509.ECDSAWithSHA256
-	PublicKeyAlgorithm = x509.ECDSA
-
 	ctHeader = "Content-Type"
 	ctPlain  = "text/plain"
 	ctOctet  = "application/octet-stream"
@@ -107,16 +104,16 @@ func (c CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if csr.SignatureAlgorithm != SignatureAlgorithm {
+	if csr.SignatureAlgorithm != bifrost.SignatureAlgorithm {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "unsupported signature algorithm: %s, use %s instead\n",
-			csr.SignatureAlgorithm, SignatureAlgorithm)
+			csr.SignatureAlgorithm, bifrost.SignatureAlgorithm)
 		return
 	}
-	if csr.PublicKeyAlgorithm != PublicKeyAlgorithm {
+	if csr.PublicKeyAlgorithm != bifrost.PublicKeyAlgorithm {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "unsupported public key algorithm: %s, use %s instead\n",
-			csr.PublicKeyAlgorithm, PublicKeyAlgorithm)
+			csr.PublicKeyAlgorithm, bifrost.PublicKeyAlgorithm)
 		return
 	}
 
@@ -126,10 +123,10 @@ func (c CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// use bifrost id namespace if empty
 	idNamespace := c.IdentityNamespace
 	if idNamespace == uuid.Nil {
-		idNamespace = Namespace
+		idNamespace = bifrost.Namespace
 	}
 
-	clientID := UUID(idNamespace, *ecdsaPubKey).String()
+	clientID := bifrost.UUID(idNamespace, *ecdsaPubKey).String()
 	if subName := csr.Subject.CommonName; clientID != csr.Subject.CommonName {
 		w.WriteHeader(http.StatusForbidden)
 		fmt.Fprintf(w, "subject common name is %s but should be %s, wrong namespace?\n", subName, clientID)

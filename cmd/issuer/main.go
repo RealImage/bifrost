@@ -1,14 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
+	"github.com/RealImage/bifrost/pkg/tinyca"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -21,12 +22,15 @@ var spec = struct {
 func main() {
 	envconfig.MustProcess(config.Prefix, &spec)
 
-	crt, err := cafiles.GetCrtUri(spec.CrtUri)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	crt, err := cafiles.GetCertificate(ctx, spec.CrtUri)
 	if err != nil {
 		log.Fatalf("error getting crt: %s", err)
 	}
 
-	key, err := cafiles.GetKeyUri(spec.KeyUri)
+	key, err := cafiles.GetPrivateKey(ctx, spec.KeyUri)
 	if err != nil {
 		log.Fatalf("error getting key: %s", err)
 	}
@@ -34,12 +38,12 @@ func main() {
 	if url := spec.MetricsPushUrl; url != "" {
 		pushInterval := time.Second * 15
 		log.Printf("pushing metrics to %s every %.2fs\n", url, pushInterval.Seconds())
-		if err := bifrost.Metrics.InitPush(url, pushInterval, ""); err != nil {
+		if err := tinyca.Metrics.InitPush(url, pushInterval, ""); err != nil {
 			log.Fatalf("error setting up metrics push: %s\n", err)
 		}
 	}
 
-	ca := bifrost.CA{
+	ca := tinyca.CA{
 		Crt:               crt,
 		Key:               key,
 		IdentityNamespace: spec.IDNamespace,
@@ -49,7 +53,7 @@ func main() {
 	log.Printf("server listening on %s\n", address)
 	http.Handle("/", ca)
 	http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-		bifrost.Metrics.WritePrometheus(w)
+		tinyca.Metrics.WritePrometheus(w)
 	})
 
 	if err := http.ListenAndServe(address, nil); err != nil && err != http.ErrServerClosed {
