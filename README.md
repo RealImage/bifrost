@@ -1,6 +1,6 @@
 # Bifrost
 
-[![CI](https://github.com/RealImage/WireApp/actions/workflows/ci.yaml/badge.svg)](https://github.com/RealImage/WireApp/actions/workflows/ci.yaml) [![Container Images](https://github.com/RealImage/WireApp/actions/workflows/images.yaml/badge.svg)](https://github.com/RealImage/WireApp/actions/workflows/images.yaml)
+[![CI](https://github.com/RealImage/WireApp/actions/workflows/ci.yaml/badge.svg)](https://github.com/RealImage/WireApp/actions/workflows/ci.yaml)
 
 Bifrost is a tiny mTLS authentication toolkit.
 The CA [`issuer`](#issuer) issues signed certificates.
@@ -8,6 +8,16 @@ The [`bifrost`](#bifrost-go) Go library fetches signed certificates from an issu
 [`bouncer`](#bouncer) is a tiny mTLS authenticating reverse proxy for development.
 
 ![My First CA](docs/my-first-ca.jpg)
+
+## Releases
+
+Bifrost binaries are available on the [releases](https://github.com/RealImage/bifrost/releases) page.
+Container images for bouncer and issuer can be pulled from ghcr.io:
+
+```console
+podman pull ghcr.io/realimage/bifrost-bouncer
+podman pull ghcr.io/realimage/bifrost-issuer
+```
 
 ## Namespaces & Identities
 
