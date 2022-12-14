@@ -1,6 +1,9 @@
+// cafiles can fetch CA certificate and private key PEM files from many storage backends.
+// PEM encoded CA files can be fetched from local filesystem, AWS S3, or AWS Secrets Manager.
 package cafiles
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -8,15 +11,22 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
 )
 
-// GetCrtUri retrieves a PEM encoded certificate from uri.
-func GetCrtUri(uri string) (*x509.Certificate, error) {
-	crtPem, err := getPemFile(uri)
+const getTImeout = time.Minute
+
+// GetCertificate retrieves a PEM encoded certificate from uri.
+func GetCertificate(ctx context.Context, uri string) (*x509.Certificate, error) {
+	ctx, cancel := context.WithTimeout(ctx, getTImeout)
+	defer cancel()
+
+	crtPem, err := getPemFile(ctx, uri)
 	if err != nil {
 		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
 	}
@@ -29,9 +39,12 @@ func GetCrtUri(uri string) (*x509.Certificate, error) {
 	return crt, nil
 }
 
-// GetKeyUri retrieves a PEM encoded private key from uri.
-func GetKeyUri(uri string) (*ecdsa.PrivateKey, error) {
-	keyPem, err := getPemFile(uri)
+// GetPrivateKey retrieves a PEM encoded private key from uri.
+func GetPrivateKey(ctx context.Context, uri string) (*ecdsa.PrivateKey, error) {
+	ctx, cancel := context.WithTimeout(ctx, getTImeout)
+	defer cancel()
+
+	keyPem, err := getPemFile(ctx, uri)
 	if err != nil {
 		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
 	}
@@ -44,16 +57,21 @@ func GetKeyUri(uri string) (*ecdsa.PrivateKey, error) {
 	return key, nil
 }
 
-func getPemFile(uri string) ([]byte, error) {
-	url, err := parseUri(uri)
+func getPemFile(ctx context.Context, uri string) ([]byte, error) {
+	url, err := url.Parse(uri)
 	if err != nil {
 		return nil, err
 	}
 	var pemData []byte
-	if url.Scheme == "s3" {
-		pemData, err = getS3Key(url.Host, url.Path[1:])
-	} else {
+	switch s := url.Scheme; s {
+	case "s3":
+		pemData, err = getS3Key(ctx, url.Host, url.Path[1:])
+	case "arn":
+		pemData, err = getSecret(ctx, uri)
+	case "", "file":
 		pemData, err = os.ReadFile(url.Path)
+	default:
+		return nil, fmt.Errorf("unsupported uri scheme %s", s)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error fetching pem file: %w", err)
@@ -66,27 +84,13 @@ func getPemFile(uri string) ([]byte, error) {
 	return block.Bytes, nil
 }
 
-func parseUri(uri string) (*url.URL, error) {
-	url, err := url.Parse(uri)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing uri %w", err)
-	}
-
-	switch s := url.Scheme; s {
-	case "", "file", "s3":
-	default:
-		return nil, fmt.Errorf("unknown uri scheme %s", s)
-	}
-
-	return url, nil
-}
-
 var sess = session.Must(session.NewSessionWithOptions(session.Options{
 	SharedConfigState: session.SharedConfigEnable,
 }))
 
-func getS3Key(bucket, key string) ([]byte, error) {
-	rawObject, err := s3.New(sess).GetObject(
+func getS3Key(ctx context.Context, bucket, key string) ([]byte, error) {
+	rawObject, err := s3.New(sess).GetObjectWithContext(
+		ctx,
 		&s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(key),
@@ -100,4 +104,13 @@ func getS3Key(bucket, key string) ([]byte, error) {
 		return nil, err
 	}
 	return body, nil
+}
+
+func getSecret(ctx context.Context, secretARN string) ([]byte, error) {
+	input := secretsmanager.GetSecretValueInput{SecretId: aws.String(secretARN)}
+	val, err := secretsmanager.New(sess).GetSecretValueWithContext(ctx, &input)
+	if err != nil {
+		return nil, err
+	}
+	return val.SecretBinary, nil
 }

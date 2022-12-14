@@ -106,7 +106,7 @@ env BACKEND_URL=http://127.0.0.1:5000 ./bouncer
 Certificate Requests must be signed with an ECDSA P256 Private Key
 using the ECDSA SHA256 Signature Algorithm.
 
-`issuer` can read the private key and root certificate in PEM form from files or s3.
+`issuer` can read the private key and root certificate in PEM form from a variety of sources.
 It looks for `crt.pem` and `key.pem` in the same directory by default.
 
 The `BFID_NAMESPACE` environment variable sets the Bifrost Identifier Namespace to use.
