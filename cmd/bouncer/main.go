@@ -13,6 +13,7 @@ import (
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
+	"github.com/RealImage/bifrost/pkg/club"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -24,7 +25,7 @@ var spec = struct {
 
 func main() {
 	envconfig.MustProcess(config.Prefix, &spec)
-	burl, err := url.Parse(spec.BackendUrl)
+	backendUrl, err := url.Parse(spec.BackendUrl)
 	if err != nil {
 		log.Fatalf("error parsing backend url: %s", err)
 	}
@@ -49,7 +50,7 @@ func main() {
 	log.Printf("server listening on %s proxying requests to %s\n", addr, spec.BackendUrl)
 
 	server := http.Server{
-		Handler: httputil.NewSingleHostReverseProxy(burl),
+		Handler: club.Bouncer(httputil.NewSingleHostReverseProxy(backendUrl)),
 		Addr:    fmt.Sprintf("%s:%d", spec.Host, spec.Port),
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*bifrost.X509ToTLSCertificate(crt, key)},
