@@ -1,6 +1,6 @@
 # Bifrost
 
-[![CI](https://github.com/RealImage/WireApp/actions/workflows/ci.yaml/badge.svg)](https://github.com/RealImage/WireApp/actions/workflows/ci.yaml)
+[![CI](https://github.com/RealImage/bifrost/actions/workflows/ci.yaml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yaml)
 
 Bifrost is a tiny mTLS authentication toolkit.
 The CA [`issuer`](#issuer) issues signed certificates.
@@ -128,28 +128,30 @@ API Gateway mTLS expects an `s3://` uri that points to a PEM certificate bundle.
 Client certificates must be signed with at least one of the certificates from the bundle.
 This allows API Gateway and `issuer` to share the same certificate PEM bundle.
 
-##### Key Rotation
+##### Zero Downtime Key Rotation
 
 Assume that an s3 bucket, `bifrost-trust-store` exists, with versioning turned on.
 
 s3://bifrost-trust-store:
 
 - crt.pem
-- key.pem
 
 crt.pem contains one or more PEM encoded root certificates.
-key.pem contains exactly one PEM encoded private key that corresponds to the first certificate in crt.pem.
+
+The corresponding private key for `crt.pem` is stored as in AWS Secrets Manager and identified
+here as `key.pem`.
+`key.pem` contains exactly one PEM encoded private key that pairs with the first certificate in `crt.pem`.
 
 To replace the current signing certificate and key:
 
 1. Create the new ECDSA key-pair and self-signed certificate.
-2. Create a new revision of `s3://bifrost-trust-store/crt.pem` containing the new certificate as the first in the file.
-3. Create a new revision of `s3://bifrost-trust-store/key.pem` replacing its contents entirely with that of the new key.
+2. Create a new revision of `s3://bifrost-trust-store/crt.pem` adding the new certificate as the first in the file, with older certificates immediately below it. Each cerificate should be separated by a newline.
+3. Create a new revision of `key.pem` in Secrets Manager containing the newly generated key in PEM encoded ASN.1 DER form.
 
 API Gateway will pick up the updated client trust bundle in crt.pem.
-This allows it to trust certificates issued with the new certificate as well as any older certificates.
+This allows it to trust certificates issued with the new certificate in addition to all of the previous certificates that may exist.
 Bifrost issuer only uses the first certificate from crt.pem along with key.pem, so it will start issuing
-certificates with the new root.
+certificates with the new root certificate once its configuration has been updated.
 
 ### Build
 
