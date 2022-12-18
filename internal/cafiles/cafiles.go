@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
@@ -22,6 +23,8 @@ import (
 const getTImeout = time.Minute
 
 // GetCertificate retrieves a PEM encoded certificate from uri.
+// uri can be one of a relative or absolute file path, file://... uri, s3://... uri,
+// or an AWS S3 or AWS Secrets Manager ARN.
 func GetCertificate(ctx context.Context, uri string) (*x509.Certificate, error) {
 	ctx, cancel := context.WithTimeout(ctx, getTImeout)
 	defer cancel()
@@ -40,6 +43,8 @@ func GetCertificate(ctx context.Context, uri string) (*x509.Certificate, error) 
 }
 
 // GetPrivateKey retrieves a PEM encoded private key from uri.
+// uri can be one of a relative or absolute file path, file://... uri, s3://... uri,
+// or an AWS S3 or AWS Secrets Manager ARN.
 func GetPrivateKey(ctx context.Context, uri string) (*ecdsa.PrivateKey, error) {
 	ctx, cancel := context.WithTimeout(ctx, getTImeout)
 	defer cancel()
@@ -60,14 +65,29 @@ func GetPrivateKey(ctx context.Context, uri string) (*ecdsa.PrivateKey, error) {
 func getPemFile(ctx context.Context, uri string) ([]byte, error) {
 	url, err := url.Parse(uri)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing file uri %w", err)
 	}
 	var pemData []byte
 	switch s := url.Scheme; s {
 	case "s3":
 		pemData, err = getS3Key(ctx, url.Host, url.Path[1:])
 	case "arn":
-		pemData, err = getSecret(ctx, uri)
+		// s3 and secretsmanager arns are supported
+		parsedArn, err := arn.Parse(uri)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing arn %w", err)
+		}
+		switch svc := parsedArn.Service; svc {
+		case "s3":
+			pemData, err = getS3Key(ctx, url.Host, url.Path[1:])
+		case "secretsmanager":
+			pemData, err = getSecret(ctx, uri)
+		default:
+			return nil, fmt.Errorf("cannot load pem file from %s", svc)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("error fetching pem file: %w", err)
+		}
 	case "", "file":
 		pemData, err = os.ReadFile(url.Path)
 	default:
