@@ -17,7 +17,8 @@ FROM gcr.io/distroless/static as issuer
 # uses lambda-web-adapter to run our standard HTTP app in a lambda
 # https://github.com/awslabs/aws-lambda-web-adapter
 # for configuration see https://github.com/awslabs/aws-lambda-web-adapter#configurations
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.3.3 /lambda-adapter /opt/extensions/lambda-adapter
+ARG AWS_LAMBDA_WEB_ADAPTER_VERSION=0.6.0
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:$AWS_LAMBDA_WEB_ADAPTER_VERSION /lambda-adapter /opt/extensions/lambda-adapter
 COPY --from=builder /build/issuer /
 ENV PORT=8080
 ENV READINESS_CHECK_PATH="/metrics"
