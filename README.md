@@ -96,9 +96,47 @@ If unset, `bifrost.Namespace` is used.
 `bouncer` is a TLS reverse proxy that authenticates requests using client certificates.
 Authenticated requests are proxied to the backend url.
 
+`bouncer` aims to mimic AWS API Gateway's mTLS mode where the client's TLS certificate
+is verified against a trust store configured for each instance of API Gateway.
+
+The client's certificate is provided to AWS Lambda Functions in the Request Context object.
+Qube Lambdas are usually written as plain HTTP servers running behind the
+[aws-lambda-web-adapter](https://github.com/awslabs/aws-lambda-web-adapter) extension.
+The web adapter extension passes the Lambda Request Context to our code in the
+`x-amzn-request-context` header. Bifrost `bouncer` also adds this header to proxied requests.
+When `bouncer` proxies the requests, only the `requestContext.authentication.clientCert`
+object is populated.
+
+Sample Request Context containing Client Certificate:
+
+```json
+"requestContext": {
+    "authentication": {
+        "clientCert": {
+            "clientCertPem": "-----BEGIN CERTIFICATE-----\nMIIEZTCCAk0CAQEwDQ...",
+            "issuerDN": "C=US,ST=Washington,L=Seattle,O=Amazon Web Services,OU=Security,CN=My Private CA",
+            "serialNumber": "1",
+            "subjectDN": "C=US,ST=Washington,L=Seattle,O=Amazon Web Services,OU=Security,CN=My Client",
+            "validity": {
+                "notAfter": "Aug  5 00:28:21 2120 GMT",
+                "notBefore": "Aug 29 00:28:21 2020 GMT"
+            }
+        }
+    },
+}
+```
+
+Run `bouncer` in front of a HTTP server listening on localhost port 5000:
+
 ```bash
 env BACKEND_URL=http://127.0.0.1:5000 ./bouncer
 ```
+
+References:
+
+aws-lambda-web-adapter Request Context header: <https://github.com/awslabs/aws-lambda-web-adapter#request-context>
+
+AWS API Gateway mTLS Authentication: <https://aws.amazon.com/blogs/compute/introducing-mutual-tls-authentication-for-amazon-api-gateway/>
 
 #### [`issuer`](cmd/issuer)
 
@@ -116,6 +154,8 @@ If unset, `bifrost.Namespace` is used.
 This can be used as a health check endpoint for the service.
 Metrics can also be pushed to your server using the `METRICS_PUSH_URL` environment variable.
 `issuer` uses the Victoria Metrics [metrics](https://github.com/VictoriaMetrics/metrics) package.
+
+Run `issuer` with a certificate from AWS S3 and a private key from a local file:
 
 ```bash
 env CRT_URI=s3://bifrost-trust-store/crt.pem KEY_URI=./key.pem ./issuer
@@ -218,9 +258,9 @@ Then pass the certificate and private key as environment variables to the binary
 
 A toy benchmark for your favourite toy CA.
 
-![my-first-benchmark.jpg](docs/my-first-benchmark.jpg)
+![my-first-benchmark.jpg](docs/my-first-benchmark%20(ca).jpg)
 
-`issuer` issued 10,000 certificates on my Macbook Pro M1 Pro in ~82s.
-The slowest request completed in 115ms.
-With a mean response time of 8ms this is objectively the fastest CA on the planet.
+`issuer` issued 10,000 certificates on my Macbook Pro M1 Pro in ~41s.
+The slowest request completed in 12ms.
+With a mean response time of 4ms this is objectively the fastest CA on the planet.
 Statisticians hate this one weird trick.

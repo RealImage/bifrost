@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/RealImage/bifrost"
-	"github.com/VictoriaMetrics/metrics"
+	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/google/uuid"
 )
 
@@ -28,12 +28,8 @@ const (
 	defaultIssueDuration = time.Duration(730 * time.Hour)
 )
 
-var (
-	// Metrics captures metrics on bifrost execution
-	Metrics = metrics.NewSet()
-
-	requestDuration = Metrics.NewSummary("bifrost_requests_duration_seconds")
-)
+// metrics
+var requestDuration = stats.ForNerds.NewSummary("bifrost_ca_requests_duration_seconds")
 
 // CA is the world's simplest Certificate Authority.
 // The only supported operation is to issue client certificates.
