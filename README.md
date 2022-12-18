@@ -1,6 +1,6 @@
 # Bifrost
 
-[![CI](https://github.com/RealImage/WireApp/actions/workflows/ci.yaml/badge.svg)](https://github.com/RealImage/WireApp/actions/workflows/ci.yaml)
+[![CI](https://github.com/RealImage/bifrost/actions/workflows/ci.yaml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yaml)
 
 Bifrost is a tiny mTLS authentication toolkit.
 The CA [`issuer`](#issuer) issues signed certificates.
