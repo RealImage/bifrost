@@ -29,12 +29,7 @@ var spec = struct {
 func main() {
 	envconfig.MustProcess(config.Prefix, &spec)
 	stats.MaybePushMetrics(spec.MetricsPushUrl, spec.MetricsPushInterval)
-
-	metricsSrv := http.Server{
-		Addr:    fmt.Sprintf("%s:%d", spec.MetricsHost, spec.MetricsPort),
-		Handler: http.HandlerFunc(stats.MetricsHandler),
-	}
-	go metricsSrv.ListenAndServe()
+	go serveMetrics(spec.MetricsHost, spec.MetricsPort)
 
 	backendUrl, err := url.Parse(spec.BackendUrl)
 	if err != nil {
@@ -72,5 +67,15 @@ func main() {
 
 	if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
+	}
+}
+
+func serveMetrics(host string, port int16) {
+	srv := http.Server{
+		Addr:    fmt.Sprintf("%s:%d", host, port),
+		Handler: http.HandlerFunc(stats.MetricsHandler),
+	}
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Printf("error starting metrics server: %s\n", err)
 	}
 }
