@@ -13,21 +13,32 @@ import (
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
+	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/RealImage/bifrost/pkg/club"
 	"github.com/kelseyhightower/envconfig"
 )
 
 var spec = struct {
 	config.Spec
-	Port       int16  `default:"8080"`
-	BackendUrl string `default:"http://127.0.0.1:8888"`
+	Port        int16  `default:"8080"`
+	BackendUrl  string `default:"http://localhost:8888"`
+	MetricsHost string `envconfig:"METRICS_HOST" default:"localhost"`
+	MetricsPort int16  `envconfig:"METRICS_PORT" default:"8989"`
 }{}
 
 func main() {
 	envconfig.MustProcess(config.Prefix, &spec)
+	stats.MaybePushMetrics(spec.MetricsPushUrl, spec.MetricsPushInterval)
+
+	metricsSrv := http.Server{
+		Addr:    fmt.Sprintf("%s:%d", spec.MetricsHost, spec.MetricsPort),
+		Handler: http.HandlerFunc(stats.MetricsHandler),
+	}
+	go metricsSrv.ListenAndServe()
+
 	backendUrl, err := url.Parse(spec.BackendUrl)
 	if err != nil {
-		log.Fatalf("error parsing backend url: %s", err)
+		log.Fatalf("error parsing backend url: %s\n", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -35,12 +46,12 @@ func main() {
 
 	crt, err := cafiles.GetCertificate(ctx, spec.CrtUri)
 	if err != nil {
-		log.Fatalf("error getting crt: %s", err)
+		log.Fatalf("error getting crt: %s\n", err)
 	}
 
 	key, err := cafiles.GetPrivateKey(ctx, spec.KeyUri)
 	if err != nil {
-		log.Fatalf("error getting key: %s", err)
+		log.Fatalf("error getting key: %s\n", err)
 	}
 
 	clientCertPool := x509.NewCertPool()
