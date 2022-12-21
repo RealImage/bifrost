@@ -44,8 +44,8 @@ func Bouncer(rp *httputil.ReverseProxy) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 
-		if len(r.TLS.PeerCertificates) == 0 {
-			panic("TLS Client Authentication is required")
+		if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
+			panic("request must have tls client certificate")
 		}
 
 		peerCert := r.TLS.PeerCertificates[0]
