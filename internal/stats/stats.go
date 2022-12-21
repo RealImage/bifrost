@@ -8,18 +8,17 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-const defaultPushInterval = time.Minute
-
 // ForNerds captures metrics from various bifrost processes
 var ForNerds = metrics.NewSet()
 
-// MaybePushMetrics pushes metrics to url if url is not empty
+// MaybePushMetrics pushes metrics to url if url is not empty.
+// If interval is zero, a one minute interval is used
 func MaybePushMetrics(url string, interval time.Duration) {
 	if url == "" {
 		return
 	}
 	if interval == 0 {
-		interval = defaultPushInterval
+		interval = time.Minute
 	}
 
 	log.Printf("pushing metrics to %s every %.2fs\n", url, interval.Seconds())
