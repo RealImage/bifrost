@@ -29,8 +29,7 @@ var spec = struct {
 func main() {
 	envconfig.MustProcess(config.Prefix, &spec)
 	if sha, timestamp, ok := config.GetBuildInfo(); ok {
-		log.Println("commit sha: ", sha)
-		log.Println("commit time: ", timestamp)
+		log.Printf("commit sha: %s, timestamp %s", sha, timestamp)
 	}
 	stats.MaybePushMetrics(spec.MetricsPushUrl, spec.MetricsPushInterval)
 	go serveMetrics(spec.MetricsHost, spec.MetricsPort)

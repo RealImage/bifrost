@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -23,40 +24,36 @@ const (
 	ctHeader = "Content-Type"
 	ctPlain  = "text/plain"
 	ctOctet  = "application/octet-stream"
-
-	// 730 hours is ~ 1 month
-	defaultIssueDuration = time.Duration(730 * time.Hour)
 )
 
 // metrics
 var requestDuration = stats.ForNerds.NewSummary("bifrost_ca_requests_duration_seconds")
 
+// New returns a new CA.
+// The CA issues certificates for the given namespace.
+// If namespace is uuid.Nil, the CA issues certificates for the default namespace.
+func New(ns uuid.UUID, crt *x509.Certificate, key *ecdsa.PrivateKey, dur time.Duration) CA {
+	if ns == uuid.Nil {
+		ns = bifrost.Namespace
+	}
+	return CA{
+		ns:  ns,
+		crt: crt,
+		key: key,
+		dur: dur,
+	}
+}
+
 // CA is the world's simplest Certificate Authority.
 // The only supported operation is to issue client certificates.
 // Client certificates are signed by the configured root certificate and private key.
-//
-// Client Certificate Template:
-//
-// Issuer is set to the Subject of the root certificate.
-// Subject CommonName is set to the UUID of the client public key.
-// Signature Algorithm: ECDSA with SHA256
-// PublicKey Algorithm: ECDSA
-// KeyUsage: DigitalSignature | KeyEncipherment | DataEncipherment
-// ExtendedKeyUsage: ClientAuth
-// NotBefore: now
-// NotAfter: 1 month from now (default, minimum 1 hour)
-// Mini
 type CA struct {
-	Crt *x509.Certificate
-	Key *ecdsa.PrivateKey
-
-	// IdentityNamespace is the identity namespace for this CA.
-	// If unset, Namespace is used.
-	IdentityNamespace uuid.UUID
-
-	// IssueDuration is the duration of the certificate's validity starting at the time of issue.
-	// If zero, the default value is used.
-	IssueDuration time.Duration
+	// ns is the namespace for which the CA issues certificates.
+	ns  uuid.UUID
+	crt *x509.Certificate
+	key *ecdsa.PrivateKey
+	// dur is the duration for which the issued certificate is valid.
+	dur time.Duration
 }
 
 // ServeHTTP issues a certificate if a valid certificate request is read from the request.
@@ -66,7 +63,7 @@ type CA struct {
 // encoded form instead.
 //
 // Request [metrics](https://github.com/VictoriaMetrics/metrics) are exposed via `bifrost.Metrics`.
-func (c CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
 	if r.Method != http.MethodPost {
@@ -91,7 +88,6 @@ func (c CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error reading request body: %s\n", err)
 		return
 	}
-
 	csr, err := readCSR(contentType, body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -99,94 +95,30 @@ func (c CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error reading csr: %s\n", err)
 		return
 	}
-
-	if csr.SignatureAlgorithm != bifrost.SignatureAlgorithm {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "unsupported signature algorithm: %s, use %s instead\n",
-			csr.SignatureAlgorithm, bifrost.SignatureAlgorithm)
-		return
-	}
-	if csr.PublicKeyAlgorithm != bifrost.PublicKeyAlgorithm {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "unsupported public key algorithm: %s, use %s instead\n",
-			csr.PublicKeyAlgorithm, bifrost.PublicKeyAlgorithm)
-		return
-	}
-
-	// this should not fail because of the above check
-	ecdsaPubKey := csr.PublicKey.(*ecdsa.PublicKey)
-
-	// use bifrost id namespace if empty
-	idNamespace := c.IdentityNamespace
-	if idNamespace == uuid.Nil {
-		idNamespace = bifrost.Namespace
-	}
-
-	clientID := bifrost.UUID(idNamespace, *ecdsaPubKey).String()
-	if subName := csr.Subject.CommonName; clientID != csr.Subject.CommonName {
-		w.WriteHeader(http.StatusForbidden)
-		fmt.Fprintf(w, "subject common name is %s but should be %s, wrong namespace?\n", subName, clientID)
-		return
-	}
-
-	serialNumber, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
+	crt, err := ca.IssueCertificate(csr)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "random error\n")
-		log.Printf("error creating random certificate serial: %s\n", err)
-		return
-	}
-
-	// set default issue duration if empty
-	issueDuration := c.IssueDuration
-	if issueDuration == 0 || issueDuration < time.Hour {
-		issueDuration = defaultIssueDuration
-	}
-
-	// calculate expiry
-	notBefore := time.Now()
-	notAfter := notBefore.Add(issueDuration)
-
-	clientCertTemplate := x509.Certificate{
-		Issuer:  c.Crt.Subject,
-		Subject: pkix.Name{CommonName: clientID},
-
-		Signature:          csr.Signature,
-		SignatureAlgorithm: csr.SignatureAlgorithm,
-
-		PublicKeyAlgorithm: csr.PublicKeyAlgorithm,
-		PublicKey:          csr.PublicKey,
-
-		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageDataEncipherment,
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-
-		SerialNumber: serialNumber,
-		NotBefore:    notBefore,
-		NotAfter:     notAfter,
-	}
-
-	crt, err := x509.CreateCertificate(rand.Reader, &clientCertTemplate, c.Crt, csr.PublicKey, c.Key)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "unexpected error creating certificate\n")
-		log.Printf("error creating certificate %s\n", err)
+		status := http.StatusInternalServerError
+		if errors.Is(err, bifrost.ErrUnsupportedAlgorithm) {
+			status = http.StatusBadRequest
+		} else if errors.Is(err, bifrost.ErrWrongNamespace) {
+			status = http.StatusForbidden
+		}
+		w.WriteHeader(status)
+		fmt.Fprintf(w, "%s\n", err.Error())
+		log.Println(err)
 		return
 	}
 
 	w.Header().Set(ctHeader, contentType)
-
 	if contentType == ctOctet {
 		if _, err := fmt.Fprint(w, crt); err != nil {
 			log.Printf("error writing der cert response %s\n", err)
 		}
 		return
 	}
-
-	// send crt pem
 	if err := pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt}); err != nil {
 		log.Printf("error writing pem cert response %s\n", err)
 	}
-
 	requestDuration.Update(time.Since(startTime).Seconds())
 }
 
@@ -204,4 +136,71 @@ func readCSR(contentType string, body []byte) (*x509.CertificateRequest, error) 
 		csr = block.Bytes
 	}
 	return x509.ParseCertificateRequest(csr)
+}
+
+// IssueCertificate issues a client certificate for the given CSR.
+// The client ID is the UUID of the client public key.
+func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
+	if csr.SignatureAlgorithm != bifrost.SignatureAlgorithm {
+		return nil, fmt.Errorf("%w: %s, use %s instead", bifrost.ErrUnsupportedAlgorithm,
+			csr.SignatureAlgorithm, bifrost.SignatureAlgorithm)
+	}
+	if csr.PublicKeyAlgorithm != bifrost.PublicKeyAlgorithm {
+		return nil, fmt.Errorf("%w: %s, use %s instead", bifrost.ErrUnsupportedAlgorithm,
+			csr.PublicKeyAlgorithm, bifrost.PublicKeyAlgorithm)
+	}
+
+	// this should not fail because of the above check
+	ecdsaPubKey := csr.PublicKey.(*ecdsa.PublicKey)
+
+	// use bifrost id namespace if empty
+	idNamespace := ca.ns
+	if idNamespace == uuid.Nil {
+		idNamespace = bifrost.Namespace
+	}
+
+	clientID := bifrost.UUID(idNamespace, *ecdsaPubKey).String()
+	if subName := csr.Subject.CommonName; clientID != csr.Subject.CommonName {
+		return nil, fmt.Errorf(
+			"subject common name is %s but should be %s, %w?",
+			subName,
+			clientID,
+			bifrost.ErrWrongNamespace,
+		)
+	}
+
+	serialNumber, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
+	if err != nil {
+		return nil, fmt.Errorf("unexpected error generating certificate serial: %w", err)
+	}
+
+	// calculate expiry
+	notBefore := time.Now()
+	notAfter := notBefore.Add(ca.dur)
+
+	clientCertTemplate := x509.Certificate{
+		Issuer:  ca.crt.Issuer,
+		Subject: pkix.Name{CommonName: clientID},
+
+		Signature:          csr.Signature,
+		SignatureAlgorithm: csr.SignatureAlgorithm,
+
+		PublicKeyAlgorithm: csr.PublicKeyAlgorithm,
+		PublicKey:          csr.PublicKey,
+
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageDataEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+
+		SerialNumber: serialNumber,
+		NotBefore:    notBefore,
+		NotAfter:     notAfter,
+	}
+
+	return x509.CreateCertificate(
+		rand.Reader,
+		&clientCertTemplate,
+		ca.crt,
+		csr.PublicKey,
+		ca.key,
+	)
 }

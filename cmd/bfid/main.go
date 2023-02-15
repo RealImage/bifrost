@@ -78,38 +78,46 @@ func main() {
 		os.Exit(1)
 	}
 
-	var pubkey ecdsa.PublicKey
+	var pubkey *ecdsa.PublicKey
+	var unknownBlock bool
 	switch block.Type {
 	case "PRIVATE KEY":
 		var key any
 		if key, err = x509.ParsePKCS8PrivateKey(block.Bytes); err == nil {
 			if eckey, ok := key.(*ecdsa.PrivateKey); ok {
-				pubkey = eckey.PublicKey
-			} else {
-				err = fmt.Errorf("unsupported private key algorithm")
+				pubkey = &eckey.PublicKey
 			}
 		}
 	case "EC PRIVATE KEY":
 		var key *ecdsa.PrivateKey
 		if key, err = x509.ParseECPrivateKey(block.Bytes); err == nil {
-			pubkey = key.PublicKey
+			pubkey = &key.PublicKey
 		}
 	case "PUBLIC KEY":
 		var key any
 		if key, err = x509.ParsePKIXPublicKey(block.Bytes); err == nil {
 			if eckey, ok := key.(*ecdsa.PublicKey); ok {
-				pubkey = *eckey
-			} else {
-				err = fmt.Errorf("unsupported public key algorithm")
+				pubkey = eckey
+			}
+		}
+	case "CERTIFICATE":
+		var cert *x509.Certificate
+		if _, cert, err = bifrost.ParseCertificate(block.Bytes); err == nil {
+			if eckey, ok := cert.PublicKey.(*ecdsa.PublicKey); ok {
+				pubkey = eckey
 			}
 		}
 	default:
-		err = fmt.Errorf("expected ecdsa private key or public key")
+		err = fmt.Errorf("unexpected block type: %s", block.Type)
+		unknownBlock = true
+	}
+	if unknownBlock && pubkey == nil {
+		err = bifrost.ErrUnsupportedAlgorithm
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error parsing key: %s\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Println(bifrost.UUID(idNamespace, pubkey))
+	fmt.Println(bifrost.UUID(idNamespace, *pubkey))
 }

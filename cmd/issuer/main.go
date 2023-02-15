@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
@@ -15,14 +16,14 @@ import (
 
 var spec = struct {
 	config.Spec
-	Port int16 `default:"7777"`
+	Port          int16         `default:"7777"`
+	IssueDuration time.Duration `default:"1h"`
 }{}
 
 func main() {
 	envconfig.MustProcess(config.Prefix, &spec)
 	if sha, timestamp, ok := config.GetBuildInfo(); ok {
-		log.Println("commit sha: ", sha)
-		log.Println("commit time: ", timestamp)
+		log.Printf("commit sha: %s, timestamp %s", sha, timestamp)
 	}
 	stats.MaybePushMetrics(spec.MetricsPushUrl, spec.MetricsPushInterval)
 
@@ -39,11 +40,7 @@ func main() {
 		log.Fatalf("error getting key: %s\n", err)
 	}
 
-	ca := tinyca.CA{
-		Crt:               crt,
-		Key:               key,
-		IdentityNamespace: spec.Namespace,
-	}
+	ca := tinyca.New(spec.Namespace, crt, key, spec.IssueDuration)
 
 	address := fmt.Sprintf("%s:%d", spec.Host, spec.Port)
 	log.Printf("server listening on %s\n", address)
