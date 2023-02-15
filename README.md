@@ -3,9 +3,9 @@
 [![CI](https://github.com/RealImage/bifrost/actions/workflows/ci.yaml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yaml)
 
 Bifrost is a tiny mTLS authentication toolkit.
-The CA [`issuer`](#issuer) issues signed certificates.
+The CA [`issuer`](#issuercmdissuer) issues signed certificates.
 The [`bifrost`](#bifrost-go) Go library fetches signed certificates from an issuer.
-[`bouncer`](#bouncer) is a tiny mTLS authenticating reverse proxy for development.
+[`bouncer`](#bouncercmdbouncer) is a tiny mTLS authenticating reverse proxy for development.
 
 ![My First CA](docs/my-first-ca.jpg)
 
@@ -245,7 +245,7 @@ Then pass the certificate and private key as environment variables to the binary
 
     # certificate request with CommonName set to UUID of public key using `bfid`
     openssl req -new -key clientkey.pem -sha256 -subj "/CN=$(./bfid clientkey.pem)" -out csr.pem
-  
+
     # fetch certificate
     curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" localhost:8080 >clientcrt.pem
     ```

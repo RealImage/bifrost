@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-var testCases = []struct {
+var serveHTTPTests = []struct {
 	contentType   string
 	requestMethod string
 	requestBody   []byte
@@ -58,7 +58,7 @@ cKRnf/olLAuHY8hax5LmWbCXrf870sdtJgIhAOvSL8kXbIqRGW1BV31cB2u+Fm2Z
 kectkmknatSWyA0L
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte("unsupported signature algorithm: ECDSA-SHA512, use ECDSA-SHA256 instead\n"),
+		expectedBody: []byte("unsupported algorithm: ECDSA-SHA512, use ECDSA-SHA256 instead\n"),
 	},
 	{
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
@@ -69,11 +69,13 @@ EjA3auHdzeQX6BLlgCHP3A/q5nthVhB7KwIgOBb0xt0IOKEy7EVdn8QRA8FnmSwK
 MpvZPekgC/o5cnM=
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusForbidden,
-		expectedBody: []byte(("subject common name is abc but should be 3d2f781d-f2ed-5891-a164-19e51ac9033a, wrong namespace?\n")),
+		expectedBody: []byte(
+			("subject common name is abc but should be 3d2f781d-f2ed-5891-a164-19e51ac9033a, wrong namespace?\n"),
+		),
 	},
 }
 
-func TestCA_IssueCertificate(t *testing.T) {
+func TestCA_ServeHTTP(t *testing.T) {
 	randReader := rand.New(rand.NewSource(42))
 
 	// create new private key
@@ -97,13 +99,12 @@ func TestCA_IssueCertificate(t *testing.T) {
 		t.Fatal(err)
 	}
 	crt, _ := x509.ParseCertificate(crtDer)
-
 	ca := CA{
-		Crt: crt,
-		Key: key,
+		crt: crt,
+		key: key,
 	}
 
-	for i, tc := range testCases {
+	for i, tc := range serveHTTPTests {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			method := http.MethodPost
 			if tc.requestMethod != "" {
