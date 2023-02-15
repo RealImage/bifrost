@@ -119,5 +119,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(bifrost.UUID(idNamespace, *pubkey))
+	fmt.Println(bifrost.UUID(idNamespace, pubkey))
 }

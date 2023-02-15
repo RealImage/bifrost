@@ -3,7 +3,7 @@
 [![CI](https://github.com/RealImage/bifrost/actions/workflows/ci.yaml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yaml)
 
 Bifrost is a tiny mTLS authentication toolkit.
-The CA [`issuer`](#issuercmdissuer) issues signed certificates.
+The CA [`issuer`](#bouncercmdbouncer) issues signed certificates.
 The [`bifrost`](#bifrost-go) Go library fetches signed certificates from an issuer.
 [`bouncer`](#bouncercmdbouncer) is a tiny mTLS authenticating reverse proxy for development.
 

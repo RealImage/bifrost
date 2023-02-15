@@ -5,7 +5,6 @@ import (
 	"encoding/pem"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"time"
 
 	"github.com/RealImage/bifrost/internal/stats"
@@ -23,6 +22,7 @@ type RequestContext struct {
 	} `json:"authentication"`
 }
 
+// ClientCert contains the fields related to TLS Client Certificates.
 type ClientCert struct {
 	ClientCertPEM []byte   `json:"clientCertPEM"`
 	IssuerDN      string   `json:"issuerDN"`
@@ -36,18 +36,18 @@ type validity struct {
 	NotBefore time.Time `json:"notBefore"`
 }
 
-// Bouncer wraps a `httputil.ReverseProxy` and sends a JSON serialized `RequestContext` object
-// in the x-amzn-request-context header.
-// To create a reverse proxy that mimics AWS API Gateway with mTLS authentication,
-// pass an instance of `httputil.NewSingleReverseHostProxy()` to Bouncer.
-func Bouncer(rp *httputil.ReverseProxy) http.Handler {
+// Bouncer is a middleware that extracts the TLS client certificate from the
+// request and adds it to the x-amzn-request-context header.
+// Bouncer simulates an environment similar to Lambda functions with the
+// [aws-lambda-web-adapter](https://github.com/awslabs/aws-lambda-web-adapter)
+// extension behind an AWS API Gateway instance in
+// [mTLS mode](https://docs.aws.amazon.com/apigateway/latest/developerguide/rest-api-mutual-tls.html).
+func Bouncer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
-
 		if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
 			panic("request must have tls client certificate")
 		}
-
 		peerCert := r.TLS.PeerCertificates[0]
 		requestCtx := RequestContext{}
 		requestCtx.Authentication.ClientCert = ClientCert{
@@ -63,7 +63,6 @@ func Bouncer(rp *httputil.ReverseProxy) http.Handler {
 				NotBefore: peerCert.NotBefore,
 			},
 		}
-
 		rctx, err := json.Marshal(&requestCtx)
 		if err != nil {
 			log.Printf("error marshaling request context %s", err)
@@ -74,8 +73,7 @@ func Bouncer(rp *httputil.ReverseProxy) http.Handler {
 			return
 		}
 		r.Header.Set(RequestContextHeader, string(rctx))
-		rp.ServeHTTP(w, r)
-
+		next.ServeHTTP(w, r)
 		requestDuration.Update(time.Since(startTime).Seconds())
 	})
 }

@@ -159,7 +159,7 @@ func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
 		idNamespace = bifrost.Namespace
 	}
 
-	clientID := bifrost.UUID(idNamespace, *ecdsaPubKey).String()
+	clientID := bifrost.UUID(idNamespace, ecdsaPubKey).String()
 	if subName := csr.Subject.CommonName; clientID != csr.Subject.CommonName {
 		return nil, fmt.Errorf(
 			"subject common name is %s but should be %s, %w?",
