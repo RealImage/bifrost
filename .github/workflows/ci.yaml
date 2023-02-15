@@ -14,14 +14,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: 1.20
+  GO_VERSION: "1.20"
 
 jobs:
   lint_test:
     name: Lint & test code.
     runs-on: ubuntu-latest
     env:
-      GOLANGCILINT_VERSION: v1.51.1
+      GOLANGCILINT_VERSION: "v1.51.1"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
