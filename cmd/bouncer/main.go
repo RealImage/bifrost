@@ -58,8 +58,14 @@ func main() {
 	addr := fmt.Sprintf("%s:%d", spec.Host, spec.Port)
 	log.Printf("server listening on %s proxying requests to %s\n", addr, spec.BackendUrl)
 
+	reverseProxy := &httputil.ReverseProxy{
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetURL(backendUrl)
+			r.SetXForwarded()
+		},
+	}
 	server := http.Server{
-		Handler: club.Bouncer(httputil.NewSingleHostReverseProxy(backendUrl)),
+		Handler: club.Bouncer(reverseProxy),
 		Addr:    fmt.Sprintf("%s:%d", spec.Host, spec.Port),
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*bifrost.X509ToTLSCertificate(crt, key)},
@@ -67,7 +73,6 @@ func main() {
 			ClientCAs:    clientCertPool,
 		},
 	}
-
 	if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}

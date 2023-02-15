@@ -24,7 +24,7 @@ func RequestCertificate(
 ) (*x509.Certificate, error) {
 	template := x509.CertificateRequest{
 		Subject: pkix.Name{
-			CommonName: UUID(ns, key.PublicKey).String(),
+			CommonName: UUID(ns, &key.PublicKey).String(),
 		},
 		SignatureAlgorithm: SignatureAlgorithm,
 	}
