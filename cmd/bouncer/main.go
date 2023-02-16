@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -20,10 +19,9 @@ import (
 
 var spec = struct {
 	config.Spec
-	Port        int16  `default:"8080"`
-	BackendUrl  string `default:"http://localhost:8888"`
-	MetricsHost string `envconfig:"METRICS_HOST" default:"localhost"`
-	MetricsPort int16  `envconfig:"METRICS_PORT" default:"8989"`
+	Address        string `envconfig:"ADDR" default:"localhost:8787"`
+	BackendUrl     string `envconfig:"BACKEND" default:"http://localhost:8080"`
+	MetricsAddress string `envconfig:"STATS_ADDR" default:"localhost:8989"`
 }{}
 
 func main() {
@@ -32,7 +30,12 @@ func main() {
 		log.Printf("commit sha: %s, timestamp %s", sha, timestamp)
 	}
 	stats.MaybePushMetrics(spec.MetricsPushUrl, spec.MetricsPushInterval)
-	go serveMetrics(spec.MetricsHost, spec.MetricsPort)
+	go func() {
+		(&http.Server{
+			Addr:    spec.MetricsAddress,
+			Handler: http.HandlerFunc(stats.MetricsHandler),
+		}).ListenAndServe()
+	}()
 
 	backendUrl, err := url.Parse(spec.BackendUrl)
 	if err != nil {
@@ -55,8 +58,7 @@ func main() {
 	clientCertPool := x509.NewCertPool()
 	clientCertPool.AddCert(crt)
 
-	addr := fmt.Sprintf("%s:%d", spec.Host, spec.Port)
-	log.Printf("server listening on %s proxying requests to %s\n", addr, spec.BackendUrl)
+	log.Printf("server listening on %s proxying requests to %s\n", spec.Address, spec.BackendUrl)
 
 	reverseProxy := &httputil.ReverseProxy{
 		Rewrite: func(r *httputil.ProxyRequest) {
@@ -66,7 +68,7 @@ func main() {
 	}
 	server := http.Server{
 		Handler: club.Bouncer(reverseProxy),
-		Addr:    fmt.Sprintf("%s:%d", spec.Host, spec.Port),
+		Addr:    spec.Address,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*bifrost.X509ToTLSCertificate(crt, key)},
 			ClientAuth:   tls.RequireAndVerifyClientCert,
@@ -75,15 +77,5 @@ func main() {
 	}
 	if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
-	}
-}
-
-func serveMetrics(host string, port int16) {
-	srv := http.Server{
-		Addr:    fmt.Sprintf("%s:%d", host, port),
-		Handler: http.HandlerFunc(stats.MetricsHandler),
-	}
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Printf("error starting metrics server: %s\n", err)
 	}
 }

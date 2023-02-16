@@ -2,10 +2,19 @@
 
 [![CI](https://github.com/RealImage/bifrost/actions/workflows/ci.yaml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yaml)
 
-Bifrost is a tiny mTLS authentication toolkit.
-The CA [`issuer`](#bouncercmdbouncer) issues signed certificates.
+Bifrost is a tiny mutual TLS authentication toolkit comprising a Certificate Authority,
+authentication library, and authenticating TLS reverse proxy.
+
+The Certificate Authority service [`issuer`](#bouncercmdbouncer) issues signed certificates
+to clients uniquely identified by individual ED25519 key-pairs.
+Clients are identified by UUIDs that are determinstically produced from their public keys.
+Key-pairs must be persisted to retain the same identity.
+Certificates should be treated as ephemeral material.
+
 The [`bifrost`](#bifrost-go) Go library fetches signed certificates from an issuer.
-[`bouncer`](#bouncercmdbouncer) is a tiny mTLS authenticating reverse proxy for development.
+
+[`bouncer`](#bouncercmdbouncer) is a tiny mTLS authenticating reverse proxy meant for development.
+HTTP servers running on AWS Lambda + AWS API Gateway mTLS will run behind bouncer unmodified.
 
 ![My First CA](docs/my-first-ca.jpg)
 
@@ -40,56 +49,31 @@ The tuple of NamespaceID and Client Public Key will produce stable deterministic
 
 In pseudo-code,
 
-`newUUID = UUIDv5(sha1(NamespaceClientIdentity, PublicKey.X.Bytes() + PublicKey.Y.Bytes())`
+`bifrostUUID = UUIDv5(sha1(NamespaceClientIdentity, PublicKey.X.Bytes() + PublicKey.Y.Bytes())`
 
 ## Bifrost Go
 
-Use `bifrost` to request a certificate from a Bifrost CA.
-
-```go
-import (
-  "crypto/ecdsa"
-  "crypto/elliptic"
-
-  "github.com/google/uuid"
-  "github.com/RealImage/bifrost"
-)
-
-// identity namespaces allow clients to use the same keys and authenticate with many bifrost CAs.
-IdentityNamespace = uuid.MustParse("228b9676-998e-489a-8468-92d46a94a32d")
-
-func main() {
-  // TODO: handle errors
-  key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-  crt, _ := bifrost.RequestCertificate(ctx, "https://bifrost", IdentityNamespace, key)
-  ...
-}
-```
+Use `github.com/RealImage/bifrost` to request a certificate from a Bifrost CA and to parse Bifrost certificates.
 
 ## Certificate Authority
 
 The bifrost Certificate Authority issues X.509 certificates for TLS client authentication.
-Bifrost does not handle TLS termination or certificate verification.
-API Gateway APIs in mTLS authentication mode is one tool that can handle both of these functions.
+Clients request short lived certificates based on unique key-paris by
+sending a Certificate Signing Request signed by their public keys.
+The CSR is signed only if the client's Bifrost UUID is present as the Subject.
+This ensures that client and server are operating within the same namespace.
 
 ### Architecture
 
-Bifrost issuer takes care of issuing certificates signed by the single root certificate.
+Bifrost issuer takes care of issuing certificates signed by the signing certificate.
 A web server that supports verifying TLS client certificates is required to implement
-the remaining portion of the authentication system.
+the remaining portion of the authentication system. Bouncer is provided for local development.
+The recommended production environment is a HTTP service running on AWS Lambda with
+the aws-lambda-web-adapter extension behind an AWS API Gateway mTLS instance.
 
 #### [`bfid`](cmd/bfid)
 
-`bfid` prints the UUID derived from a bifrost identity.
-
-`bfid` takes only one input file and prints the UUID associated with it.
-The input file must be a PEM encoded file containing an ECDSA public key or private key.
-Public keys must be in PKIX DER, ASN.1 format.
-Private keys can either be in SEC.1 or PKCS#8 DER, ASN.1 format.
-
-The Bifrost Identifier Namespace may be set by passing the `-namespace` option flag
-or the environment variable `BFID_NAMESPACE`. The environment variable takes precedence over the flag.
-If unset, `bifrost.Namespace` is used.
+`bfid` prints the Bifrost UUID of a certificate, public key, or private key.
 
 #### [`bouncer`](cmd/bouncer)
 
@@ -147,7 +131,7 @@ using the ECDSA SHA256 Signature Algorithm.
 `issuer` can read the private key and root certificate in PEM form from a variety of sources.
 It looks for `crt.pem` and `key.pem` in the same directory by default.
 
-The `BFID_NAMESPACE` environment variable sets the Bifrost Identifier Namespace to use.
+The `BF_NS` environment variable sets the Bifrost Identifier Namespace to use.
 If unset, `bifrost.Namespace` is used.
 
 `issuer` exposes prometheus format metrics at the `/metrics` path.
@@ -247,7 +231,7 @@ Then pass the certificate and private key as environment variables to the binary
     openssl req -new -key clientkey.pem -sha256 -subj "/CN=$(./bfid clientkey.pem)" -out csr.pem
 
     # fetch certificate
-    curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" localhost:8080 >clientcrt.pem
+    curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" localhost:8888 >clientcrt.pem
     ```
 
 5. Admire your shiny new client certificate:

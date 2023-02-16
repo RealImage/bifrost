@@ -17,14 +17,14 @@ import (
 const (
 	usageHeader = `bfid prints the UUID identifier of a bifrost identity file
 
-Usage: bfid -namespace=<uuid> <file.pem>
-input file must be a PEM encoded ECDSA public key or private key
+Usage: bfid -ns=<uuid> <file.pem>
 `
-	usageTrailer = `	env BFID_NAMESPACE takes precedence over this flag
+	usageTrailer = `	env BF_NS takes precedence over this flag.
+0 or empty string means no namespace.
 `
 )
 
-var namespace string
+var namespace uuid.UUID
 
 func init() {
 	flag.Usage = func() {
@@ -32,25 +32,27 @@ func init() {
 		flag.PrintDefaults()
 		fmt.Fprint(os.Stderr, usageTrailer)
 	}
-	flag.StringVar(&namespace, "namespace", bifrost.Namespace.String(),
+	var ns string
+	flag.StringVar(&ns, "ns", bifrost.Namespace.String(),
 		"Bifrost Identity Namespace")
 	flag.Parse()
+	// BF_NS env var overrides the flag.
+	if n, ok := os.LookupEnv("BF_NS"); ok {
+		ns = n
+	}
+	// 0 or empty string means no namespace.
+	if ns == "" || ns == "0" {
+		namespace = uuid.Nil
+	} else {
+		namespace = uuid.MustParse(ns)
+	}
 }
 
 func main() {
-	// BFID_NAMESPACE env var overrides the flag
-	if n := os.Getenv("BFID_NAMESPACE"); n != "" {
-		namespace = n
-	}
-	idNamespace, err := uuid.Parse(namespace)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing id namespace `%s`: %s", namespace, err)
-		os.Exit(1)
-	}
-
 	var filedata []byte
-	switch len(os.Args) {
-	case 1:
+	var err error
+	switch len(flag.Args()) {
+	case 0:
 		done := make(chan struct{})
 		go func() {
 			filedata, err = io.ReadAll(os.Stdin)
@@ -61,8 +63,8 @@ func main() {
 		case <-time.After(time.Second * 2):
 			err = fmt.Errorf("timed out waiting for stdin")
 		}
-	case 2:
-		filedata, err = os.ReadFile(os.Args[1])
+	case 1:
+		filedata, err = os.ReadFile(flag.Arg(0))
 	default:
 		err = fmt.Errorf("too many arguments")
 	}
@@ -119,5 +121,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(bifrost.UUID(idNamespace, pubkey))
+	fmt.Println(bifrost.UUID(namespace, pubkey))
 }

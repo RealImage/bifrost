@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -16,8 +15,8 @@ import (
 
 var spec = struct {
 	config.Spec
-	Port          int16         `default:"7777"`
-	IssueDuration time.Duration `default:"1h"`
+	Address       string        `envconfig:"ADDR" default:"127.0.0.1:8888"`
+	IssueDuration time.Duration `envconfig:"ISSUE_DUR" default:"1h"`
 }{}
 
 func main() {
@@ -42,13 +41,12 @@ func main() {
 
 	ca := tinyca.New(spec.Namespace, crt, key, spec.IssueDuration)
 
-	address := fmt.Sprintf("%s:%d", spec.Host, spec.Port)
-	log.Printf("server listening on %s\n", address)
+	log.Printf("%s listening on %s\n", ca, spec.Address)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", ca)
 	mux.HandleFunc("/metrics", stats.MetricsHandler)
-	srv := http.Server{Addr: address, Handler: mux}
+	srv := http.Server{Addr: spec.Address, Handler: mux}
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
