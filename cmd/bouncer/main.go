@@ -19,9 +19,8 @@ import (
 
 var spec = struct {
 	config.Spec
-	Address        string `envconfig:"ADDR" default:"localhost:8787"`
-	BackendUrl     string `envconfig:"BACKEND" default:"http://localhost:8080"`
-	MetricsAddress string `envconfig:"STATS_ADDR" default:"localhost:8989"`
+	Address    string `envconfig:"ADDR" default:"localhost:8787"`
+	BackendUrl string `envconfig:"BACKEND" default:"http://localhost:8080"`
 }{}
 
 func main() {
@@ -30,12 +29,6 @@ func main() {
 		log.Printf("commit sha: %s, timestamp %s", sha, timestamp)
 	}
 	stats.MaybePushMetrics(spec.MetricsPushUrl, spec.MetricsPushInterval)
-	go func() {
-		(&http.Server{
-			Addr:    spec.MetricsAddress,
-			Handler: http.HandlerFunc(stats.MetricsHandler),
-		}).ListenAndServe()
-	}()
 
 	backendUrl, err := url.Parse(spec.BackendUrl)
 	if err != nil {
