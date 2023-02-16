@@ -8,12 +8,12 @@ import (
 
 const Prefix = "BF"
 
-// Spec configures a bifrost server
+// Spec configures a bifrost server.
 type Spec struct {
-	Host                string        `default:"127.0.0.1"`
-	CrtUri              string        `envconfig:"CRT_URI" default:"crt.pem"`
-	KeyUri              string        `envconfig:"KEY_URI" default:"key.pem"`
-	Namespace           uuid.UUID     `envconfig:"NAMESPACE"`
-	MetricsPushUrl      string        `envconfig:"METRICS_PUSH_URL"`
-	MetricsPushInterval time.Duration `envconfig:"METRICS_PUSH_INTERVAL"`
+	Address             string        `envconfig:"ADDR"           default:"127.0.0.1:8080"`
+	CrtUri              string        `envconfig:"CRT"            default:"crt.pem"`
+	KeyUri              string        `envconfig:"KEY"            default:"key.pem"`
+	MetricsPushUrl      string        `envconfig:"STATS_URL"`
+	MetricsPushInterval time.Duration `envconfig:"STATS_INTERVAL"`
+	Namespace           uuid.UUID     `envconfig:"NS"             default:"1512daa4-ddc1-41d1-8673-3fd19d2f338d"`
 }

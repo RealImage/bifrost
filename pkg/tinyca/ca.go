@@ -31,11 +31,7 @@ var requestDuration = stats.ForNerds.NewSummary("bifrost_ca_requests_duration_se
 
 // New returns a new CA.
 // The CA issues certificates for the given namespace.
-// If namespace is uuid.Nil, the CA issues certificates for the default namespace.
 func New(ns uuid.UUID, crt *x509.Certificate, key *ecdsa.PrivateKey, dur time.Duration) CA {
-	if ns == uuid.Nil {
-		ns = bifrost.Namespace
-	}
 	return CA{
 		ns:  ns,
 		crt: crt,
@@ -54,6 +50,16 @@ type CA struct {
 	key *ecdsa.PrivateKey
 	// dur is the duration for which the issued certificate is valid.
 	dur time.Duration
+}
+
+func (ca CA) String() string {
+	return fmt.Sprintf(
+		"CA(ns=%s, crt=%s, keyid=%s, dur=%s)",
+		ca.ns,
+		ca.crt.Subject,
+		bifrost.UUID(ca.ns, &ca.key.PublicKey),
+		ca.dur,
+	)
 }
 
 // ServeHTTP issues a certificate if a valid certificate request is read from the request.
@@ -153,13 +159,7 @@ func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
 	// this should not fail because of the above check
 	ecdsaPubKey := csr.PublicKey.(*ecdsa.PublicKey)
 
-	// use bifrost id namespace if empty
-	idNamespace := ca.ns
-	if idNamespace == uuid.Nil {
-		idNamespace = bifrost.Namespace
-	}
-
-	clientID := bifrost.UUID(idNamespace, ecdsaPubKey).String()
+	clientID := bifrost.UUID(ca.ns, ecdsaPubKey).String()
 	if subName := csr.Subject.CommonName; clientID != csr.Subject.CommonName {
 		return nil, fmt.Errorf(
 			"subject common name is %s but should be %s, %w?",
