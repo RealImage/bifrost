@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"os/signal"
 
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/cafiles"
@@ -15,43 +17,46 @@ import (
 	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/RealImage/bifrost/pkg/club"
 	"github.com/kelseyhightower/envconfig"
+	"golang.org/x/exp/slog"
 )
 
 var spec = struct {
 	config.Spec
-	Address    string `envconfig:"ADDR" default:"localhost:8787"`
+	Address    string `envconfig:"ADDR" default:"localhost:8443"`
 	BackendUrl string `envconfig:"BACKEND" default:"http://localhost:8080"`
 }{}
 
 func main() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
 	envconfig.MustProcess(config.Prefix, &spec)
-	if sha, timestamp, ok := config.GetBuildInfo(); ok {
-		log.Printf("commit sha: %s, timestamp %s", sha, timestamp)
-	}
+	sha, timestamp := config.GetBuildInfo()
+	slog.InfoCtx(ctx, "build info", "sha", sha, "timestamp", timestamp)
 	stats.MaybePushMetrics(spec.MetricsPushUrl, spec.MetricsPushInterval)
 
 	backendUrl, err := url.Parse(spec.BackendUrl)
 	if err != nil {
-		log.Fatalf("error parsing backend url: %s\n", err)
+		slog.ErrorCtx(ctx, "error parsing backend url", "err", err)
+		os.Exit(1)
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	crt, err := cafiles.GetCertificate(ctx, spec.CrtUri)
 	if err != nil {
-		log.Fatalf("error getting crt: %s\n", err)
+		slog.ErrorCtx(ctx, "error getting crt", "err", err)
+		os.Exit(1)
 	}
 
 	key, err := cafiles.GetPrivateKey(ctx, spec.KeyUri)
 	if err != nil {
-		log.Fatalf("error getting key: %s\n", err)
+		slog.ErrorCtx(ctx, "error getting key", "err", err)
+		os.Exit(1)
 	}
 
 	clientCertPool := x509.NewCertPool()
 	clientCertPool.AddCert(crt)
 
-	log.Printf("server listening on %s proxying requests to %s\n", spec.Address, spec.BackendUrl)
+	slog.InfoCtx(ctx, "proxying requests", "from", "https://"+spec.Address, "to", spec.BackendUrl)
 
 	reverseProxy := &httputil.ReverseProxy{
 		Rewrite: func(r *httputil.ProxyRequest) {
@@ -68,7 +73,18 @@ func main() {
 			ClientCAs:    clientCertPool,
 		},
 	}
+	server.BaseContext = func(_ net.Listener) context.Context {
+		return ctx
+	}
+	go func() {
+		<-ctx.Done()
+		slog.Info("shutting down server")
+		if err := server.Shutdown(ctx); err != nil {
+			panic(err)
+		}
+	}()
 	if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
-		log.Fatal(err)
+		slog.ErrorCtx(ctx, "error servinc requests", "err", err)
+		os.Exit(1)
 	}
 }

@@ -49,7 +49,7 @@ jobs:
       - name: Build binary
         run: |
           mkdir build
-          go build -o build ./...
+          env CGO_ENABLED=0 go build -o build ./...
       - name: Upload binary
         uses: actions/upload-artifact@v3
         with:

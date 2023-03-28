@@ -4,9 +4,12 @@ import (
 	"runtime/debug"
 )
 
-func GetBuildInfo() (sha, timestamp string, ok bool) {
-	var bi *debug.BuildInfo
-	bi, ok = debug.ReadBuildInfo()
+// GetBuildInfo returns build info from the binary.
+func GetBuildInfo() (sha, timestamp string) {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		return
+	}
 	for _, b := range bi.Settings {
 		switch b.Key {
 		case "vcs.revision":

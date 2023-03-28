@@ -1,28 +1,28 @@
 # Bifrost
 
-[![CI](https://github.com/RealImage/bifrost/actions/workflows/ci.yaml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yaml)
-
-Bifrost is a tiny mutual TLS authentication toolkit comprising a Certificate Authority,
-authentication library, and authenticating TLS reverse proxy.
-
-The Certificate Authority service [`issuer`](#bouncercmdbouncer) issues signed certificates
-to clients uniquely identified by individual ED25519 key-pairs.
-Clients are identified by UUIDs that are determinstically produced from their public keys.
-Key-pairs must be persisted to retain the same identity.
-Certificates should be treated as ephemeral material.
-
-The [`bifrost`](#bifrost-go) Go library fetches signed certificates from an issuer.
-
-[`bouncer`](#bouncercmdbouncer) is a tiny mTLS authenticating reverse proxy meant for development.
-HTTP servers running on AWS Lambda + AWS API Gateway mTLS will run behind bouncer unmodified.
+[![CI](https://github.com/RealImage/bifrost/actions/workflows/ci.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yml)
 
 ![My First CA](docs/my-first-ca.jpg)
 
+Bifrost brings simple mTLS authentication and transport encryption to web apps.
+It identifies alients uniquely by mapping ECDSA public keys to UUIDs.
+Bifrost CA namespaces are unique UUIDs. So one client public key may have
+different UUIDs in different namespaces.
+
+## Components
+
+1. [`issuer`](#bouncercmdissuer) is a CA that issues client certificates.
+2. [`bouncer`](#bouncercmdbouncer) is a HTTPS to HTTP proxy for local development.
+3. [`bfid`](#bfidcmdbfid) prints the bifrost UUID for a certificate or key.
+4. [`bifrost`](#bifrost-go) is a Go library for clients to fetch certificates.
+
+Web apps that run on AWS Lambda with AWS API Gateway mTLS work with bouncer.
+
 ## Releases
 
-Bifrost binaries are available on the [releases](https://github.com/RealImage/bifrost/releases) page.
-
-Container images can be pulled from ghcr.io.
+Bifrost binaries are available on the [releases](https://github.com/RealImage/bifrost/releases)
+page.
+Container images are on <ghcr.io>.
 
 [bifrost-bouncer](ghcr.io/realimage/bifrost-bouncer):
 
@@ -38,14 +38,12 @@ podman pull ghcr.io/realimage/bifrost-issuer
 
 ## Namespaces & Identities
 
-Identity Namespaces allow bifrost to support multiple tenants.
-The combination of a Namespace and a Name must be universally unique.
-Bifrost Identity names are synthesized from the SHA1 hash of the public key.
-Specifically, names are synthesized by appending the X and Y curve points
-of a client's ecdsa P256 public key in binary big-endian form sequentially.
-
-The namespace and name are SHA1 hashed to produce the identity UUID.
-The tuple of NamespaceID and Client Public Key will produce stable deterministic UUIDs.
+Bifrost identity namespaces allow servers to associate different UUIDs with the
+same clients.
+Bifrost UUIDs are UUIDv5 deterministically created from the SHA1 hash
+of a namespace UUID appended to the X and Y curve points in binary big-endian
+from the client's ECDSA P256 public key.
+The tuple of namespace UUID and client public key will always produce stable UUIDs.
 
 In pseudo-code,
 
@@ -53,23 +51,24 @@ In pseudo-code,
 
 ## Bifrost Go
 
-Use `github.com/RealImage/bifrost` to request a certificate from a Bifrost CA and to parse Bifrost certificates.
+Use `github.com/RealImage/bifrost` to request a certificate from a Bifrost CA
+and parse Bifrost certificates.
 
 ## Certificate Authority
 
 The bifrost Certificate Authority issues X.509 certificates for TLS client authentication.
 Clients request short lived certificates based on unique key-paris by
 sending a Certificate Signing Request signed by their public keys.
-The CSR is signed only if the client's Bifrost UUID is present as the Subject.
-This ensures that client and server are operating within the same namespace.
+The CA signs the client's certificate if the UUID in the CSR subject is corrent.
+This ensures that the client and server are operating within the same namespace.
 
 ### Architecture
 
 Bifrost issuer takes care of issuing certificates signed by the signing certificate.
-A web server that supports verifying TLS client certificates is required to implement
-the remaining portion of the authentication system. Bouncer is provided for local development.
-The recommended production environment is a HTTP service running on AWS Lambda with
-the aws-lambda-web-adapter extension behind an AWS API Gateway mTLS instance.
+Bouncer can authenticate clients locally and proxy requests to a backend server.
+In production, AWS API Gateway in mTLS mode can authenticate clients and proxy requests.
+The aws-lambda-web-adapter extension also allows the backend server to be a
+plain HTTP server.
 
 #### [`bfid`](cmd/bfid)
 
@@ -78,18 +77,13 @@ the aws-lambda-web-adapter extension behind an AWS API Gateway mTLS instance.
 #### [`bouncer`](cmd/bouncer)
 
 `bouncer` is a TLS reverse proxy that authenticates requests using client certificates.
-Authenticated requests are proxied to the backend url.
+If a client authenticates, bouncer proxies requests to the backend url.
 
-`bouncer` aims to mimic AWS API Gateway's mTLS mode where the client's TLS certificate
-is verified against a trust store configured for each instance of API Gateway.
-
-The client's certificate is provided to AWS Lambda Functions in the Request Context object.
-Qube Lambdas are usually written as plain HTTP servers running behind the
-[aws-lambda-web-adapter](https://github.com/awslabs/aws-lambda-web-adapter) extension.
-The web adapter extension passes the Lambda Request Context to our code in the
-`x-amzn-request-context` header. Bifrost `bouncer` also adds this header to proxied requests.
-When `bouncer` proxies the requests, only the `requestContext.authentication.clientCert`
-object is populated.
+`bouncer` aims to mimic AWS API Gateway's mTLS mode.
+It provides client TLS certificates in a HTTP header that mimics the format
+followed by the [aws-lambda-web-adapter](https://github.com/awslabs/aws-lambda-web-adapter)
+extension and the AWS API Gateway Request Context object.
+`bouncer` adds the `x-amzn-request-context` header containing the client TLS certificate.
 
 Sample Request Context containing Client Certificate:
 
@@ -125,19 +119,21 @@ AWS API Gateway mTLS Authentication: <https://aws.amazon.com/blogs/compute/intro
 #### [`issuer`](cmd/issuer)
 
 `issuer` signs certificates with a configured private key and self-signed certificate.
-Certificate Requests must be signed with an ECDSA P256 Private Key
-using the ECDSA SHA256 Signature Algorithm.
+Clients must send certificate requests signed by an ECDSA P256 private key
+using the ECDSA SHA256 signature algorithm.
 
-`issuer` can read the private key and root certificate in PEM form from a variety of sources.
-It looks for `crt.pem` and `key.pem` in the same directory by default.
+`issuer` can read the private key and root certificate in PEM form from a variety
+of sources. It looks for `crt.pem` and `key.pem` in the same directory by default.
 
 The `BF_NS` environment variable sets the Bifrost Identifier Namespace to use.
-If unset, `bifrost.Namespace` is used.
+If unset, it defaults to `bifrost.Namespace`.
 
 `issuer` exposes prometheus format metrics at the `/metrics` path.
-This can be used as a health check endpoint for the service.
-Metrics can also be pushed to your server using the `METRICS_PUSH_URL` environment variable.
-`issuer` uses the Victoria Metrics [metrics](https://github.com/VictoriaMetrics/metrics) package.
+Ir pushes metrics periodically to `METRICS_PUSH_URL` if set.
+
+##### Examples
+
+###### Run locally
 
 Run `issuer` with a certificate from AWS S3 and a private key from a local file:
 
@@ -145,37 +141,26 @@ Run `issuer` with a certificate from AWS S3 and a private key from a local file:
 env CRT_URI=s3://bifrost-trust-store/crt.pem KEY_URI=./key.pem ./issuer
 ```
 
-#### [AWS API Gateway HTTP API mTLS](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-mutual-tls.html)
+###### Zero Downtime Key Rotation
 
-An AWS API Gateway HTTP API configured with a custom domain and mTLS authentication, work well with bifrost.
-API Gateway mTLS expects an `s3://` uri that points to a PEM certificate bundle.
-Client certificates must be signed with at least one of the certificates from the bundle.
-This allows API Gateway and `issuer` to share the same certificate PEM bundle.
+[AWS API Gateway HTTP API mTLS](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-mutual-tls.html)
 
-##### Zero Downtime Key Rotation
-
-Assume that an s3 bucket, `bifrost-trust-store` exists, with versioning turned on.
-
-s3://bifrost-trust-store:
-
-- crt.pem
-
-crt.pem contains one or more PEM encoded root certificates.
-
-The corresponding private key for `crt.pem` is stored as in AWS Secrets Manager and identified
-here as `key.pem`.
-`key.pem` contains exactly one PEM encoded private key that pairs with the first certificate in `crt.pem`.
+- crt.pem contains one or more PEM encoded root certificates stored in an S3 bucket.
+- key.pem is the key that signed the first certificate in crt.pem, stored in AWS
+  Secrets Manager.
 
 To replace the current signing certificate and key:
 
 1. Create the new ECDSA key-pair and self-signed certificate.
-2. Create a new revision of `s3://bifrost-trust-store/crt.pem` adding the new certificate as the first in the file, with older certificates immediately below it. Each cerificate should be separated by a newline.
-3. Create a new revision of `key.pem` in Secrets Manager containing the newly generated key in PEM encoded ASN.1 DER form.
+2. Create a new revision of `s3://bifrost-trust-store/crt.pem`, prepending the
+   newly created certificate.
 
 API Gateway will pick up the updated client trust bundle in crt.pem.
-This allows it to trust certificates issued with the new certificate in addition to all of the previous certificates that may exist.
-Bifrost issuer only uses the first certificate from crt.pem along with key.pem, so it will start issuing
-certificates with the new root certificate once its configuration has been updated.
+This allows it to trust certificates issued with the new certificate
+alongside any previous certificates that may exist.
+Bifrost issuer uses the first certificate from crt.pem along with key.pem.
+Restarting issuer or reloading its configuration will cause it to start
+using the new certificate.
 
 ### Build
 

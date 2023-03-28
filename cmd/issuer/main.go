@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
-	"log"
+	"net"
 	"net/http"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/RealImage/bifrost/internal/cafiles"
@@ -11,6 +13,7 @@ import (
 	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/RealImage/bifrost/pkg/tinyca"
 	"github.com/kelseyhightower/envconfig"
+	"golang.org/x/exp/slog"
 )
 
 var spec = struct {
@@ -20,34 +23,48 @@ var spec = struct {
 }{}
 
 func main() {
-	envconfig.MustProcess(config.Prefix, &spec)
-	if sha, timestamp, ok := config.GetBuildInfo(); ok {
-		log.Printf("commit sha: %s, timestamp %s", sha, timestamp)
-	}
-	stats.MaybePushMetrics(spec.MetricsPushUrl, spec.MetricsPushInterval)
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+
+	envconfig.MustProcess(config.Prefix, &spec)
+
+	sha, timestamp := config.GetBuildInfo()
+	slog.InfoCtx(ctx, "build info", "sha", sha, "timestamp", timestamp)
+	stats.MaybePushMetrics(spec.MetricsPushUrl, spec.MetricsPushInterval)
 
 	crt, err := cafiles.GetCertificate(ctx, spec.CrtUri)
 	if err != nil {
-		log.Fatalf("error getting crt: %s\n", err)
+		slog.ErrorCtx(ctx, "error getting crt", "err", err)
+		os.Exit(1)
 	}
 
 	key, err := cafiles.GetPrivateKey(ctx, spec.KeyUri)
 	if err != nil {
-		log.Fatalf("error getting key: %s\n", err)
+		slog.ErrorCtx(ctx, "error getting key", "err", err)
+		os.Exit(1)
 	}
 
 	ca := tinyca.New(spec.Namespace, crt, key, spec.IssueDuration)
 
-	log.Printf("%s listening on %s\n", ca, spec.Address)
+	slog.Info("serving requests", "listen", spec.Address, "ca", ca)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", ca)
 	mux.HandleFunc("/metrics", stats.MetricsHandler)
-	srv := http.Server{Addr: spec.Address, Handler: mux}
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatal(err)
+
+	server := http.Server{Addr: spec.Address, Handler: mux}
+	server.BaseContext = func(_ net.Listener) context.Context {
+		return ctx
+	}
+	go func() {
+		<-ctx.Done()
+		slog.Info("shutting down server")
+		if err := server.Shutdown(ctx); err != nil {
+			panic(err)
+		}
+	}()
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.ErrorCtx(ctx, "error serving", "err", err)
+		os.Exit(1)
 	}
 }
