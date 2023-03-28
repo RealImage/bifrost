@@ -9,15 +9,6 @@ It identifies clients uniquely by mapping ECDSA public keys to UUIDs.
 Bifrost CA namespaces are unique UUIDs. So one client public key may have
 different UUIDs in different namespaces.
 
-## Components
-
-1. [`issuer`](#issuer) is a CA that issues client certificates.
-2. [`bouncer`](#bouncer) is a HTTPS to HTTP proxy for local development.
-3. [`bfid`](#bfid) prints the bifrost UUID for a certificate or key.
-4. [`bifrost`](#bifrost-go) is a Go library for clients to fetch certificates.
-
-Web apps that run on AWS Lambda with AWS API Gateway mTLS work with bouncer.
-
 ## Releases
 
 Bifrost binaries are available on the [releases](https://github.com/RealImage/bifrost/releases)
@@ -50,6 +41,13 @@ In pseudo-code,
 `bifrostUUID = UUIDv5(sha1(NamespaceClientIdentity, PublicKey.X.Bytes() + PublicKey.Y.Bytes())`
 
 ## Components
+
+1. [`bfid`](#bfid) prints the bifrost UUID for a certificate or key.
+2. [`bouncer`](#bouncer) is a HTTPS to HTTP proxy for local development.
+3. [`issuer`](#issuer) is a CA that issues client certificates.
+4. <github.com/RealImage/bifrost> is a Go library for clients to fetch certificates.
+
+Web apps that run on AWS Lambda with AWS API Gateway mTLS work with bouncer.
 
 Bifrost issuer takes care of issuing certificates signed by the signing certificate.
 Bouncer can authenticate clients locally and proxy requests to a backend server.
