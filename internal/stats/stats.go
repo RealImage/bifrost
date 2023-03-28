@@ -1,11 +1,11 @@
 package stats
 
 import (
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
+	"golang.org/x/exp/slog"
 )
 
 // ForNerds captures metrics from various bifrost processes
@@ -13,6 +13,7 @@ var ForNerds = metrics.NewSet()
 
 // MaybePushMetrics pushes metrics to url if url is not empty.
 // If interval is zero, a one minute interval is used
+// Panics if there is an error pushing metrics.
 func MaybePushMetrics(url string, interval time.Duration) {
 	if url == "" {
 		return
@@ -20,10 +21,9 @@ func MaybePushMetrics(url string, interval time.Duration) {
 	if interval == 0 {
 		interval = time.Minute
 	}
-
-	log.Printf("pushing metrics to %s every %.2fs\n", url, interval.Seconds())
+	slog.Info("pushing metrics", "url", url, "interval", interval)
 	if err := ForNerds.InitPush(url, interval, ""); err != nil {
-		log.Fatalf("error setting up metrics push: %s\n", err)
+		panic(err)
 	}
 }
 

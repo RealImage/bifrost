@@ -3,11 +3,11 @@ package club
 import (
 	"encoding/json"
 	"encoding/pem"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/RealImage/bifrost/internal/stats"
+	"golang.org/x/exp/slog"
 )
 
 const RequestContextHeader = "x-amzn-request-context"
@@ -65,7 +65,7 @@ func Bouncer(next http.Handler) http.Handler {
 		}
 		rctx, err := json.Marshal(&requestCtx)
 		if err != nil {
-			log.Printf("error marshaling request context %s", err)
+			slog.Error("error marshaling request context", "err", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			if _, err := w.Write([]byte("unexpected error handling request")); err != nil {
 				panic(err)

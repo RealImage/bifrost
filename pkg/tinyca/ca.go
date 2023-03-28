@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"math/big"
 	"net/http"
@@ -18,6 +17,7 @@ import (
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/google/uuid"
+	"golang.org/x/exp/slog"
 )
 
 const (
@@ -91,14 +91,14 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprint(w, "unexpected error reading request\n")
-		log.Printf("error reading request body: %s\n", err)
+		slog.Error("error reading request body", "err", err)
 		return
 	}
 	csr, err := readCSR(contentType, body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "error reading csr\n")
-		log.Printf("error reading csr: %s\n", err)
+		slog.Error("error reading csr", "err", err)
 		return
 	}
 	crt, err := ca.IssueCertificate(csr)
@@ -111,19 +111,19 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(status)
 		fmt.Fprintf(w, "%s\n", err.Error())
-		log.Println(err)
+		slog.Error("error issuing certificate", "err", err)
 		return
 	}
 
 	w.Header().Set(ctHeader, contentType)
 	if contentType == ctOctet {
 		if _, err := fmt.Fprint(w, crt); err != nil {
-			log.Printf("error writing der cert response %s\n", err)
+			slog.Error("error writing certificate response", "err", err)
 		}
 		return
 	}
 	if err := pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt}); err != nil {
-		log.Printf("error writing pem cert response %s\n", err)
+		slog.Error("error writing certificate response", "err", err)
 	}
 	requestDuration.Update(time.Since(startTime).Seconds())
 }
