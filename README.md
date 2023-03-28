@@ -5,15 +5,15 @@
 ![My First CA](docs/my-first-ca.jpg)
 
 Bifrost brings simple mTLS authentication and transport encryption to web apps.
-It identifies alients uniquely by mapping ECDSA public keys to UUIDs.
+It identifies clients uniquely by mapping ECDSA public keys to UUIDs.
 Bifrost CA namespaces are unique UUIDs. So one client public key may have
 different UUIDs in different namespaces.
 
 ## Components
 
-1. [`issuer`](#bouncercmdissuer) is a CA that issues client certificates.
-2. [`bouncer`](#bouncercmdbouncer) is a HTTPS to HTTP proxy for local development.
-3. [`bfid`](#bfidcmdbfid) prints the bifrost UUID for a certificate or key.
+1. [`issuer`](#issuer) is a CA that issues client certificates.
+2. [`bouncer`](#bouncer) is a HTTPS to HTTP proxy for local development.
+3. [`bfid`](#bfid) prints the bifrost UUID for a certificate or key.
 4. [`bifrost`](#bifrost-go) is a Go library for clients to fetch certificates.
 
 Web apps that run on AWS Lambda with AWS API Gateway mTLS work with bouncer.
@@ -131,9 +131,7 @@ If unset, it defaults to `bifrost.Namespace`.
 `issuer` exposes prometheus format metrics at the `/metrics` path.
 Ir pushes metrics periodically to `METRICS_PUSH_URL` if set.
 
-##### Examples
-
-###### Run locally
+##### Run locally
 
 Run `issuer` with a certificate from AWS S3 and a private key from a local file:
 
@@ -141,9 +139,7 @@ Run `issuer` with a certificate from AWS S3 and a private key from a local file:
 env CRT_URI=s3://bifrost-trust-store/crt.pem KEY_URI=./key.pem ./issuer
 ```
 
-###### Zero Downtime Key Rotation
-
-[AWS API Gateway HTTP API mTLS](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-mutual-tls.html)
+##### Zero Downtime Key Rotation
 
 - crt.pem contains one or more PEM encoded root certificates stored in an S3 bucket.
 - key.pem is the key that signed the first certificate in crt.pem, stored in AWS
