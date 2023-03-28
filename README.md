@@ -49,20 +49,7 @@ In pseudo-code,
 
 `bifrostUUID = UUIDv5(sha1(NamespaceClientIdentity, PublicKey.X.Bytes() + PublicKey.Y.Bytes())`
 
-## Bifrost Go
-
-Use `github.com/RealImage/bifrost` to request a certificate from a Bifrost CA
-and parse Bifrost certificates.
-
-## Certificate Authority
-
-The bifrost Certificate Authority issues X.509 certificates for TLS client authentication.
-Clients request short lived certificates based on unique key-paris by
-sending a Certificate Signing Request signed by their public keys.
-The CA signs the client's certificate if the UUID in the CSR subject is corrent.
-This ensures that the client and server are operating within the same namespace.
-
-### Architecture
+## Components
 
 Bifrost issuer takes care of issuing certificates signed by the signing certificate.
 Bouncer can authenticate clients locally and proxy requests to a backend server.
@@ -70,11 +57,11 @@ In production, AWS API Gateway in mTLS mode can authenticate clients and proxy r
 The aws-lambda-web-adapter extension also allows the backend server to be a
 plain HTTP server.
 
-#### [`bfid`](cmd/bfid)
+### [`bfid`](cmd/bfid)
 
 `bfid` prints the Bifrost UUID of a certificate, public key, or private key.
 
-#### [`bouncer`](cmd/bouncer)
+### [`bouncer`](cmd/bouncer)
 
 `bouncer` is a TLS reverse proxy that authenticates requests using client certificates.
 If a client authenticates, bouncer proxies requests to the backend url.
@@ -116,7 +103,7 @@ aws-lambda-web-adapter Request Context header: <https://github.com/awslabs/aws-l
 
 AWS API Gateway mTLS Authentication: <https://aws.amazon.com/blogs/compute/introducing-mutual-tls-authentication-for-amazon-api-gateway/>
 
-#### [`issuer`](cmd/issuer)
+### [`issuer`](cmd/issuer)
 
 `issuer` signs certificates with a configured private key and self-signed certificate.
 Clients must send certificate requests signed by an ECDSA P256 private key
@@ -131,7 +118,7 @@ If unset, it defaults to `bifrost.Namespace`.
 `issuer` exposes prometheus format metrics at the `/metrics` path.
 Ir pushes metrics periodically to `METRICS_PUSH_URL` if set.
 
-##### Run locally
+#### Run locally
 
 Run `issuer` with a certificate from AWS S3 and a private key from a local file:
 
@@ -139,7 +126,7 @@ Run `issuer` with a certificate from AWS S3 and a private key from a local file:
 env CRT_URI=s3://bifrost-trust-store/crt.pem KEY_URI=./key.pem ./issuer
 ```
 
-##### Zero Downtime Key Rotation
+#### Zero Downtime Key Rotation
 
 - crt.pem contains one or more PEM encoded root certificates stored in an S3 bucket.
 - key.pem is the key that signed the first certificate in crt.pem, stored in AWS
@@ -158,9 +145,9 @@ Bifrost issuer uses the first certificate from crt.pem along with key.pem.
 Restarting issuer or reloading its configuration will cause it to start
 using the new certificate.
 
-### Build
+## Build
 
-#### Go toolchain
+### Go toolchain
 
 Build Go binaries on your machine:
 
@@ -169,7 +156,7 @@ mkdir build
 go build -o build ./...
 ```
 
-#### Containers
+### Containers
 
 bouncer:
 
@@ -183,7 +170,7 @@ issuer:
 podman build -t ghcr.io/realimage/bifrost-issuer --target=issuer .
 ```
 
-### Run CA
+## Run CA
 
 `issuer` is the server and `curl` + `bfid` are the client.
 
