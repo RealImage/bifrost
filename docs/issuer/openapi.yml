@@ -14,7 +14,7 @@ security: []
 servers:
   - url: "https://bifrost.services.qubewire.com"
 paths:
-  /:
+  /issue:
     post:
       operationId: issueCertificate
       summary: Fetch a signed authentication certificate
@@ -27,6 +27,7 @@ paths:
           "text/plain":
             schema:
               type: string
+              pattern: '(-----BEGIN CERTIFICATE REQUEST-----(\n|\r|\r\n)([0-9a-zA-Z\+\/=]{64}(\n|\r|\r\n))*([0-9a-zA-Z\+\/=]{1,63}(\n|\r|\r\n))?-----END CERTIFICATE REQUEST-----)'
               example: >
                 -----BEGIN CERTIFICATE REQUEST-----
                 MIHIMHACAQAwDjEMMAoGA1UEAwwDYXNkMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcD
@@ -87,17 +88,6 @@ paths:
                 type: string
         "500":
           description: Internal Server Error.
-          content:
-            "text/plain":
-              schema:
-                type: string
-  /metrics:
-    get: 
-      operationId: metrics
-      summary: Prometheus text exposition format metrics
-      responses: 
-        200: 
-          description: Return bifrost issuer metrics
           content:
             "text/plain":
               schema:

@@ -103,6 +103,8 @@ AWS API Gateway mTLS Authentication: <https://aws.amazon.com/blogs/compute/intro
 
 ### [`issuer`](cmd/issuer)
 
+[OpenAPI schema](docs/issuer/openapi.yml)
+
 `issuer` signs certificates with a configured private key and self-signed certificate.
 Clients must send certificate requests signed by an ECDSA P256 private key
 using the ECDSA SHA256 signature algorithm.
@@ -114,7 +116,6 @@ The `BF_NS` environment variable sets the Bifrost Identifier Namespace to use.
 If unset, it defaults to `bifrost.Namespace`.
 
 `issuer` exposes prometheus format metrics at the `/metrics` path.
-Ir pushes metrics periodically to `METRICS_PUSH_URL` if set.
 
 #### Run locally
 
@@ -197,7 +198,7 @@ Then pass the certificate and private key as environment variables to the binary
     openssl req -new -key clientkey.pem -sha256 -subj "/CN=$(./bfid clientkey.pem)" -out csr.pem
 
     # fetch certificate
-    curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" localhost:8888 >clientcrt.pem
+    curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" localhost:8888/issue >clientcrt.pem
     ```
 
 5. Admire your shiny new client certificate:

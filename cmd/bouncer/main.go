@@ -14,7 +14,6 @@ import (
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
-	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/RealImage/bifrost/pkg/club"
 	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/exp/slog"
@@ -33,7 +32,6 @@ func main() {
 	envconfig.MustProcess(config.Prefix, &spec)
 	sha, timestamp := config.GetBuildInfo()
 	slog.InfoCtx(ctx, "build info", "sha", sha, "timestamp", timestamp)
-	stats.MaybePushMetrics(spec.MetricsPushUrl, spec.MetricsPushInterval)
 
 	backendUrl, err := url.Parse(spec.BackendUrl)
 	if err != nil {

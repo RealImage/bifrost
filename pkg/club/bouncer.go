@@ -6,13 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/RealImage/bifrost/internal/stats"
 	"golang.org/x/exp/slog"
 )
 
 const RequestContextHeader = "x-amzn-request-context"
-
-var requestDuration = stats.ForNerds.NewSummary("bifrost_bouncer_requests_duration_seconds")
 
 // RequestContext contains a subset of fields related to TLS Client Certificates,
 // from the larger AWS Lambda Request Context object.
@@ -44,7 +41,6 @@ type validity struct {
 // [mTLS mode](https://docs.aws.amazon.com/apigateway/latest/developerguide/rest-api-mutual-tls.html).
 func Bouncer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		startTime := time.Now()
 		if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
 			panic("request must have tls client certificate")
 		}
@@ -74,6 +70,5 @@ func Bouncer(next http.Handler) http.Handler {
 		}
 		r.Header.Set(RequestContextHeader, string(rctx))
 		next.ServeHTTP(w, r)
-		requestDuration.Update(time.Since(startTime).Seconds())
 	})
 }
