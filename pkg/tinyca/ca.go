@@ -26,8 +26,11 @@ const (
 	ctOctet  = "application/octet-stream"
 )
 
-// metrics
-var requestDuration = stats.ForNerds.NewSummary("bifrost_ca_requests_duration_seconds")
+// Metrics.
+var (
+	requestsTotal    = stats.ForNerds.NewCounter("bifrost_ca_requests_total")
+	requestsDuration = stats.ForNerds.NewHistogram("bifrost_ca_requests_duration_seconds")
+)
 
 // New returns a new CA.
 // The CA issues certificates for the given namespace.
@@ -67,9 +70,8 @@ func (ca CA) String() string {
 // Requests carrying a content-type of "text/plain" should have a PEM encoded certificate request.
 // Requests carrying a content-type of "application/octet-stream" should submit the ASN.1 DER
 // encoded form instead.
-//
-// Request [metrics](https://github.com/VictoriaMetrics/metrics) are exposed via `bifrost.Metrics`.
 func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	requestsTotal.Inc()
 	startTime := time.Now()
 
 	if r.Method != http.MethodPost {
@@ -125,7 +127,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt}); err != nil {
 		slog.Error("error writing certificate response", "err", err)
 	}
-	requestDuration.Update(time.Since(startTime).Seconds())
+	requestsDuration.Update(time.Since(startTime).Seconds())
 }
 
 func readCSR(contentType string, body []byte) (*x509.CertificateRequest, error) {
@@ -156,7 +158,7 @@ func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
 			csr.PublicKeyAlgorithm, bifrost.PublicKeyAlgorithm)
 	}
 
-	// this should not fail because of the above check
+	// This should not fail because of the above check.
 	ecdsaPubKey := csr.PublicKey.(*ecdsa.PublicKey)
 
 	clientID := bifrost.UUID(ca.ns, ecdsaPubKey).String()
@@ -174,7 +176,7 @@ func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
 		return nil, fmt.Errorf("unexpected error generating certificate serial: %w", err)
 	}
 
-	// calculate expiry
+	// Calculate expiry.
 	notBefore := time.Now()
 	notAfter := notBefore.Add(ca.dur)
 

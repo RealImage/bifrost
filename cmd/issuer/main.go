@@ -30,7 +30,6 @@ func main() {
 
 	sha, timestamp := config.GetBuildInfo()
 	slog.InfoCtx(ctx, "build info", "sha", sha, "timestamp", timestamp)
-	stats.MaybePushMetrics(spec.MetricsPushUrl, spec.MetricsPushInterval)
 
 	crt, err := cafiles.GetCertificate(ctx, spec.CrtUri)
 	if err != nil {
@@ -49,7 +48,7 @@ func main() {
 	slog.Info("serving requests", "listen", spec.Address, "ca", ca)
 
 	mux := http.NewServeMux()
-	mux.Handle("/", ca)
+	mux.Handle("/issue", ca)
 	mux.HandleFunc("/metrics", stats.MetricsHandler)
 
 	server := http.Server{Addr: spec.Address, Handler: mux}
