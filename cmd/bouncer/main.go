@@ -30,6 +30,7 @@ func main() {
 	defer cancel()
 
 	envconfig.MustProcess(config.Prefix, &spec)
+	config.Log(spec.LogLevel)
 	sha, timestamp := config.GetBuildInfo()
 	slog.InfoCtx(ctx, "build info", "sha", sha, "timestamp", timestamp)
 
