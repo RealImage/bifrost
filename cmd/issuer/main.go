@@ -29,7 +29,7 @@ func main() {
 	envconfig.MustProcess(config.Prefix, &spec)
 	config.Log(spec.LogLevel)
 	sha, timestamp := config.GetBuildInfo()
-	slog.InfoCtx(ctx, "build info", "sha", sha, "timestamp", timestamp)
+	slog.InfoCtx(ctx, "build info", slog.String("sha", sha), slog.Any("timestamp", timestamp))
 
 	crt, err := cafiles.GetCertificate(ctx, spec.CrtUri)
 	if err != nil {
@@ -45,7 +45,12 @@ func main() {
 
 	ca := tinyca.New(spec.Namespace, crt, key, spec.IssueDuration)
 
-	slog.Info("serving requests", "listen", spec.Address, "ca", ca)
+	slog.InfoCtx(
+		ctx,
+		"serving requests",
+		slog.String("listen", spec.Address),
+		slog.String("ca", ca.String()),
+	)
 
 	mux := http.NewServeMux()
 	mux.Handle("/issue", ca)
@@ -57,7 +62,7 @@ func main() {
 	}
 	go func() {
 		<-ctx.Done()
-		slog.Info("shutting down server")
+		slog.InfoCtx(ctx, "shutting down server")
 		if err := server.Shutdown(ctx); err != nil {
 			panic(err)
 		}
