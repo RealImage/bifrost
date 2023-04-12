@@ -70,20 +70,22 @@ func TestBouncer(t *testing.T) {
 	}
 
 	// backend server handler checks if request has expected header
-	backendServer := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		rctx := r.Header.Get(RequestContextHeader)
-		if rctx == "" {
-			t.Errorf("expected %s header in request", RequestContextHeader)
-		}
-		requestContext := RequestContext{}
-		if err := json.Unmarshal([]byte(rctx), &requestContext); err != nil {
-			t.Errorf("error unmarshaling request context %s", err)
-		}
+	backendServer := httptest.NewServer(
+		http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			rctx := r.Header.Get(RequestContextHeader)
+			if rctx == "" {
+				t.Errorf("expected %s header in request", RequestContextHeader)
+			}
+			requestContext := RequestContext{}
+			if err := json.Unmarshal([]byte(rctx), &requestContext); err != nil {
+				t.Errorf("error unmarshaling request context %s", err)
+			}
 
-		if string(requestContext.Authentication.ClientCert.ClientCertPEM) != string(crtPem) {
-			t.Errorf("unexpected certificate in request context header")
-		}
-	}))
+			if string(requestContext.Authentication.ClientCert.ClientCertPEM) != string(crtPem) {
+				t.Errorf("unexpected certificate in request context header")
+			}
+		}),
+	)
 	defer backendServer.Close()
 	backendUrl, err := url.Parse(backendServer.URL)
 	if err != nil {

@@ -28,6 +28,7 @@ const (
 
 // Metrics.
 var (
+	issuedCertsTotal = stats.ForNerds.NewCounter("bifrost_ca_issued_certs_total")
 	requestsTotal    = stats.ForNerds.NewCounter("bifrost_ca_requests_total")
 	requestsDuration = stats.ForNerds.NewHistogram("bifrost_ca_requests_duration_seconds")
 )
@@ -176,33 +177,33 @@ func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
 		return nil, fmt.Errorf("unexpected error generating certificate serial: %w", err)
 	}
 
-	// Calculate expiry.
+	// Client certificate template.
 	notBefore := time.Now()
-	notAfter := notBefore.Add(ca.dur)
+	template := x509.Certificate{
+		SignatureAlgorithm: bifrost.SignatureAlgorithm,
+		PublicKeyAlgorithm: bifrost.PublicKeyAlgorithm,
+		KeyUsage:           x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 
-	clientCertTemplate := x509.Certificate{
-		Issuer:  ca.crt.Issuer,
-		Subject: pkix.Name{CommonName: clientID},
-
-		Signature:          csr.Signature,
-		SignatureAlgorithm: csr.SignatureAlgorithm,
-
-		PublicKeyAlgorithm: csr.PublicKeyAlgorithm,
-		PublicKey:          csr.PublicKey,
-
-		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageDataEncipherment,
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-
+		Issuer:       ca.crt.Issuer,
+		Subject:      pkix.Name{CommonName: clientID},
+		PublicKey:    csr.PublicKey,
+		Signature:    csr.Signature,
 		SerialNumber: serialNumber,
 		NotBefore:    notBefore,
-		NotAfter:     notAfter,
+		NotAfter:     notBefore.Add(ca.dur),
 	}
 
-	return x509.CreateCertificate(
+	crtBytes, err := x509.CreateCertificate(
 		rand.Reader,
-		&clientCertTemplate,
+		&template,
 		ca.crt,
 		csr.PublicKey,
 		ca.key,
 	)
+	if err != nil {
+		return nil, err
+	}
+	issuedCertsTotal.Inc()
+	return crtBytes, nil
 }

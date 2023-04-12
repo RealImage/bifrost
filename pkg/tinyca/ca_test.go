@@ -23,7 +23,7 @@ var serveHTTPTests = []struct {
 	expectedCode  int
 	expectedBody  []byte
 }{
-	// good request
+	// Good request.
 	{
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIHqMIGRAgEAMC8xLTArBgNVBAMMJDhiOWZjYTc5LTEzZTAtNTE1Ny1iNzU0LWZm
@@ -32,8 +32,9 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNIADBFAiAvtaEUXg2tksT2Im9lcuwczo1kAkMi
 t2JULLKqqzGD0QIhALfztii4QqqBBGDyS+oR2DMxvWjv68dGOnggr00I7T/S
 -----END CERTIFICATE REQUEST-----`),
+		expectedCode: http.StatusOK,
 	},
-	// bad
+	// Bad.
 	{
 		requestMethod: http.MethodGet,
 		expectedCode:  http.StatusMethodNotAllowed,
@@ -69,8 +70,8 @@ f/l+B/agADAKBggqhkjOPQQDAgNHADBEAiAfjiRF70ApnjFwdvDDgyJ2/FGYUrOD
 wmh3IsN75x4y9gIgCaVJQFe7OO8GzI2n2mLu75WOhil8xFcJYFwNp9JOORk=
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusForbidden,
-		expectedBody: []byte(
-			("subject common name is 5d9270b3-0dee-5a10-aee6-86f50c25f966 but should be 8b9fca79-13e0-5157-b754-ff2e4e985c30, wrong namespace?\n"),
+		expectedBody: []byte("subject common name is 5d9270b3-0dee-5a10-aee6-86f50c25f966 but " +
+			"should be 8b9fca79-13e0-5157-b754-ff2e4e985c30, wrong namespace?\n",
 		),
 	},
 }
@@ -78,13 +79,13 @@ wmh3IsN75x4y9gIgCaVJQFe7OO8GzI2n2mLu75WOhil8xFcJYFwNp9JOORk=
 func TestCA_ServeHTTP(t *testing.T) {
 	randReader := rand.New(rand.NewSource(42))
 
-	// create new private key
+	// Create new private key.
 	key, err := ecdsa.GenerateKey(elliptic.P256(), randReader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// create root certificate
+	// Create root certificate.
 	template := x509.Certificate{
 		SerialNumber:          big.NewInt(2),
 		Subject:               pkix.Name{CommonName: "Issuer Test CA"},
@@ -124,11 +125,6 @@ func TestCA_ServeHTTP(t *testing.T) {
 
 			if ct := resp.Header.Get(ctHeader); ct != "" && ct != tc.contentType {
 				t.Fatalf("expected response Content-Type %s, actual %s\n", tc.contentType, ct)
-			}
-
-			// default status code
-			if tc.expectedCode == 0 {
-				tc.expectedCode = http.StatusOK
 			}
 
 			if resp.StatusCode != tc.expectedCode {

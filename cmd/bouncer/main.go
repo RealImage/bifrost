@@ -55,7 +55,12 @@ func main() {
 	clientCertPool := x509.NewCertPool()
 	clientCertPool.AddCert(crt)
 
-	slog.InfoCtx(ctx, "proxying requests", "from", "https://"+spec.Address, "to", spec.BackendUrl)
+	slog.InfoCtx(
+		ctx,
+		"proxying requests",
+		slog.String("from", "https://"+spec.Address),
+		slog.String("to", spec.BackendUrl),
+	)
 
 	reverseProxy := &httputil.ReverseProxy{
 		Rewrite: func(r *httputil.ProxyRequest) {
@@ -77,7 +82,7 @@ func main() {
 	}
 	go func() {
 		<-ctx.Done()
-		slog.Info("shutting down server")
+		slog.InfoCtx(ctx, "shutting down server")
 		if err := server.Shutdown(ctx); err != nil {
 			panic(err)
 		}
