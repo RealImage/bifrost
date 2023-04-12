@@ -4,7 +4,7 @@
 
 ![My First CA](docs/my-first-ca.jpg)
 
-Bifrost brings simple mTLS authentication and transport encryption to web apps.
+Bifrost provides simple mTLS authentication and transport encryption to web apps.
 It identifies clients uniquely by mapping ECDSA public keys to UUIDs.
 Bifrost CA namespaces are unique UUIDs. So one client public key may have
 different UUIDs in different namespaces.
@@ -215,3 +215,9 @@ A toy benchmark for your favourite toy CA.
 The slowest request completed in 12ms.
 With a mean response time of 4ms this is objectively the fastest CA on the planet.
 Statisticians hate this one weird trick.
+
+## [LICENSE](LICENSE)
+
+Bifrost is available under the Mozilla Public License 2.0.
+
+Qube Cinema © 2023
