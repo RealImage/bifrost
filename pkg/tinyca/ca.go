@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// Package tinyca implements a Certificate Authority that issues certificates
+// for client authentication.
 package tinyca
 
 import (
@@ -48,7 +50,7 @@ func New(ns uuid.UUID, crt *x509.Certificate, key *ecdsa.PrivateKey, dur time.Du
 	}
 }
 
-// CA is the world's simplest Certificate Authority.
+// CA is a simple Certificate Authority.
 // The only supported operation is to issue client certificates.
 // Client certificates are signed by the configured root certificate and private key.
 type CA struct {

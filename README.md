@@ -4,10 +4,12 @@
 
 ![My First CA](docs/my-first-ca.jpg)
 
+Bifrost is a minimal Certificate Authority that issues X.509 certificates for
+mTLS client authentication.
+
 Bifrost provides simple mTLS authentication and transport encryption to web apps.
-It identifies clients uniquely by mapping ECDSA public keys to UUIDs.
-Bifrost CA namespaces are unique UUIDs. So one client public key may have
-different UUIDs in different namespaces.
+It identifies clients uniquely by mapping an ECDSA public key to a UUID within
+a namespace.
 
 ## Releases
 
@@ -27,14 +29,12 @@ podman pull ghcr.io/realimage/bifrost-bouncer
 podman pull ghcr.io/realimage/bifrost-issuer
 ```
 
-## Namespaces & Identities
+## Identity
 
-Bifrost identity namespaces allow servers to associate different UUIDs with the
-same clients.
-Bifrost UUIDs are UUIDv5 deterministically created from the SHA1 hash
-of a namespace UUID appended to the X and Y curve points in binary big-endian
-from the client's ECDSA P256 public key.
-The tuple of namespace UUID and client public key will always produce stable UUIDs.
+Bifrost UUIDs are UUIDv5 deterministically created from ECDSA public keys.
+The namespace UUID appended to the X and Y curve points (big-endian) from
+an ECDSA P256 public key hashed using SHA1 form the public key's UUID.
+A public key will always map to a UUID within a namespace.
 
 In pseudo-code,
 

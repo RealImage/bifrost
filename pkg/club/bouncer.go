@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// Package club implements a middleware that simulates an environment similar to
+// a popular API gateway product from a certain cloud provider.
 package club
 
 import (
@@ -15,8 +17,7 @@ import (
 
 const RequestContextHeader = "x-amzn-request-context"
 
-// RequestContext contains a subset of fields related to TLS Client Certificates,
-// from the larger AWS Lambda Request Context object.
+// RequestContext is passed to the HTTP handler as a JSON encoded header value.
 type RequestContext struct {
 	Authentication struct {
 		ClientCert ClientCert `json:"clientCert"`
@@ -39,10 +40,6 @@ type validity struct {
 
 // Bouncer is a middleware that extracts the TLS client certificate from the
 // request and adds it to the x-amzn-request-context header.
-// Bouncer simulates an environment similar to Lambda functions with the
-// [aws-lambda-web-adapter](https://github.com/awslabs/aws-lambda-web-adapter)
-// extension behind an AWS API Gateway instance in
-// [mTLS mode](https://docs.aws.amazon.com/apigateway/latest/developerguide/rest-api-mutual-tls.html).
 func Bouncer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
