@@ -24,7 +24,7 @@ type RequestContext struct {
 	} `json:"authentication"`
 }
 
-// ClientCert contains the fields related to TLS Client Certificates.
+// ClientCert contains fields related to TLS Client Certificates.
 type ClientCert struct {
 	ClientCertPEM []byte   `json:"clientCertPEM"`
 	IssuerDN      string   `json:"issuerDN"`
@@ -38,15 +38,15 @@ type validity struct {
 	NotBefore time.Time `json:"notBefore"`
 }
 
-// Bouncer is a middleware that extracts the TLS client certificate from the
-// request and adds it to the x-amzn-request-context header.
+// Bouncer returns a HTTP Handler middleware function that adds the TLS client
+// certificate from the request to the x-amzn-request-context header.
 func Bouncer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
 			panic("request must have tls client certificate")
 		}
 		peerCert := r.TLS.PeerCertificates[0]
-		requestCtx := RequestContext{}
+		var requestCtx RequestContext
 		requestCtx.Authentication.ClientCert = ClientCert{
 			ClientCertPEM: pem.EncodeToMemory(&pem.Block{
 				Type:  "CERTIFICATE",
