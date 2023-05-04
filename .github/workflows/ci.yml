@@ -85,7 +85,7 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         id: build_ca
         with:
-          image: ${{ github.repository }}-issuer
+          image: ${{ github.repository }}-ca
           build-args: GO_VERSION=${{ env.GO_VERSION }}
           extra-args: --target=ca
           tags: >
