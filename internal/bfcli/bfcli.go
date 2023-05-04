@@ -12,5 +12,5 @@ func New() tea.Model {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(func() tea.Msg { return "Loading CAs..." }, m.loadCAs)
+	return tea.Batch(func() tea.Msg { return flash{msg: "Loading CAs...", loading: true} }, m.loadCAs)
 }

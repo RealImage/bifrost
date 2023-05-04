@@ -19,8 +19,9 @@ type model struct {
 }
 
 type flash struct {
-	msg string
-	ttl time.Time
+	msg     string
+	ttl     time.Time
+	loading bool
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

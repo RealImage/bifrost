@@ -33,6 +33,9 @@ func (m model) View() string {
 	s += "\n"
 	if m.flash != nil {
 		s += styleFlash.Render(fmt.Sprintf("%s\n", m.flash.msg))
+		if m.flash.loading {
+			return s
+		}
 	}
 	s += "\n"
 	if m.cursor == 0 {

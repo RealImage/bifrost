@@ -49,7 +49,7 @@ func (m model) loadCAs() tea.Msg {
 	if err := json.NewDecoder(file).Decode(&m.cas); err != nil {
 		return fmt.Errorf("error decoding CAs JSON file: %w", err)
 	}
-	return "Loaded"
+	return "Loaded CAs"
 }
 
 func (m model) storeCAs() tea.Msg {
@@ -71,7 +71,7 @@ func (m model) storeCAs() tea.Msg {
 	if err := m.fs.WriteFile(casFilePath, tmpFile); err != nil {
 		return err
 	}
-	return "Saved"
+	return "Saved CAs"
 }
 
 func (m model) newCA() tea.Msg {
