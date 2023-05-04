@@ -81,27 +81,13 @@ jobs:
         run: echo "LATEST_TAG=latest" >>"$GITHUB_ENV"
       - if: github.event_name == 'pull_request'
         run: echo "PR_TAG=pr-${{ github.event.pull_request.number }}" >>"$GITHUB_ENV"
-      - name: Build bouncer
+      - name: Build CA
         uses: redhat-actions/buildah-build@v2
-        id: build_bouncer
-        with:
-          image: ${{ github.repository }}-bouncer
-          build-args: GO_VERSION=${{ env.GO_VERSION }}
-          extra-args: --target=bouncer
-          tags: >
-            ${{ env.LATEST_TAG }}
-            ${{ env.SHORT_SHA }}
-            ${{ github.sha }}
-            ${{ env.PR_TAG }}
-            ${{ github.event.release.tag_name }}
-          containerfiles: Dockerfile
-      - name: Build issuer
-        uses: redhat-actions/buildah-build@v2
-        id: build_issuer
+        id: build_ca
         with:
           image: ${{ github.repository }}-issuer
           build-args: GO_VERSION=${{ env.GO_VERSION }}
-          extra-args: --target=issuer
+          extra-args: --target=ca
           tags: >
             ${{ env.LATEST_TAG }}
             ${{ env.SHORT_SHA }}
@@ -109,19 +95,32 @@ jobs:
             ${{ env.PR_TAG }}
             ${{ github.event.release.tag_name }}
           containerfiles: Dockerfile
-      - name: Push bouncer to ghcr.io
-        uses: redhat-actions/push-to-registry@v2
+      - name: Build bifrost
+        uses: redhat-actions/buildah-build@v2
+        id: build_bifrost
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          image: ${{ steps.build_bouncer.outputs.image }}
-          tags: ${{ steps.build_bouncer.outputs.tags }}
+          image: ${{ github.repository }}
+          build-args: GO_VERSION=${{ env.GO_VERSION }}
+          tags: >
+            ${{ env.LATEST_TAG }}
+            ${{ env.SHORT_SHA }}
+            ${{ github.sha }}
+            ${{ env.PR_TAG }}
+            ${{ github.event.release.tag_name }}
+          containerfiles: Dockerfile
       - name: Push issuer to ghcr.io
         uses: redhat-actions/push-to-registry@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          image: ${{ steps.build_issuer.outputs.image }}
-          tags: ${{ steps.build_issuer.outputs.tags }}
+          image: ${{ steps.build_ca.outputs.image }}
+          tags: ${{ steps.build_ca.outputs.tags }}
+      - name: Push bifrost to ghcr.io
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          image: ${{ steps.build_bifrost.outputs.image }}
+          tags: ${{ steps.build_bifrost.outputs.tags }}
