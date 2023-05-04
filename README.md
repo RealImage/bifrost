@@ -20,16 +20,19 @@ Bifrost binaries are available on the [releases](https://github.com/RealImage/bi
 page.
 Container images are on ghcr.io.
 
-[bifrost-bouncer](ghcr.io/realimage/bifrost-bouncer):
+[bifrost](ghcr.io/realimage/bifrost) contains all binaries.
+Its intended for local development.
 
 ```console
-podman pull ghcr.io/realimage/bifrost-bouncer
+podman pull ghcr.io/realimage/bifrost
 ```
 
-[bifrost-issuer](ghcr.io/realimage/bifrost-issuer):
+[bifrost-ca](ghcr.io/realimage/bifrost-ca) contains the issuer binary.
+The image has the [AWS Lambda Web Adapter](github.com/awslabs/aws-lambda-web-adapter)
+extension installed.
 
 ```console
-podman pull ghcr.io/realimage/bifrost-issuer
+podman pull ghcr.io/realimage/bifrost-ca
 ```
 
 ## Identity
@@ -115,16 +118,16 @@ go build -o build ./...
 
 ### Containers
 
-bouncer:
-
-```console
-podman build -t gcr.io/realimage/bifrost-bouncer --target=bouncer .
-```
-
 issuer:
 
 ```console
-podman build -t ghcr.io/realimage/bifrost-issuer --target=issuer .
+podman build -t ghcr.io/realimage/bifrost-ca --target=ca .
+```
+
+bifrost:
+
+```console
+podman build -t gcr.io/realimage/bifrost .
 ```
 
 ## Run Issuer CA

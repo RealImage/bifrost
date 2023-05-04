@@ -11,12 +11,7 @@ ENV GOPRIVATE="github.com/RealImage/*"
 RUN mkdir /build
 RUN go build -o /build ./...
 
-FROM gcr.io/distroless/base-debian11 as bouncer
-COPY --from=builder /build/bouncer /
-ENV PORT=8080
-ENTRYPOINT ["/bouncer"]
-
-FROM gcr.io/distroless/base-debian11 as issuer
+FROM gcr.io/distroless/base-debian11 as ca
 # uses lambda-web-adapter to run our standard HTTP app in a lambda
 # https://github.com/awslabs/aws-lambda-web-adapter
 # for configuration see https://github.com/awslabs/aws-lambda-web-adapter#configurations
@@ -28,3 +23,9 @@ ENV PORT=8080
 ENV READINESS_CHECK_PATH="/metrics"
 ENV REMOVE_BASE_PATH=""
 ENTRYPOINT ["/issuer"]
+
+FROM gcr.io/distroless/base-debian11 as bifrost
+COPY --from=builder /build/bfid /
+COPY --from=builder /build/bouncer /
+COPY --from=builder /build/issuer /
+ENTRYPOINT ["/bouncer"]
