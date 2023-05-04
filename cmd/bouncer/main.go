@@ -18,6 +18,7 @@ import (
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
+	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/RealImage/bifrost/pkg/club"
 	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/exp/slog"
@@ -72,8 +73,13 @@ func main() {
 			r.SetXForwarded()
 		},
 	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/proxy", club.Bouncer(reverseProxy))
+	mux.HandleFunc("/metrics", stats.MetricsHandler)
+
 	server := http.Server{
-		Handler: club.Bouncer(reverseProxy),
+		Handler: mux,
 		Addr:    spec.Address,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*bifrost.X509ToTLSCertificate(crt, key)},

@@ -5,10 +5,10 @@
 ![My First CA](docs/my-first-ca.jpg)
 
 Bifrost is a minimal Certificate Authority that issues X.509 certificates meant for
-mTLS client authentication. Bifrost CA does not do authenticate or check authorisation
-before issuing certificates.
+mTLS client authentication. Bifrost CA does not authenticate certificate signing
+requests before issuance. You must authorise or control access to Bifrost CA as needed.
 
-Bifrost CA issues certificates signed by a configured key pair and a TLS X.509 certificate.
+Bifrost CA issues certificates signed by a private key and TLS X.509 certificate.
 A TLS reverse proxy can use the same certificate to authenticate clients and secure
 access to web applications.
 Bifrost identifies clients uniquely by mapping an ECDSA public key to a UUID deterministically.
@@ -18,7 +18,7 @@ Client identity namespaces allow Bifrost to be natively multi-tenant.
 
 Bifrost binaries are available on the [releases](https://github.com/RealImage/bifrost/releases)
 page.
-Container images are on <ghcr.io>.
+Container images are on ghcr.io.
 
 [bifrost-bouncer](ghcr.io/realimage/bifrost-bouncer):
 
@@ -44,6 +44,11 @@ In pseudo-code,
 `bifrostUUID = UUIDv5(sha1(NamespaceClientIdentity, PublicKey.X.Bytes() + PublicKey.Y.Bytes())`
 
 ## Components
+
+## [`bf`](cmd/bf)
+
+`bf` is an interactive tool that generates Bifrost CA material.
+It uses [Charm Cloud] to securely store your key material securely in the cloud.
 
 ### [`bfid`](cmd/bfid)
 
@@ -84,25 +89,18 @@ env BACKEND_URL=http://127.0.0.1:5000 ./bouncer
 
 [OpenAPI schema](docs/issuer/openapi.yml)
 
-`issuer` signs certificates with a configured private key and self-signed certificate.
+`issuer` signs certificates with the configured certificate and its private key.
 Clients must send certificate requests signed by an ECDSA P256 private key
 using the ECDSA SHA256 signature algorithm.
 
-`issuer` can read the private key and root certificate in PEM form from a variety
-of sources. It looks for `crt.pem` and `key.pem` in the same directory by default.
+`issuer` can read its signing certificate and private key in PEM form from a variety
+of sources.
+If unconfigured, it looks for `crt.pem` and `key.pem` in the current working directory.
 
 The `BF_NS` environment variable sets the Bifrost Identifier Namespace to use.
 If unset, it defaults to `bifrost.Namespace`.
 
 `issuer` exposes prometheus format metrics at the `/metrics` path.
-
-#### Run locally
-
-Run `issuer` with a certificate from AWS S3 and a private key from a local file:
-
-```bash
-env CRT_URI=s3://bifrost-trust-store/crt.pem KEY_URI=./key.pem ./issuer
-```
 
 ## Build
 
@@ -129,12 +127,7 @@ issuer:
 podman build -t ghcr.io/realimage/bifrost-issuer --target=issuer .
 ```
 
-## Run CA
-
-`issuer` is the server and `curl` + `bfid` are the client.
-
-First create the CA material.
-Then pass the certificate and private key as environment variables to the binary.
+## Run Issuer CA
 
 1. Create ECDSA P256 Private Key in PEM format:
 
@@ -148,20 +141,19 @@ Then pass the certificate and private key as environment variables to the binary
 
     `./issuer`
 
-4. Generate a client key, a CSR, and get it signed by `issuer`:
+4. Generate a new client key and CSR, and get it signed by `issuer`:
 
-    ```bash
-    # ecdsa private key
-    openssl ecparam -out clientkey.pem -name prime256v1 -genkey -noout
+    `openssl ecparam -out clientkey.pem -name prime256v1 -genkey -noout`
 
-    # certificate request with CommonName set to UUID of public key using `bfid`
-    openssl req -new -key clientkey.pem -sha256 -subj "/CN=$(./bfid clientkey.pem)" -out csr.pem
+5. Create a Certificate Signing Request using the new private key:
 
-    # fetch certificate
-    curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" localhost:8888/issue >clientcrt.pem
-    ```
+    `openssl req -new -key clientkey.pem -sha256 -subj "/CN=$(./bfid clientkey.pem)" -out csr.pem`
 
-5. Admire your shiny new client certificate:
+6. Fetch signed certificate from the CA:
+
+    `curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" localhost:8888/issue >clientcrt.pem`
+
+7. Admire your shiny new client certificate (optional):
 
     `openssl x509 -in clientcrt.pem -noout -text`
 

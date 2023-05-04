@@ -55,5 +55,20 @@ func ParseCertificate(der []byte) (uuid.UUID, *x509.Certificate, error) {
 			ErrInvalidPublicKey,
 		)
 	}
-	return UUID(Namespace, pubkey), cert, nil
+	if cert.SignatureAlgorithm != SignatureAlgorithm {
+		return uuid.UUID{}, nil, fmt.Errorf(
+			"unsupported signature algorithm: %s, %w",
+			cert.SignatureAlgorithm,
+			ErrUnsupportedAlgorithm,
+		)
+	}
+	id := UUID(Namespace, pubkey)
+	cnid, err := uuid.Parse(cert.Subject.CommonName)
+	if err != nil {
+		return uuid.UUID{}, nil, fmt.Errorf("invalid common name: %s", cert.Subject.CommonName)
+	}
+	if cnid != id {
+		return uuid.UUID{}, nil, ErrWrongNamespace
+	}
+	return id, cert, nil
 }

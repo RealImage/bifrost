@@ -43,7 +43,7 @@ type validity struct {
 func Bouncer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
-			panic("request must have tls client certificate")
+			panic("bouncer operates on TLS connections with client certificates only")
 		}
 		peerCert := r.TLS.PeerCertificates[0]
 		var requestCtx RequestContext
