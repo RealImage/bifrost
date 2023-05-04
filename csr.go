@@ -59,7 +59,7 @@ func RequestCertificate(
 	return cert, nil
 }
 
-// Convert an x509.Certificate to a tls.Certificate
+// X509ToTLSCertificate puts an x509.Certificate inside a tls.Certificate.
 func X509ToTLSCertificate(crt *x509.Certificate, key *ecdsa.PrivateKey) *tls.Certificate {
 	return &tls.Certificate{
 		Certificate: [][]byte{
