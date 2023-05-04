@@ -2,8 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Package club implements a middleware that simulates an environment similar to
-// a popular API gateway product from a certain cloud provider.
+// Package club provides middleware for use in HTTP API servers and gateways.
 package club
 
 import (
