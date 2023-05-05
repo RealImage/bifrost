@@ -65,7 +65,7 @@ jobs:
           generate_release_notes: true
           files: |
             build/*
-            docs/issuer/openapi.yaml
+            docs/issuer/openapi.yml
 
   container_images:
     name: Deploy container images
