@@ -32,6 +32,7 @@ The environment variable BF_NS takes precedence over the -ns flag.
 var (
 	namespace uuid.UUID
 	verbose   bool
+	filename  string = "-"
 )
 
 func init() {
@@ -53,23 +54,31 @@ func init() {
 	if ns == "" || ns == "0" {
 		namespace = uuid.Nil
 	} else {
-		namespace = uuid.MustParse(ns)
+		var err error
+		namespace, err = uuid.Parse(ns)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
+	if flag.NArg() > 1 {
+		fmt.Fprintf(os.Stderr, "too many arguments\n\n")
+		flag.Usage()
+		os.Exit(1)
+	}
+	if flag.Arg(0) != "" {
+		filename = flag.Arg(0)
 	}
 }
 
 func main() {
-	args := flag.Args()
-	if len(args) > 1 {
-		fmt.Fprint(os.Stderr, "too many arguments")
-		os.Exit(1)
-	}
 	// Read the input file or stdin.
 	var data []byte
 	var err error
-	if len(args) == 1 {
-		data, err = os.ReadFile(args[0])
-	} else {
+	if filename == "-" {
 		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(filename)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error reading input: %s\n", err)
