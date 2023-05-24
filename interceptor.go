@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package club
+package bifrost
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"encoding/pem"
 	"net/http"
 
-	"github.com/RealImage/bifrost"
+	"github.com/RealImage/bifrost/pkg/club"
 	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
 )
@@ -34,10 +34,10 @@ func CtxClientID(ctx context.Context) (uuid.UUID, *x509.Certificate) {
 // the request context.
 func Interceptor(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rctxHeader := r.Header.Get(RequestContextHeader)
+		rctxHeader := r.Header.Get(club.RequestContextHeader)
 		if rctxHeader != "" {
 			ctx := r.Context()
-			var rctx RequestContext
+			var rctx club.RequestContext
 			if err := json.Unmarshal([]byte(rctxHeader), &rctx); err != nil {
 				slog.ErrorCtx(ctx, "error unmarshaling request context", "err", err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -49,7 +49,7 @@ func Interceptor(next http.Handler) http.Handler {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			uuid, cert, err := bifrost.ParseCertificate(block.Bytes)
+			uuid, cert, err := ParseCertificate(block.Bytes)
 			if err != nil {
 				slog.ErrorCtx(ctx, "error parsing client certificate", "err", err)
 				w.WriteHeader(http.StatusInternalServerError)
