@@ -79,7 +79,7 @@ func (m model) newCA() tea.Msg {
 	if err != nil {
 		return err
 	}
-	if m.caLabel.Value() == "" {
+	if m.newCALabel.Value() == "" {
 		return "Label cannot be empty"
 	}
 
@@ -97,7 +97,7 @@ func (m model) newCA() tea.Msg {
 		return err
 	}
 	m.cas = append(m.cas, cadata{
-		Label:       m.caLabel.Value(),
+		Label:       m.newCALabel.Value(),
 		Namespace:   uuid.New(),
 		Certificate: certDER,
 		PrivateKey:  keyDER,

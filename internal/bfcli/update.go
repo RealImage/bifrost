@@ -9,13 +9,13 @@ import (
 )
 
 type model struct {
-	err     error
-	flash   *flash
-	fs      *fs.FS
-	cas     []cadata
-	cursor  int
-	runIdx  int
-	caLabel textinput.Model
+	err        error
+	flash      *flash
+	fs         *fs.FS
+	cas        []cadata
+	cursor     int
+	runIdx     int
+	newCALabel textinput.Model
 }
 
 type flash struct {
@@ -25,6 +25,7 @@ type flash struct {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
 	if m.flash != nil {
 		if time.Now().After(m.flash.ttl) {
 			m.flash = nil
@@ -65,18 +66,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "enter", " ":
 			if m.cursor == 0 {
-				return m, m.newCA
+				cmds = append(cmds, m.newCA)
 			}
-			return m, tea.Batch(m.startIssuer, m.startBouncer)
+			cmds = append(cmds, m.startIssuer, m.startBouncer)
 		case "i":
-			return m, m.startIssuer
+			cmds = append(cmds, m.startIssuer)
 		case "b":
-			return m, m.startBouncer
+			cmds = append(cmds, m.startBouncer)
+		}
+		if m.cursor == 0 {
+			m.newCALabel.Focus()
+		} else {
+			m.newCALabel.Blur()
 		}
 	case []cadata:
 		m.cas = msg
 	}
+
 	var cmd tea.Cmd
-	m.caLabel, cmd = m.caLabel.Update(msg)
-	return m, cmd
+	m.newCALabel, cmd = m.newCALabel.Update(msg)
+	return m, tea.Batch(append(cmds, cmd)...)
 }

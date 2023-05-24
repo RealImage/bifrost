@@ -2,15 +2,15 @@ package bfcli
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
 
 var (
 	styleHeader = lipgloss.NewStyle().
-			Bold(true).
-			Border(lipgloss.ThickBorder(), true, false).
-			BorderForeground(lipgloss.Color("63"))
+			Bold(true)
 	styleError = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#ffffff")).
@@ -22,42 +22,44 @@ var (
 			Light: lipgloss.CompleteColor{TrueColor: "#d7ffae", ANSI256: "193", ANSI: "11"},
 			Dark:  lipgloss.CompleteColor{TrueColor: "#d75fee", ANSI256: "163", ANSI: "5"},
 		})
+
+	output strings.Builder
 )
 
 func (m model) View() string {
-	s := styleHeader.Render("Bifrost - Manage CAs")
+	output.Reset()
+	output.WriteString(styleHeader.Render("Bifrost - Manage CAs"))
 	if m.err != nil {
-		s += styleError.Render(fmt.Sprintf("Error: %v\n", m.err))
-		return s
+		output.WriteString(styleError.Render("\n\nError: "))
+		output.WriteString(m.err.Error())
+		output.WriteString(styleError.Render(fmt.Sprintf("Error: %v\n", m.err)))
+		return output.String()
 	}
-	s += "\n"
 	if m.flash != nil {
-		s += styleFlash.Render(fmt.Sprintf("%s\n", m.flash.msg))
+		output.WriteString("\n")
+		output.WriteString(m.flash.msg)
+		output.WriteString("\n\n")
 		if m.flash.loading {
-			return s
+			return output.String()
 		}
 	}
-	s += "\n"
 	if m.cursor == 0 {
-		s += "> "
+		output.WriteString("> ")
 	}
-	s += "Create a new Certificate Authority\n"
-	s += m.caLabel.View()
+	output.WriteString("New CA")
+	output.WriteString(m.newCALabel.View())
 	for i, ca := range m.cas {
 		if m.cursor == i+1 {
-			s += "> "
+			output.WriteString("> ")
 		}
-		s += fmt.Sprintf("%d) %s\n", i+1, ca.Label)
+		output.WriteString("(")
+		output.WriteString(strconv.FormatInt(int64(i+1), 10))
+		output.WriteString(") ")
+		output.WriteString(ca.Label)
 	}
 
 	if m.cursor > 0 {
-		s += "\n"
-		s += "Press enter to start issuer and bouncer."
-		s += "\n"
-		s += "Press i to start issuer, b to start bouncer, or d to delete the domain."
-
+		output.WriteString("Start [b]ouncer\nStart [i]ssuer\n[ENTER] start both\n[ESC] or [q]uit to exit\n")
 	}
-	s += "\n"
-	s += "Press q to quit."
-	return s
+	return output.String()
 }

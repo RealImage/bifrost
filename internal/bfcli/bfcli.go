@@ -1,13 +1,15 @@
 package bfcli
 
 import (
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func New() tea.Model {
 	return model{
-		cas:    []cadata{},
-		runIdx: -1,
+		cas:        []cadata{},
+		runIdx:     -1,
+		newCALabel: textinput.New(),
 	}
 }
 
