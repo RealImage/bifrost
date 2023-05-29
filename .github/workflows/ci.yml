@@ -21,7 +21,7 @@ jobs:
     name: Lint & test code.
     runs-on: ubuntu-latest
     env:
-      GOLANGCILINT_VERSION: "v1.51.1"
+      GOLANGCILINT_VERSION: "v1.52"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -33,6 +33,8 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: ${{ env.GOLANGCILINT_VERSION }}
+      - name: Vet
+        run: go vet ./...
       - name: Test
         run: go test -race -cover ./...
 
