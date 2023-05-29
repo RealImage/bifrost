@@ -94,7 +94,7 @@ jobs:
             ${{ github.sha }}
             ${{ env.PR_TAG }}
             ${{ github.event.release.tag_name }}
-          containerfiles: Dockerfile
+          containerfiles: Containerfile
       - name: Build bifrost
         uses: redhat-actions/buildah-build@v2
         id: build_bifrost
