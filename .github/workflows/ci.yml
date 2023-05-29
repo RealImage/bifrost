@@ -81,7 +81,7 @@ jobs:
         run: echo "LATEST_TAG=latest" >>"$GITHUB_ENV"
       - if: github.event_name == 'pull_request'
         run: echo "PR_TAG=pr-${{ github.event.pull_request.number }}" >>"$GITHUB_ENV"
-      - name: Build CA
+      - name: Build bifrost-ca image
         uses: redhat-actions/buildah-build@v2
         id: build_ca
         with:
@@ -95,7 +95,7 @@ jobs:
             ${{ env.PR_TAG }}
             ${{ github.event.release.tag_name }}
           containerfiles: Containerfile
-      - name: Build bifrost
+      - name: Build bifrost image
         uses: redhat-actions/buildah-build@v2
         id: build_bifrost
         with:
@@ -107,8 +107,8 @@ jobs:
             ${{ github.sha }}
             ${{ env.PR_TAG }}
             ${{ github.event.release.tag_name }}
-          containerfiles: Dockerfile
-      - name: Push issuer to ghcr.io
+          containerfiles: Containerfile
+      - name: Push bifrost-ca to ghcr.io
         uses: redhat-actions/push-to-registry@v2
         with:
           registry: ghcr.io
