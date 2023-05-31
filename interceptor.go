@@ -23,9 +23,9 @@ const (
 	keyCert Key = "cert"
 )
 
-// CtxClientID returns the client's UUID and Certificate from the request context.
+// FromContext returns the client's UUID and Certificate from the request context.
 // The context must be from a request that has passed through Interceptor.
-func CtxClientID(ctx context.Context) (uuid.UUID, *x509.Certificate) {
+func FromContext(ctx context.Context) (uuid.UUID, *x509.Certificate) {
 	return ctx.Value(keyUUID).(uuid.UUID), ctx.Value(keyCert).(*x509.Certificate)
 }
 
