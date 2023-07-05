@@ -48,10 +48,10 @@ In pseudo-code,
 
 ## Components
 
-## [`bf`](cmd/bf)
+## [`bf`](cmd/bf) (alpha)
 
 `bf` is an interactive tool that generates Bifrost CA material.
-It uses [Charm Cloud] to securely store your key material securely in the cloud.
+It uses [Charm Cloud] to store your key material securely in the cloud.
 
 ### [`bfid`](cmd/bfid)
 
