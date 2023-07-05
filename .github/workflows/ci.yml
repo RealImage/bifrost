@@ -99,11 +99,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-        with:
-          aws-region: us-east-1
       - name: Build bifrost-ca image
         uses: redhat-actions/buildah-build@v2
         id: build_ca
@@ -115,6 +110,13 @@ jobs:
             ${{ github.sha }}
             ${{ github.event.release.tag_name }}
           containerfiles: Containerfile.ca-lambda
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: us-east-1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
       - name: Push bifrost-ca to Amazon ECR
         uses: redhat-actions/push-to-registry@v2
         with:
