@@ -24,34 +24,29 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-var spec = struct {
-	config.Spec
-	Address    string `envconfig:"ADDR" default:"localhost:8443"`
-	BackendUrl string `envconfig:"BACKEND" default:"http://localhost:8080"`
-}{}
-
 func main() {
+	envconfig.MustProcess(config.EnvPrefix, &config.Bouncer)
+	config.LogLevel.Set(config.Bouncer.LogLevel)
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	envconfig.MustProcess(config.Prefix, &spec)
-	config.Log(spec.LogLevel)
-	sha, timestamp := config.GetBuildInfo()
+	sha, timestamp := config.CommitInfo()
 	slog.InfoCtx(ctx, "build info", "sha", sha, "timestamp", timestamp)
 
-	backendUrl, err := url.Parse(spec.BackendUrl)
+	backendUrl, err := url.Parse(config.Bouncer.BackendUrl)
 	if err != nil {
 		slog.ErrorCtx(ctx, "error parsing backend url", "err", err)
 		os.Exit(1)
 	}
 
-	crt, err := cafiles.GetCertificate(ctx, spec.CrtUri)
+	crt, err := cafiles.GetCertificate(ctx, config.Bouncer.CrtUri)
 	if err != nil {
 		slog.ErrorCtx(ctx, "error getting crt", "err", err)
 		os.Exit(1)
 	}
 
-	key, err := cafiles.GetPrivateKey(ctx, spec.KeyUri)
+	key, err := cafiles.GetPrivateKey(ctx, config.Bouncer.KeyUri)
 	if err != nil {
 		slog.ErrorCtx(ctx, "error getting key", "err", err)
 		os.Exit(1)
@@ -63,8 +58,8 @@ func main() {
 	slog.InfoCtx(
 		ctx,
 		"proxying requests",
-		slog.String("from", "https://"+spec.Address),
-		slog.String("to", spec.BackendUrl),
+		slog.String("from", "https://"+config.Bouncer.Address),
+		slog.String("to", config.Bouncer.BackendUrl),
 	)
 
 	reverseProxy := &httputil.ReverseProxy{
@@ -80,7 +75,7 @@ func main() {
 
 	server := http.Server{
 		Handler: mux,
-		Addr:    spec.Address,
+		Addr:    config.Bouncer.Address,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*bifrost.X509ToTLSCertificate(crt, key)},
 			ClientAuth:   tls.RequireAndVerifyClientCert,
