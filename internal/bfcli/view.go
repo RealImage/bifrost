@@ -37,7 +37,7 @@ func (m model) View() string {
 	}
 	if m.flash != nil {
 		output.WriteString("\n")
-		output.WriteString(m.flash.msg)
+		output.WriteString(styleFlash.Render(m.flash.msg))
 		output.WriteString("\n\n")
 		if m.flash.loading {
 			return output.String()
