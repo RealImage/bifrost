@@ -39,7 +39,7 @@ jobs:
         run: go test -race -cover ./...
 
   build:
-    name: Build binary
+    name: Build binary & container image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
