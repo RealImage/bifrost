@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
@@ -20,39 +19,34 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-var spec = struct {
-	config.Spec
-	Address       string        `envconfig:"ADDR" default:"127.0.0.1:8888"`
-	IssueDuration time.Duration `envconfig:"ISSUE_DUR" default:"1h"`
-}{}
-
 func main() {
+	envconfig.MustProcess(config.EnvPrefix, &config.Issuer)
+	config.LogLevel.Set(config.Issuer.LogLevel)
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	envconfig.MustProcess(config.Prefix, &spec)
-	config.Log(spec.LogLevel)
-	sha, timestamp := config.GetBuildInfo()
+	sha, timestamp := config.CommitInfo()
 	slog.InfoCtx(ctx, "build info", slog.String("sha", sha), slog.Any("timestamp", timestamp))
 
-	crt, err := cafiles.GetCertificate(ctx, spec.CrtUri)
+	crt, err := cafiles.GetCertificate(ctx, config.Issuer.CrtUri)
 	if err != nil {
 		slog.ErrorCtx(ctx, "error getting crt", "err", err)
 		os.Exit(1)
 	}
 
-	key, err := cafiles.GetPrivateKey(ctx, spec.KeyUri)
+	key, err := cafiles.GetPrivateKey(ctx, config.Issuer.KeyUri)
 	if err != nil {
 		slog.ErrorCtx(ctx, "error getting key", "err", err)
 		os.Exit(1)
 	}
 
-	ca := tinyca.New(spec.Namespace, crt, key, spec.IssueDuration)
+	ca := tinyca.New(config.Issuer.Namespace, crt, key, config.Issuer.IssueDuration)
 
 	slog.InfoCtx(
 		ctx,
 		"serving requests",
-		slog.String("listen", spec.Address),
+		slog.String("listen", config.Issuer.Address),
 		slog.String("ca", ca.String()),
 	)
 
@@ -60,7 +54,7 @@ func main() {
 	mux.Handle("/issue", ca)
 	mux.HandleFunc("/metrics", stats.MetricsHandler)
 
-	server := http.Server{Addr: spec.Address, Handler: mux}
+	server := http.Server{Addr: config.Issuer.Address, Handler: mux}
 	server.BaseContext = func(_ net.Listener) context.Context {
 		return ctx
 	}
