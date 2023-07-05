@@ -49,7 +49,7 @@ func CommitInfo() (rev string, t time.Time) {
 	return
 }
 
-type config struct {
+type Spec struct {
 	LogLevel  slog.Level `envconfig:"LOG_LEVEL" default:"info"`
 	Namespace uuid.UUID  `envconfig:"NS"        default:"1512daa4-ddc1-41d1-8673-3fd19d2f338d"`
 	Address   string     `envconfig:"ADDR"      default:"127.0.0.1:8080"`
@@ -58,13 +58,13 @@ type config struct {
 }
 
 type bouncer struct {
-	config
+	Spec
 	Address    string `envconfig:"ADDR"    default:"localhost:8443"`
 	BackendUrl string `envconfig:"BACKEND" default:"http://localhost:8080"`
 }
 
 type issuer struct {
-	config
+	Spec
 	Address       string        `envconfig:"ADDR"      default:"127.0.0.1:8888"`
 	IssueDuration time.Duration `envconfig:"ISSUE_DUR" default:"1h"`
 }

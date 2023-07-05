@@ -37,7 +37,7 @@ func RequestCertificate(
 		return nil, fmt.Errorf("error creating certificate request: %w", err)
 	}
 
-	resp, err := http.Post(url, "application/octet-stream", bytes.NewReader(csr))
+	resp, err := http.Post(url+"/issue", "application/octet-stream", bytes.NewReader(csr))
 	if err != nil {
 		return nil, fmt.Errorf("error POSTing certificate request: %w", err)
 	}
@@ -48,8 +48,7 @@ func RequestCertificate(
 		return nil, fmt.Errorf("unexpected error reading response body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected response status: %d %s\nbody: %s",
-			resp.StatusCode, resp.Status, body)
+		return nil, fmt.Errorf("unexpected response status: %s, body: %s", resp.Status, body)
 	}
 
 	cert, err := x509.ParseCertificate(body)
