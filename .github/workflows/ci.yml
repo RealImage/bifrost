@@ -107,7 +107,7 @@ jobs:
         id: build_ca
         with:
           build-args: GO_VERSION=${{ env.GO_VERSION }}
-          image: ${{ github.repository }}-ca
+          image: bifrost-ca
           tags: >
             latest
             ${{ github.sha }}
