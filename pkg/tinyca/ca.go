@@ -92,7 +92,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "", ctPlain, ctOctet:
 	default:
 		w.WriteHeader(http.StatusUnsupportedMediaType)
-		fmt.Fprintf(w, "unsupported Content-Type %s", contentType)
+		fmt.Fprintf(w, "unsupported content-type %s", contentType)
 		return
 	}
 
@@ -124,14 +124,23 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set(ctHeader, contentType)
-	if contentType == ctOctet {
-		if _, err := fmt.Fprint(w, crt); err != nil {
-			slog.Error("error writing certificate response", "err", err)
-		}
+	accept := r.Header.Get("Accept")
+	if accept == "" {
+		accept = contentType
+	}
+	switch accept {
+	case ctPlain:
+		w.Header().Set(ctHeader, accept)
+		err = pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt})
+	case ctOctet:
+		w.Header().Set(ctHeader, accept)
+		_, err = fmt.Fprint(w, crt)
+	default:
+		w.WriteHeader(http.StatusNotAcceptable)
+		fmt.Fprintf(w, "unsupported content-type %s", accept)
 		return
 	}
-	if err := pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt}); err != nil {
+	if err != nil {
 		slog.Error("error writing certificate response", "err", err)
 	}
 	requestsDuration.Update(time.Since(startTime).Seconds())
