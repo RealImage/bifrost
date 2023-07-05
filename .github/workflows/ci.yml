@@ -61,6 +61,8 @@ jobs:
             docs/issuer/openapi.yaml
       - if: github.ref == 'refs/heads/main'
         run: echo "LATEST_TAG=latest" >>"$GITHUB_ENV"
+      - if: github.event_name == 'pull_request'
+        run: echo "PR_TAG=pr-${{ github.event.pull_request.number }}" >>"$GITHUB_ENV"
       - name: Build bifrost container image
         uses: redhat-actions/buildah-build@v2
         id: build_bifrost
@@ -72,6 +74,7 @@ jobs:
           image: ${{ github.repository }}
           tags: >
             ${{ env.LATEST_TAG }}
+            ${{ env.PR_TAG }}
             ${{ github.sha }}
             ${{ github.event.release.tag_name }}
       - name: Push bifrost image to ghcr.io
