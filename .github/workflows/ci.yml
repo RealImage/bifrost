@@ -126,5 +126,5 @@ jobs:
         uses: redhat-actions/push-to-registry@v2
         with:
           registry: ${{ steps.login-ecr.outputs.registry }}
-          image: ${{ steps.build_api.outputs.image }}
-          tags: ${{ steps.build_api.outputs.tags }}
+          image: ${{ steps.build_ca.outputs.image }}
+          tags: ${{ steps.build_ca.outputs.tags }}
