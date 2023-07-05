@@ -70,7 +70,7 @@ jobs:
           base-image: gcr.io/distroless/base-debian11
           content: |
             build/*
-          entrypoint: /bouncer
+          entrypoint: /bf
           image: ${{ github.repository }}
           tags: >
             ${{ env.LATEST_TAG }}
