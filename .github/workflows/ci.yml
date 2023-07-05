@@ -112,7 +112,7 @@ jobs:
             latest
             ${{ github.sha }}
             ${{ github.event.release.tag_name }}
-          containerfiles: CA.Containerfile
+          containerfiles: ca.Containerfile
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
