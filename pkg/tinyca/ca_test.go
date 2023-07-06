@@ -22,6 +22,7 @@ import (
 
 var serveHTTPTests = []struct {
 	contentType   string
+	accept        string
 	requestMethod string
 	requestBody   []byte
 	expectedCode  int
@@ -29,6 +30,17 @@ var serveHTTPTests = []struct {
 }{
 	// Good request.
 	{
+		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+MIHqMIGRAgEAMC8xLTArBgNVBAMMJDhiOWZjYTc5LTEzZTAtNTE1Ny1iNzU0LWZm
+MmU0ZTk4NWMzMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
+f/l+B/agADAKBggqhkjOPQQDAgNIADBFAiAvtaEUXg2tksT2Im9lcuwczo1kAkMi
+t2JULLKqqzGD0QIhALfztii4QqqBBGDyS+oR2DMxvWjv68dGOnggr00I7T/S
+-----END CERTIFICATE REQUEST-----`),
+		expectedCode: http.StatusOK,
+	},
+	{
+		accept: ctOctet,
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIHqMIGRAgEAMC8xLTArBgNVBAMMJDhiOWZjYTc5LTEzZTAtNTE1Ny1iNzU0LWZm
 MmU0ZTk4NWMzMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
@@ -46,6 +58,18 @@ t2JULLKqqzGD0QIhALfztii4QqqBBGDyS+oR2DMxvWjv68dGOnggr00I7T/S
 	{
 		contentType:  "application/json",
 		expectedCode: http.StatusUnsupportedMediaType,
+	},
+	{
+		accept:        "application/json",
+		requestMethod: http.MethodPost,
+		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+MIHqMIGRAgEAMC8xLTArBgNVBAMMJDhiOWZjYTc5LTEzZTAtNTE1Ny1iNzU0LWZm
+MmU0ZTk4NWMzMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
+f/l+B/agADAKBggqhkjOPQQDAgNIADBFAiAvtaEUXg2tksT2Im9lcuwczo1kAkMi
+t2JULLKqqzGD0QIhALfztii4QqqBBGDyS+oR2DMxvWjv68dGOnggr00I7T/S
+-----END CERTIFICATE REQUEST-----`),
+		expectedCode: http.StatusNotAcceptable,
 	},
 	{
 		expectedCode: http.StatusBadRequest,
@@ -120,6 +144,9 @@ func TestCA_ServeHTTP(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if ac := tc.accept; ac != "" {
+				req.Header.Set(acHeader, ac)
+			}
 			if ct := tc.contentType; ct != "" {
 				req.Header.Set(ctHeader, ct)
 			}
@@ -127,13 +154,17 @@ func TestCA_ServeHTTP(t *testing.T) {
 			ca.ServeHTTP(rr, req)
 			resp := rr.Result()
 
-			if ct := resp.Header.Get(ctHeader); ct != "" && ct != tc.contentType {
-				t.Fatalf("expected response Content-Type %s, actual %s\n", tc.contentType, ct)
+			if resp.StatusCode != tc.expectedCode {
+				t.Fatalf("expected code: %d, actual: %d,\n\nbody:\n```\n%s\n```\n",
+					tc.expectedCode, rr.Code, rr.Body.String())
 			}
 
-			if resp.StatusCode != tc.expectedCode {
-				t.Fatalf("expected code %d, actual code %d,\n\nbody:\n```\n%s\n```\n",
-					tc.expectedCode, rr.Code, rr.Body.String())
+			if ac := resp.Header.Get(acHeader); ac != "" && tc.accept != "" && ac != tc.accept {
+				t.Fatalf("expected response media type: %s, actual: %s\n", tc.accept, ac)
+			}
+
+			if ct := resp.Header.Get(ctHeader); ct != "" && tc.contentType != "" && ct != tc.contentType {
+				t.Fatalf("expected response Content-Type: %s, actual: %s\n", tc.contentType, ct)
 			}
 
 			respBody, _ := io.ReadAll(resp.Body)
