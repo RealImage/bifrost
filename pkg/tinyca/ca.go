@@ -27,6 +27,7 @@ import (
 )
 
 const (
+	acHeader = "Accept"
 	ctHeader = "Content-Type"
 	ctPlain  = "text/plain"
 	ctOctet  = "application/octet-stream"
@@ -89,10 +90,12 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	contentType := r.Header.Get(ctHeader)
 	switch contentType {
-	case "", ctPlain, ctOctet:
+	case "":
+		contentType = ctPlain
+	case ctPlain, ctOctet:
 	default:
 		w.WriteHeader(http.StatusUnsupportedMediaType)
-		fmt.Fprintf(w, "unsupported content-type %s", contentType)
+		fmt.Fprintf(w, "unsupported Content-Type %s", contentType)
 		return
 	}
 
@@ -124,7 +127,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accept := r.Header.Get("Accept")
+	accept := r.Header.Get(acHeader)
 	if accept == "" {
 		accept = contentType
 	}
@@ -137,7 +140,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, err = fmt.Fprint(w, crt)
 	default:
 		w.WriteHeader(http.StatusNotAcceptable)
-		fmt.Fprintf(w, "unsupported content-type %s", accept)
+		fmt.Fprintf(w, "media type %s unacceptable\n", accept)
 		return
 	}
 	if err != nil {
