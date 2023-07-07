@@ -15,11 +15,11 @@ type singleHostRoundTripper struct {
 
 func (s singleHostRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	if s.apiUrl != nil {
+		r.URL.Host = s.apiUrl.Host
 		var err error
-		if s.apiUrl.Path, err = url.JoinPath(s.apiUrl.Path, r.URL.Path); err != nil {
+		if r.URL.Path, err = url.JoinPath(s.apiUrl.Path, r.URL.Path); err != nil {
 			return nil, fmt.Errorf("error joining request path with apiurl path: %w", err)
 		}
-		r.URL = s.apiUrl
 	}
 	return s.transport.RoundTrip(r)
 }
