@@ -39,7 +39,7 @@ func RequestCertificate(
 
 	resp, err := http.Post(url+"/issue", "application/octet-stream", bytes.NewReader(csr))
 	if err != nil {
-		return nil, fmt.Errorf("error POSTing certificate request: %w", err)
+		return nil, fmt.Errorf("error creating certificate request: %w", err)
 	}
 	defer resp.Body.Close()
 

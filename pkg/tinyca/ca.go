@@ -137,7 +137,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt})
 	case mimeTypeBytes:
 		w.Header().Set(ctHeader, accept)
-		_, err = fmt.Fprint(w, crt)
+		_, err = w.Write(crt)
 	default:
 		w.WriteHeader(http.StatusNotAcceptable)
 		fmt.Fprintf(w, "media type %s unacceptable\n", accept)
