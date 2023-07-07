@@ -27,10 +27,10 @@ import (
 )
 
 const (
-	acHeader = "Accept"
-	ctHeader = "Content-Type"
-	ctPlain  = "text/plain"
-	ctOctet  = "application/octet-stream"
+	acHeader      = "Accept"
+	ctHeader      = "Content-Type"
+	mimeTypeText  = "text/plain"
+	mimeTypeBytes = "application/octet-stream"
 )
 
 // Metrics.
@@ -91,8 +91,8 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get(ctHeader)
 	switch contentType {
 	case "":
-		contentType = ctPlain
-	case ctPlain, ctOctet:
+		contentType = mimeTypeText
+	case mimeTypeText, mimeTypeBytes:
 	default:
 		w.WriteHeader(http.StatusUnsupportedMediaType)
 		fmt.Fprintf(w, "unsupported Content-Type %s", contentType)
@@ -128,14 +128,14 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	accept := r.Header.Get(acHeader)
-	if accept == "" {
+	if accept == "" || accept == "*/*" {
 		accept = contentType
 	}
 	switch accept {
-	case ctPlain:
+	case mimeTypeText:
 		w.Header().Set(ctHeader, accept)
 		err = pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt})
-	case ctOctet:
+	case mimeTypeBytes:
 		w.Header().Set(ctHeader, accept)
 		_, err = fmt.Fprint(w, crt)
 	default:
@@ -152,10 +152,10 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func readCSR(contentType string, body []byte) (*x509.CertificateRequest, error) {
 	csr := body
 	switch contentType {
-	case ctOctet:
-		// der
-	case "", ctPlain:
-		// pem
+	case mimeTypeBytes:
+		// DER encoded
+	case "", mimeTypeText:
+		// PEM
 		block, _ := pem.Decode(body)
 		if block == nil {
 			return nil, fmt.Errorf("error decoding csr pem")
