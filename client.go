@@ -8,18 +8,20 @@ import (
 )
 
 type singleHostRoundTripper struct {
-	apiurl    *url.URL
+	apiUrl    *url.URL
 	transport http.RoundTripper
 }
 
 func (s singleHostRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
-	r.URL.Scheme = s.apiurl.Scheme
-	r.URL.Host = s.apiurl.Host
-	path, err := url.JoinPath(s.apiurl.Path, r.URL.Path)
-	if err != nil {
-		return nil, fmt.Errorf("error joining request path with apiurl path: %w", err)
+	if s.apiUrl != nil {
+		r.URL.Scheme = s.apiUrl.Scheme
+		r.URL.Host = s.apiUrl.Host
+		path, err := url.JoinPath(s.apiUrl.Path, r.URL.Path)
+		if err != nil {
+			return nil, fmt.Errorf("error joining request path with apiurl path: %w", err)
+		}
+		r.URL.Path = path
 	}
-	r.URL.Path = path
 	return s.transport.RoundTrip(r)
 }
 
@@ -28,18 +30,24 @@ func (s singleHostRoundTripper) RoundTrip(r *http.Request) (*http.Response, erro
 // The request path will be joined with the api URL path, if any.
 // The client will use the provided TLS client certificate to identify itself.
 func HTTPClient(apiUrl string, clientCert *tls.Certificate) (*http.Client, error) {
-	u, err := url.Parse(apiUrl)
-	if err != nil {
-		return nil, err
+	rt := &singleHostRoundTripper{
+		transport: http.DefaultTransport,
 	}
-	return &http.Client{
-		Transport: &singleHostRoundTripper{
-			apiurl: u,
-			transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					Certificates: []tls.Certificate{*clientCert},
-				},
+	if apiUrl != "" {
+		u, err := url.Parse(apiUrl)
+		if err != nil {
+			return nil, err
+		}
+		rt.apiUrl = u
+	}
+	if clientCert != nil {
+		rt.transport = &http.Transport{
+			Proxy:             http.ProxyFromEnvironment,
+			ForceAttemptHTTP2: true,
+			TLSClientConfig: &tls.Config{
+				Certificates: []tls.Certificate{*clientCert},
 			},
-		},
-	}, nil
+		}
+	}
+	return &http.Client{Transport: rt}, nil
 }
