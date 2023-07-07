@@ -10,6 +10,7 @@ import (
 	"crypto/elliptic"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"math/big"
@@ -158,20 +159,34 @@ func TestCA_ServeHTTP(t *testing.T) {
 				t.Fatalf("expected code: %d, actual: %d,\n\nbody:\n```\n%s\n```\n",
 					tc.expectedCode, rr.Code, rr.Body.String())
 			}
-
 			if ac := resp.Header.Get(acHeader); ac != "" && tc.accept != "" && ac != tc.accept {
 				t.Fatalf("expected response media type: %s, actual: %s\n", tc.accept, ac)
 			}
-
 			if ct := resp.Header.Get(ctHeader); ct != "" && tc.contentType != "" && ct != tc.contentType {
 				t.Fatalf("expected response Content-Type: %s, actual: %s\n", tc.contentType, ct)
 			}
-
 			respBody, _ := io.ReadAll(resp.Body)
 			if exp := tc.expectedBody; len(exp) != 0 {
 				if !bytes.Equal(exp, respBody) {
 					t.Fatalf("expected body:\n```\n%s\n```\n\nactual body:\n```\n%s\n```\n",
 						exp, string(respBody))
+				}
+			} else if resp.StatusCode < 300 {
+				// If expected body is empty, check that the response body is valid.
+				switch resp.Header.Get(ctHeader) {
+				case "", mimeTypeText:
+					// Check that the response body is a valid PEM block.
+					if p, _ := pem.Decode(respBody); p == nil {
+						t.Fatal("response body is not a valid PEM block")
+					}
+				case mimeTypeBytes:
+					// Check that the response body is a valid DER certificate.
+					if _, err := x509.ParseCertificate(respBody); err != nil {
+						t.Fatal("response body is not a valid DER certificate: ", err)
+					}
+				default:
+					t.Fatalf("unexpected Content-Type: %s\n", resp.Header.Get(ctHeader))
+
 				}
 			}
 		})
