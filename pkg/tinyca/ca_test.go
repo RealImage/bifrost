@@ -21,8 +21,8 @@ import (
 )
 
 var serveHTTPTests = []struct {
-	contentType   string
 	accept        string
+	contentType   string
 	requestMethod string
 	requestBody   []byte
 	expectedCode  int
@@ -40,7 +40,7 @@ t2JULLKqqzGD0QIhALfztii4QqqBBGDyS+oR2DMxvWjv68dGOnggr00I7T/S
 		expectedCode: http.StatusOK,
 	},
 	{
-		accept: ctOctet,
+		accept: mimeTypeBytes,
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIHqMIGRAgEAMC8xLTArBgNVBAMMJDhiOWZjYTc5LTEzZTAtNTE1Ny1iNzU0LWZm
 MmU0ZTk4NWMzMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
