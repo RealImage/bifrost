@@ -15,6 +15,7 @@ type singleHostRoundTripper struct {
 
 func (s singleHostRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	if s.apiUrl != nil {
+		r.URL.Scheme = s.apiUrl.Scheme
 		r.URL.Host = s.apiUrl.Host
 		var err error
 		if r.URL.Path, err = url.JoinPath(s.apiUrl.Path, r.URL.Path); err != nil {
