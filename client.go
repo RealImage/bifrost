@@ -3,7 +3,6 @@ package bifrost
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"net/http"
 	"net/url"
 )
@@ -17,10 +16,11 @@ func (s singleHostRoundTripper) RoundTrip(r *http.Request) (*http.Response, erro
 	if s.apiUrl != nil {
 		r.URL.Scheme = s.apiUrl.Scheme
 		r.URL.Host = s.apiUrl.Host
-		var err error
-		if r.URL.Path, err = url.JoinPath(s.apiUrl.Path, r.URL.Path); err != nil {
-			return nil, fmt.Errorf("error joining request path with apiurl path: %w", err)
+		path, err := url.JoinPath(s.apiUrl.Path, r.URL.Path)
+		if err != nil {
+			return nil, err
 		}
+		r.URL.Path = "/" + path
 	}
 	return s.transport.RoundTrip(r)
 }
