@@ -61,8 +61,9 @@ func UUID(ns uuid.UUID, pubkey *ecdsa.PublicKey) uuid.UUID {
 	return uuid.NewSHA1(ns, buf[:])
 }
 
-// ParseCertificate returns the UUID and certificate from an ASN.1 DER encoded certificate.
-func ParseCertificate(der []byte) (uuid.UUID, *x509.Certificate, error) {
+// ParseCertificate parses a DER encoded certificate and returns the bifrost
+// client's UUID and the certificate.
+func ParseCertificate(ns uuid.UUID, der []byte) (uuid.UUID, *x509.Certificate, error) {
 	cert, err := x509.ParseCertificate(der)
 	if err != nil {
 		return uuid.UUID{}, nil, err
@@ -82,7 +83,7 @@ func ParseCertificate(der []byte) (uuid.UUID, *x509.Certificate, error) {
 			ErrUnsupportedAlgorithm,
 		)
 	}
-	id := UUID(Namespace, pubkey)
+	id := UUID(ns, pubkey)
 	cnid, err := uuid.Parse(cert.Subject.CommonName)
 	if err != nil {
 		return uuid.UUID{}, nil, fmt.Errorf("invalid common name: %s", cert.Subject.CommonName)
