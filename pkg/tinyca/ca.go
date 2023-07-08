@@ -203,8 +203,12 @@ func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
 		KeyUsage:           x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 
-		Issuer:       ca.crt.Issuer,
-		Subject:      pkix.Name{CommonName: clientID},
+		Issuer: ca.crt.Issuer,
+		Subject: pkix.Name{
+			Organization:       []string{"Bifrost"},
+			OrganizationalUnit: []string{ca.ns.String()},
+			CommonName:         clientID,
+		},
 		PublicKey:    csr.PublicKey,
 		Signature:    csr.Signature,
 		SerialNumber: serialNumber,

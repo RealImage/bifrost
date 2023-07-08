@@ -32,7 +32,7 @@ func FromContext(ctx context.Context) (uuid.UUID, *x509.Certificate) {
 // Interceptor returns a HTTP Handler middleware function that reads The
 // x-amzn-request-context header and adds the client's UUID and certificate to
 // the request context.
-func Interceptor(next http.Handler) http.Handler {
+func Interceptor(ns uuid.UUID, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rctxHeader := r.Header.Get(club.RequestContextHeader)
 		if rctxHeader != "" {
@@ -49,7 +49,7 @@ func Interceptor(next http.Handler) http.Handler {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			uuid, cert, err := ParseCertificate(block.Bytes)
+			uuid, cert, err := ParseCertificate(ns, block.Bytes)
 			if err != nil {
 				slog.ErrorCtx(ctx, "error parsing client certificate", "err", err)
 				w.WriteHeader(http.StatusInternalServerError)

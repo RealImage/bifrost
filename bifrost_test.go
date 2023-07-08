@@ -54,7 +54,7 @@ UES2yThq4L/iz9pd8n/TJyaheQ==
 		PublicKeyAlgorithm: x509.ECDSA,
 	}
 	block, _ := pem.Decode(crtPem)
-	id, crt, err := ParseCertificate(block.Bytes)
+	id, crt, err := ParseCertificate(Namespace, block.Bytes)
 	if err != nil {
 		t.Fatalf("ParseCertificate(%s)\nunexpected error = %v", crtPem, err)
 	}

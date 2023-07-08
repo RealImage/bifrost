@@ -115,7 +115,7 @@ func main() {
 		}
 	case "CERTIFICATE":
 		var cert *x509.Certificate
-		if _, cert, err = bifrost.ParseCertificate(block.Bytes); err == nil {
+		if _, cert, err = bifrost.ParseCertificate(namespace, block.Bytes); err == nil {
 			if eckey, ok := cert.PublicKey.(*ecdsa.PublicKey); ok {
 				pubkey = eckey
 			}
