@@ -19,6 +19,7 @@ import (
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
 	"github.com/RealImage/bifrost/internal/stats"
+	"github.com/RealImage/bifrost/internal/sundry"
 	"github.com/RealImage/bifrost/pkg/club"
 	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/exp/slog"
@@ -34,23 +35,21 @@ func main() {
 	sha, timestamp := config.CommitInfo()
 	slog.InfoCtx(ctx, "build info", "sha", sha, "timestamp", timestamp)
 
+	http.HandleFunc("/", stats.MetricsHandler)
+	go func() {
+		if err := http.ListenAndServe(config.Bouncer.MetricsUrl, nil); err != nil {
+			panic(err)
+		}
+	}()
+
 	backendUrl, err := url.Parse(config.Bouncer.BackendUrl)
-	if err != nil {
-		slog.ErrorCtx(ctx, "error parsing backend url", "err", err)
-		os.Exit(1)
-	}
+	sundry.OnErrorExit(ctx, err, "error parsing backend url")
 
 	crt, err := cafiles.GetCertificate(ctx, config.Bouncer.CrtUri)
-	if err != nil {
-		slog.ErrorCtx(ctx, "error getting crt", "err", err)
-		os.Exit(1)
-	}
+	sundry.OnErrorExit(ctx, err, "error getting crt")
 
 	key, err := cafiles.GetPrivateKey(ctx, config.Bouncer.KeyUri)
-	if err != nil {
-		slog.ErrorCtx(ctx, "error getting key", "err", err)
-		os.Exit(1)
-	}
+	sundry.OnErrorExit(ctx, err, "error getting key")
 
 	clientCertPool := x509.NewCertPool()
 	clientCertPool.AddCert(crt)
@@ -69,17 +68,21 @@ func main() {
 		},
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle("/proxy", club.Bouncer(reverseProxy))
-	mux.HandleFunc("/metrics", stats.MetricsHandler)
+	var ssllog *os.File
+	if config.Bouncer.SSLKeyLogFile != "" {
+		ssllog, err = os.OpenFile(config.Bouncer.SSLKeyLogFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+		sundry.OnErrorExit(ctx, err, "error opening ssl key log file")
+		defer ssllog.Close()
+	}
 
 	server := http.Server{
-		Handler: mux,
+		Handler: club.Bouncer(reverseProxy),
 		Addr:    config.Bouncer.Address,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*bifrost.X509ToTLSCertificate(crt, key)},
 			ClientAuth:   tls.RequireAndVerifyClientCert,
 			ClientCAs:    clientCertPool,
+			KeyLogWriter: ssllog,
 		},
 	}
 	server.BaseContext = func(_ net.Listener) context.Context {
@@ -93,7 +96,6 @@ func main() {
 		}
 	}()
 	if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
-		slog.ErrorCtx(ctx, "error servinc requests", "err", err)
-		os.Exit(1)
+		sundry.OnErrorExit(ctx, err, "error serving requests")
 	}
 }

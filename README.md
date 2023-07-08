@@ -63,6 +63,10 @@ It uses [Charm Cloud] to store your key material securely in the cloud.
 If client authentication succeeds, bouncer proxies the requests to the backend url.
 The client's TLS certificate is available in the `x-amzn-request-context` header.
 
+Bouncer will log TLS Pre-Master secrets to the file if the `SSLKEYLOGFILE`
+environment variable is set. [Wireshark](https://www.wireshark.org)
+can use this file to decrypt traffic.
+
 Sample Request Context containing Client Certificate:
 
 ```json

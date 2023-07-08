@@ -14,6 +14,7 @@ import (
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
 	"github.com/RealImage/bifrost/internal/stats"
+	"github.com/RealImage/bifrost/internal/sundry"
 	"github.com/RealImage/bifrost/pkg/tinyca"
 	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/exp/slog"
@@ -30,16 +31,10 @@ func main() {
 	slog.InfoCtx(ctx, "build info", slog.String("sha", sha), slog.Any("timestamp", timestamp))
 
 	crt, err := cafiles.GetCertificate(ctx, config.Issuer.CrtUri)
-	if err != nil {
-		slog.ErrorCtx(ctx, "error getting crt", "err", err)
-		os.Exit(1)
-	}
+	sundry.OnErrorExit(ctx, err, "error getting crt")
 
 	key, err := cafiles.GetPrivateKey(ctx, config.Issuer.KeyUri)
-	if err != nil {
-		slog.ErrorCtx(ctx, "error getting key", "err", err)
-		os.Exit(1)
-	}
+	sundry.OnErrorExit(ctx, err, "error getting key")
 
 	ca := tinyca.New(config.Issuer.Namespace, crt, key, config.Issuer.IssueDuration)
 
@@ -66,7 +61,6 @@ func main() {
 		}
 	}()
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		slog.ErrorCtx(ctx, "error serving", "err", err)
-		os.Exit(1)
+		sundry.OnErrorExit(ctx, err, "error serving requests")
 	}
 }

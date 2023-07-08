@@ -59,8 +59,10 @@ type Spec struct {
 
 type bouncer struct {
 	Spec
-	Address    string `envconfig:"ADDR"    default:"localhost:8443"`
-	BackendUrl string `envconfig:"BACKEND" default:"http://localhost:8080"`
+	Address       string `envconfig:"ADDR"    default:"localhost:8443"`
+	BackendUrl    string `envconfig:"BACKEND" default:"http://localhost:8080"`
+	MetricsUrl    string `envconfig:"METRICS" default:"localhost:9091"`
+	SSLKeyLogFile string `envconfig:"SSLKEYLOGFILE"`
 }
 
 type issuer struct {
