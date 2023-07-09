@@ -36,7 +36,8 @@ func main() {
 	key, err := cafiles.GetPrivateKey(ctx, config.Issuer.KeyUri)
 	sundry.OnErrorExit(ctx, err, "error getting key")
 
-	ca := tinyca.New(config.Issuer.Namespace, crt, key, config.Issuer.IssueDuration)
+	ca, err := tinyca.New(crt, key, config.Issuer.IssueDuration)
+	sundry.OnErrorExit(ctx, err, "error creating ca")
 
 	slog.InfoCtx(
 		ctx,

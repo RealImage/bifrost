@@ -8,7 +8,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -70,7 +69,11 @@ func main() {
 
 	var ssllog *os.File
 	if config.Bouncer.SSLKeyLogFile != "" {
-		ssllog, err = os.OpenFile(config.Bouncer.SSLKeyLogFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+		ssllog, err = os.OpenFile(
+			config.Bouncer.SSLKeyLogFile,
+			os.O_WRONLY|os.O_CREATE|os.O_APPEND,
+			0o600,
+		)
 		sundry.OnErrorExit(ctx, err, "error opening ssl key log file")
 		defer ssllog.Close()
 	}
@@ -84,9 +87,6 @@ func main() {
 			ClientCAs:    clientCertPool,
 			KeyLogWriter: ssllog,
 		},
-	}
-	server.BaseContext = func(_ net.Listener) context.Context {
-		return ctx
 	}
 	go func() {
 		<-ctx.Done()

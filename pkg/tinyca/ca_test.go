@@ -88,7 +88,9 @@ cKRnf/olLAuHY8hax5LmWbCXrf870sdtJgIhAOvSL8kXbIqRGW1BV31cB2u+Fm2Z
 kectkmknatSWyA0L
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte("unsupported algorithm: ECDSA-SHA512, use ECDSA-SHA256 instead\n"),
+		expectedBody: []byte(
+			"invalid certificate format: invalid signature algorithm ECDSA-SHA512, use ECDSA-SHA256 instead\n",
+		),
 	},
 	{
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
@@ -162,7 +164,8 @@ func TestCA_ServeHTTP(t *testing.T) {
 			if ac := resp.Header.Get(acHeader); ac != "" && tc.accept != "" && ac != tc.accept {
 				t.Fatalf("expected response media type: %s, actual: %s\n", tc.accept, ac)
 			}
-			if ct := resp.Header.Get(ctHeader); ct != "" && tc.contentType != "" && ct != tc.contentType {
+			if ct := resp.Header.Get(ctHeader); ct != "" && tc.contentType != "" &&
+				ct != tc.contentType {
 				t.Fatalf("expected response Content-Type: %s, actual: %s\n", tc.contentType, ct)
 			}
 			respBody, _ := io.ReadAll(resp.Body)
