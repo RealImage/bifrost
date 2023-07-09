@@ -27,9 +27,9 @@ const (
 	RequestContextHeader = "x-amzn-request-context"
 )
 
-// FromContext returns the client's UUID and Certificate from the request context.
-// The context must be from a request that has passed through Interceptor.
-func FromContext(ctx context.Context) (uuid.UUID, *x509.Certificate, *ecdsa.PublicKey) {
+// ID identifies a client from the request context.
+// Interceptor must run before this function is called for a request.
+func ID(ctx context.Context) (uuid.UUID, *x509.Certificate, *ecdsa.PublicKey) {
 	return ctx.Value(keyNamespace).(uuid.UUID),
 		ctx.Value(keyCertificate).(*x509.Certificate),
 		ctx.Value(keyPublicKey).(*ecdsa.PublicKey)
