@@ -2,16 +2,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package bifrost
+package club
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"net/http"
 
-	"github.com/RealImage/bifrost/pkg/club"
+	"github.com/RealImage/bifrost"
 	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
 )
@@ -19,14 +20,19 @@ import (
 type Key string
 
 const (
-	keyUUID Key = "uuid"
-	keyCert Key = "cert"
+	keyNamespace   Key = "ns"
+	keyCertificate Key = "crt"
+	keyPublicKey   Key = "key"
+
+	RequestContextHeader = "x-amzn-request-context"
 )
 
 // FromContext returns the client's UUID and Certificate from the request context.
 // The context must be from a request that has passed through Interceptor.
-func FromContext(ctx context.Context) (uuid.UUID, *x509.Certificate) {
-	return ctx.Value(keyUUID).(uuid.UUID), ctx.Value(keyCert).(*x509.Certificate)
+func FromContext(ctx context.Context) (uuid.UUID, *x509.Certificate, *ecdsa.PublicKey) {
+	return ctx.Value(keyNamespace).(uuid.UUID),
+		ctx.Value(keyCertificate).(*x509.Certificate),
+		ctx.Value(keyPublicKey).(*ecdsa.PublicKey)
 }
 
 // Interceptor returns a HTTP Handler middleware function that reads The
@@ -34,10 +40,10 @@ func FromContext(ctx context.Context) (uuid.UUID, *x509.Certificate) {
 // the request context.
 func Interceptor(ns uuid.UUID, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rctxHeader := r.Header.Get(club.RequestContextHeader)
+		rctxHeader := r.Header.Get(RequestContextHeader)
 		if rctxHeader != "" {
 			ctx := r.Context()
-			var rctx club.RequestContext
+			var rctx RequestContext
 			if err := json.Unmarshal([]byte(rctxHeader), &rctx); err != nil {
 				slog.ErrorCtx(ctx, "error unmarshaling request context", "err", err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -49,14 +55,20 @@ func Interceptor(ns uuid.UUID, next http.Handler) http.Handler {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			uuid, cert, err := ParseCertificate(ns, block.Bytes)
+			cns, cert, key, err := bifrost.ParseCertificate(block.Bytes)
 			if err != nil {
 				slog.ErrorCtx(ctx, "error parsing client certificate", "err", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			ctx = context.WithValue(ctx, keyUUID, uuid)
-			ctx = context.WithValue(ctx, keyCert, cert)
+			if cns != ns {
+				slog.ErrorCtx(ctx, "certificate namespace mismatch", "ns", ns, "cns", cns)
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			ctx = context.WithValue(ctx, keyNamespace, cns)
+			ctx = context.WithValue(ctx, keyCertificate, cert)
+			ctx = context.WithValue(ctx, keyPublicKey, key)
 			r = r.WithContext(ctx)
 		}
 		next.ServeHTTP(w, r)

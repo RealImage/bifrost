@@ -34,7 +34,12 @@ func (t *mappedHostTransport) RoundTrip(req *http.Request) (*http.Response, erro
 // Client certificates are loaded from clientCert and rootCAs is used to
 // validate the server certificate.
 // If ssllog is not nil, the client will log TLS key material to it.
-func HTTPClient(h Hosts, clientCert *tls.Certificate, rootCAs *x509.CertPool, ssllog io.Writer) *http.Client {
+func HTTPClient(
+	h Hosts,
+	clientCert *tls.Certificate,
+	rootCAs *x509.CertPool,
+	ssllog io.Writer,
+) *http.Client {
 	return &http.Client{
 		Transport: &mappedHostTransport{
 			hosts: h,

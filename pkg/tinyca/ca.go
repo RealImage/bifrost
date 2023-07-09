@@ -42,13 +42,17 @@ var (
 
 // New returns a new CA.
 // The CA issues certificates for the given namespace.
-func New(ns uuid.UUID, crt *x509.Certificate, key *ecdsa.PrivateKey, dur time.Duration) CA {
-	return CA{
+func New(crt *x509.Certificate, key *ecdsa.PrivateKey, dur time.Duration) (*CA, error) {
+	ns, _, err := bifrost.ValidateCertificate(crt)
+	if err != nil {
+		return nil, fmt.Errorf("ca certificate is not a bifrost certificate: %w", err)
+	}
+	return &CA{
 		ns:  ns,
 		crt: crt,
 		key: key,
 		dur: dur,
-	}
+	}, nil
 }
 
 // CA is a simple Certificate Authority.
@@ -116,7 +120,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	crt, err := ca.IssueCertificate(csr)
 	if err != nil {
 		status := http.StatusInternalServerError
-		if errors.Is(err, bifrost.ErrUnsupportedAlgorithm) {
+		if errors.Is(err, bifrost.ErrCertificateFormat) {
 			status = http.StatusBadRequest
 		} else if errors.Is(err, bifrost.ErrWrongNamespace) {
 			status = http.StatusForbidden
@@ -167,14 +171,17 @@ func readCSR(contentType string, body []byte) (*x509.CertificateRequest, error) 
 
 // IssueCertificate issues a client certificate for the given CSR.
 // The client ID is the UUID of the client public key.
+// The CSR Subject Common Name must be set to the client ID.
+// The certificate is issued with the Subject Common Name set to the client ID
+// and the Subject Organization set to the identity namespace.
 func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
 	if csr.SignatureAlgorithm != bifrost.SignatureAlgorithm {
-		return nil, fmt.Errorf("%w: %s, use %s instead", bifrost.ErrUnsupportedAlgorithm,
-			csr.SignatureAlgorithm, bifrost.SignatureAlgorithm)
+		return nil, fmt.Errorf("%w: invalid signature algorithm %s, use %s instead",
+			bifrost.ErrCertificateFormat, csr.SignatureAlgorithm, bifrost.SignatureAlgorithm)
 	}
 	if csr.PublicKeyAlgorithm != bifrost.PublicKeyAlgorithm {
-		return nil, fmt.Errorf("%w: %s, use %s instead", bifrost.ErrUnsupportedAlgorithm,
-			csr.PublicKeyAlgorithm, bifrost.PublicKeyAlgorithm)
+		return nil, fmt.Errorf("%w: invalid public key algorithm %s, use %s instead",
+			bifrost.ErrCertificateFormat, csr.PublicKeyAlgorithm, bifrost.PublicKeyAlgorithm)
 	}
 
 	// This should not fail because of the above check.
@@ -205,9 +212,8 @@ func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
 
 		Issuer: ca.crt.Issuer,
 		Subject: pkix.Name{
-			Organization:       []string{"Bifrost"},
-			OrganizationalUnit: []string{ca.ns.String()},
-			CommonName:         clientID,
+			Organization: []string{ca.ns.String()},
+			CommonName:   clientID,
 		},
 		PublicKey:    csr.PublicKey,
 		Signature:    csr.Signature,

@@ -7,9 +7,10 @@ package club
 
 import (
 	"encoding/json"
-	"encoding/pem"
+	"fmt"
 	"net/http"
 
+	"github.com/RealImage/bifrost"
 	"golang.org/x/exp/slog"
 )
 
@@ -21,30 +22,27 @@ func Bouncer(next http.Handler) http.Handler {
 			panic("bouncer operates on TLS connections with client certificates only")
 		}
 		peerCert := r.TLS.PeerCertificates[0]
-		var requestCtx RequestContext
-		requestCtx.Authentication.ClientCert = ClientCert{
-			ClientCertPEM: pem.EncodeToMemory(&pem.Block{
-				Type:  "CERTIFICATE",
-				Bytes: peerCert.Raw,
-			}),
-			IssuerDN:     peerCert.Issuer.ToRDNSequence().String(),
-			SerialNumber: peerCert.Issuer.SerialNumber,
-			SubjectDN:    peerCert.Subject.ToRDNSequence().String(),
-			Validity: validity{
-				NotAfter:  peerCert.NotAfter,
-				NotBefore: peerCert.NotBefore,
-			},
+		if _, _, err := bifrost.ValidateCertificate(peerCert); err != nil {
+			err = fmt.Errorf("error validating certificate: %w", err)
+			writeError(w, err, http.StatusUnauthorized, "unauthorized")
+			return
 		}
+		requestCtx := NewRequestContext(peerCert)
 		rctx, err := json.Marshal(&requestCtx)
 		if err != nil {
-			slog.Error("error marshaling request context", "err", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			if _, err := w.Write([]byte("unexpected error handling request")); err != nil {
-				panic(err)
-			}
+			err = fmt.Errorf("error marshaling request context: %w", err)
+			writeError(w, err, http.StatusInternalServerError, "unexpected error")
 			return
 		}
 		r.Header.Set(RequestContextHeader, string(rctx))
 		next.ServeHTTP(w, r)
 	})
+}
+
+func writeError(w http.ResponseWriter, err error, code int, msg string) {
+	slog.Error(msg, "err", err)
+	w.WriteHeader(code)
+	if _, err := w.Write([]byte(msg)); err != nil {
+		panic(err)
+	}
 }

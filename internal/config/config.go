@@ -9,7 +9,6 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
 )
 
@@ -50,18 +49,17 @@ func CommitInfo() (rev string, t time.Time) {
 }
 
 type Spec struct {
-	LogLevel  slog.Level `envconfig:"LOG_LEVEL" default:"info"`
-	Namespace uuid.UUID  `envconfig:"NS"        default:"1512daa4-ddc1-41d1-8673-3fd19d2f338d"`
-	Address   string     `envconfig:"ADDR"      default:"127.0.0.1:8080"`
-	CrtUri    string     `envconfig:"CRT"       default:"crt.pem"`
-	KeyUri    string     `envconfig:"KEY"       default:"key.pem"`
+	LogLevel slog.Level `envconfig:"LOG_LEVEL" default:"info"`
+	Address  string     `envconfig:"ADDR"      default:"127.0.0.1:8080"`
+	CrtUri   string     `envconfig:"CRT"       default:"crt.pem"`
+	KeyUri   string     `envconfig:"KEY"       default:"key.pem"`
 }
 
 type bouncer struct {
 	Spec
-	Address       string `envconfig:"ADDR"    default:"localhost:8443"`
-	BackendUrl    string `envconfig:"BACKEND" default:"http://localhost:8080"`
-	MetricsUrl    string `envconfig:"METRICS" default:"localhost:9091"`
+	Address       string `envconfig:"ADDR"          default:"localhost:8443"`
+	BackendUrl    string `envconfig:"BACKEND"       default:"http://localhost:8080"`
+	MetricsUrl    string `envconfig:"METRICS"       default:"localhost:9091"`
 	SSLKeyLogFile string `envconfig:"SSLKEYLOGFILE"`
 }
 

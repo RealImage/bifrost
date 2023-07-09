@@ -59,7 +59,9 @@ func (m model) View() string {
 	}
 
 	if m.cursor > 0 {
-		output.WriteString("Start [b]ouncer\nStart [i]ssuer\n[ENTER] start both\n[ESC] or [q]uit to exit\n")
+		output.WriteString(
+			"Start [b]ouncer\nStart [i]ssuer\n[ENTER] start both\n[ESC] or [q]uit to exit\n",
+		)
 	}
 	return output.String()
 }
