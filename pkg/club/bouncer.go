@@ -7,7 +7,6 @@ package club
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/RealImage/bifrost"
@@ -19,30 +18,22 @@ import (
 func Bouncer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
-			panic("bouncer operates on TLS connections with client certificates only")
+			panic("bouncer works only on TLS servers with clients connecting with certificates")
 		}
+		ctx := r.Context()
 		peerCert := r.TLS.PeerCertificates[0]
 		if _, _, err := bifrost.ValidateCertificate(peerCert); err != nil {
-			err = fmt.Errorf("error validating certificate: %w", err)
-			writeError(w, err, http.StatusUnauthorized, "unauthorized")
-			return
+			slog.ErrorCtx(ctx, "error validating client certificate", "error", err)
+			http.Error(w, "invalid client certificate", http.StatusUnauthorized)
 		}
 		requestCtx := NewRequestContext(peerCert)
 		rctx, err := json.Marshal(&requestCtx)
 		if err != nil {
-			err = fmt.Errorf("error marshaling request context: %w", err)
-			writeError(w, err, http.StatusInternalServerError, "unexpected error")
+			slog.ErrorCtx(r.Context(), "error marshaling request context", "error", err)
+			http.Error(w, "unexpected error", http.StatusInternalServerError)
 			return
 		}
 		r.Header.Set(RequestContextHeader, string(rctx))
 		next.ServeHTTP(w, r)
 	})
-}
-
-func writeError(w http.ResponseWriter, err error, code int, msg string) {
-	slog.Error(msg, "err", err)
-	w.WriteHeader(code)
-	if _, err := w.Write([]byte(msg)); err != nil {
-		panic(err)
-	}
 }

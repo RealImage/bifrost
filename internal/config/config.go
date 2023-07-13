@@ -50,7 +50,6 @@ func CommitInfo() (rev string, t time.Time) {
 
 type Spec struct {
 	LogLevel slog.Level `envconfig:"LOG_LEVEL" default:"info"`
-	Address  string     `envconfig:"ADDR"      default:"127.0.0.1:8080"`
 	CrtUri   string     `envconfig:"CRT"       default:"crt.pem"`
 	KeyUri   string     `envconfig:"KEY"       default:"key.pem"`
 }

@@ -41,7 +41,7 @@ func init() {
 		flag.PrintDefaults()
 	}
 	var ns string
-	flag.StringVar(&ns, "ns", bifrost.Namespace.String(),
+	flag.StringVar(&ns, "ns", uuid.Nil.String(),
 		"Bifrost Identity Namespace")
 	flag.BoolVar(&verbose, "v", false, "Verbose output")
 	flag.Parse()

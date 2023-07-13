@@ -18,21 +18,11 @@ Client identity namespaces allow Bifrost to be natively multi-tenant.
 
 Bifrost binaries are available on the [releases](https://github.com/RealImage/bifrost/releases)
 page.
-Container images are on ghcr.io.
 
-[bifrost](ghcr.io/realimage/bifrost) contains all binaries.
-Its intended for local development.
+[bifrost](ghcr.io/realimage/bifrost) container image on ghcr.io contains all binaries.
 
 ```console
 podman pull ghcr.io/realimage/bifrost
-```
-
-[bifrost-ca](ghcr.io/realimage/bifrost-ca) contains the issuer binary.
-The image has the [AWS Lambda Web Adapter](github.com/awslabs/aws-lambda-web-adapter)
-extension installed.
-
-```console
-podman pull ghcr.io/realimage/bifrost-ca
 ```
 
 ## Identity
@@ -63,7 +53,7 @@ It uses [Charm Cloud] to store your key material securely in the cloud.
 If client authentication succeeds, bouncer proxies the requests to the backend url.
 The client's TLS certificate is available in the `x-amzn-request-context` header.
 
-Bouncer will log TLS Pre-Master secrets to the file if the `SSLKEYLOGFILE`
+Bouncer will log TLS Pre-Master secrets to a file if the `SSLKEYLOGFILE`
 environment variable is set. [Wireshark](https://www.wireshark.org)
 can use this file to decrypt traffic.
 
@@ -104,9 +94,6 @@ using the ECDSA SHA256 signature algorithm.
 of sources.
 If unconfigured, it looks for `crt.pem` and `key.pem` in the current working directory.
 
-The `BF_NS` environment variable sets the Bifrost Identifier Namespace to use.
-If unset, it defaults to `bifrost.Namespace`.
-
 `issuer` exposes prometheus format metrics at the `/metrics` path.
 
 ## Build
@@ -120,41 +107,55 @@ mkdir build
 go build -o build ./...
 ```
 
-### Containers
+### Container
 
-issuer:
+Build all binaries:
 
 ```console
-podman build -t ghcr.io/realimage/bifrost-ca --target=ca .
+podman build -t ghcr.io/realimage/bifrost .
 ```
 
-bifrost:
+Build the CA container with the AWS Lambda Web Adapter extension:
 
 ```console
-podman build -t gcr.io/realimage/bifrost .
+podman build -f ca.Containerfile -t bifrost-ca .
 ```
 
 ## Run Issuer CA
+
+0. Generate a new namespace UUID
+
+    `export BF_NS=$(uuidgen)`
 
 1. Create ECDSA P256 Private Key in PEM format:
 
     `openssl ecparam -out key.pem -name prime256v1 -genkey -noout`
 
-2. Create 10 year self-signed certificate from the newly generated key:
+2. Create 10 year self-signed "CA" certificate:
 
-    `openssl req -new -key key.pem -x509 -nodes -days 3650 -out crt.pem`
+```console
+openssl req -new -key key.pem -x509 -nodes \
+  -days 3650 \
+  -subj "/CN=$(bfid -ns "$BF_ID" key.pem)/O=$BF_ID" \
+  -addext "subjectAltName = DNS:localhost" \
+  -out crt.pem
+```
 
 3. Run the binary:
 
     `./issuer`
 
-4. Generate a new client key and CSR, and get it signed by `issuer`:
+4. Generate a new client identity key:
 
     `openssl ecparam -out clientkey.pem -name prime256v1 -genkey -noout`
 
-5. Create a Certificate Signing Request using the new private key:
+5. Create a Certificate Signing Request with the client private key:
 
-    `openssl req -new -key clientkey.pem -sha256 -subj "/CN=$(./bfid clientkey.pem)" -out csr.pem`
+```console
+openssl req -new -key clientkey.pem -sha256 \
+  -subj "/CN=$(bfid clientkey.pem)/O=$BF_ID" \
+  -out csr.pem
+```
 
 6. Fetch signed certificate from the CA:
 
