@@ -23,28 +23,30 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/google/uuid"
 )
 
 const getTImeout = time.Minute
 
-// GetCertificate fetches a bifrost certificate from uri.
+// GetCertificate returns a namespace and a bifrost certificate from uri.
 // uri can be a relative or absolute file path, file://... uri, s3://... uri,
 // or an AWS S3 or AWS Secrets Manager ARN.
-func GetCertificate(ctx context.Context, uri string) (*x509.Certificate, error) {
+// The certificate is validated before returning.
+func GetCertificate(ctx context.Context, uri string) (uuid.UUID, *x509.Certificate, error) {
 	ctx, cancel := context.WithTimeout(ctx, getTImeout)
 	defer cancel()
 
 	crtPem, err := getPemFile(ctx, uri)
 	if err != nil {
-		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
+		return uuid.Nil, nil, fmt.Errorf("error getting file %s: %w", uri, err)
 	}
 
-	_, crt, _, err := bifrost.ParseCertificate(crtPem)
+	ns, crt, _, err := bifrost.ParseCertificate(crtPem)
 	if err != nil {
-		return nil, fmt.Errorf("error validating certificate: %w", err)
+		return uuid.Nil, nil, fmt.Errorf("error validating certificate: %w", err)
 	}
 
-	return crt, nil
+	return ns, crt, nil
 }
 
 // GetPrivateKey retrieves a PEM encoded private key from uri.

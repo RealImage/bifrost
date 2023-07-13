@@ -23,9 +23,6 @@ const (
 	PublicKeyAlgorithm = x509.ECDSA
 )
 
-// Namespace is the default UUID Namespace for Bifrost identities.
-var Namespace = uuid.MustParse("1512daa4-ddc1-41d1-8673-3fd19d2f338d")
-
 // Errors.
 var (
 	ErrCertificateFormat = errors.New("invalid certificate format")

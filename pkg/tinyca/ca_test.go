@@ -19,6 +19,9 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/RealImage/bifrost"
+	"github.com/google/uuid"
 )
 
 var serveHTTPTests = []struct {
@@ -29,25 +32,27 @@ var serveHTTPTests = []struct {
 	expectedCode  int
 	expectedBody  []byte
 }{
-	// Good request.
+	// Good requests.
 	{
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIHqMIGRAgEAMC8xLTArBgNVBAMMJDhiOWZjYTc5LTEzZTAtNTE1Ny1iNzU0LWZm
-MmU0ZTk4NWMzMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+MIIBGDCBwAIBADBeMS0wKwYDVQQDDCQ4YjlmY2E3OS0xM2UwLTUxNTctYjc1NC1m
+ZjJlNGU5ODVjMzAxLTArBgNVBAoMJDAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAw
+MDAwMDAwMDAwMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
 aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
-f/l+B/agADAKBggqhkjOPQQDAgNIADBFAiAvtaEUXg2tksT2Im9lcuwczo1kAkMi
-t2JULLKqqzGD0QIhALfztii4QqqBBGDyS+oR2DMxvWjv68dGOnggr00I7T/S
+f/l+B/agADAKBggqhkjOPQQDAgNHADBEAiAOhgfkcjs16H2ZNpNUiOJcS8P+mpiC
+f+0l7+v5i1OW0AIgFft4Xc7mEo5XxJuHItDSf9lOxilweHpEVbv+zw0Uogs=
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusOK,
 	},
 	{
 		accept: mimeTypeBytes,
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIHqMIGRAgEAMC8xLTArBgNVBAMMJDhiOWZjYTc5LTEzZTAtNTE1Ny1iNzU0LWZm
-MmU0ZTk4NWMzMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+MIIBGDCBwAIBADBeMS0wKwYDVQQDDCQ4YjlmY2E3OS0xM2UwLTUxNTctYjc1NC1m
+ZjJlNGU5ODVjMzAxLTArBgNVBAoMJDAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAw
+MDAwMDAwMDAwMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
 aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
-f/l+B/agADAKBggqhkjOPQQDAgNIADBFAiAvtaEUXg2tksT2Im9lcuwczo1kAkMi
-t2JULLKqqzGD0QIhALfztii4QqqBBGDyS+oR2DMxvWjv68dGOnggr00I7T/S
+f/l+B/agADAKBggqhkjOPQQDAgNHADBEAiAOhgfkcjs16H2ZNpNUiOJcS8P+mpiC
+f+0l7+v5i1OW0AIgFft4Xc7mEo5XxJuHItDSf9lOxilweHpEVbv+zw0Uogs=
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusOK,
 	},
@@ -59,6 +64,14 @@ t2JULLKqqzGD0QIhALfztii4QqqBBGDyS+oR2DMxvWjv68dGOnggr00I7T/S
 	{
 		contentType:  "application/json",
 		expectedCode: http.StatusUnsupportedMediaType,
+		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+MIIBGTCBwAIBADBeMS0wKwYDVQQDDCQ4YjlmY2E3OS0xM2UwLTUxNTctYjc1NC1m
+ZjJlNGU5ODVjMzAxLTArBgNVBAoMJDAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAw
+MDAwMDAwMDAwMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
+f/l+B/agADAKBggqhkjOPQQDAgNIADBFAiEA9e4/Ntkgv8DB19EWs+BwLKnlA94V
+a9rP0bn1HhVb/P8CIEMAqO2BWQ28M3Io0Wy+MTpqtX7/O1BAnSXT4BvZGUot
+-----END CERTIFICATE REQUEST-----`),
 	},
 	{
 		accept:        "application/json",
@@ -116,12 +129,17 @@ func TestCA_ServeHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	id := bifrost.UUID(uuid.Nil, &key.PublicKey)
+
 	// Create root certificate.
 	template := x509.Certificate{
-		SerialNumber:          big.NewInt(2),
-		Subject:               pkix.Name{CommonName: "Issuer Test CA"},
+		SerialNumber: big.NewInt(2),
+		Subject: pkix.Name{
+			CommonName:   id.String(),
+			Organization: []string{uuid.Nil.String()},
+		},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(time.Hour * 24 * 180),
+		NotAfter:              time.Now().Add(time.Hour * 24),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
@@ -131,9 +149,9 @@ func TestCA_ServeHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	crt, _ := x509.ParseCertificate(crtDer)
-	ca := CA{
-		crt: crt,
-		key: key,
+	ca, err := New(crt, key, time.Hour)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	for i, tc := range serveHTTPTests {

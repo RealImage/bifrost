@@ -44,7 +44,7 @@ func main() {
 	backendUrl, err := url.Parse(config.Bouncer.BackendUrl)
 	sundry.OnErrorExit(ctx, err, "error parsing backend url")
 
-	crt, err := cafiles.GetCertificate(ctx, config.Bouncer.CrtUri)
+	ns, crt, err := cafiles.GetCertificate(ctx, config.Bouncer.CrtUri)
 	sundry.OnErrorExit(ctx, err, "error getting crt")
 
 	key, err := cafiles.GetPrivateKey(ctx, config.Bouncer.KeyUri)
@@ -56,8 +56,9 @@ func main() {
 	slog.InfoCtx(
 		ctx,
 		"proxying requests",
-		slog.String("from", "https://"+config.Bouncer.Address),
-		slog.String("to", config.Bouncer.BackendUrl),
+		"from", "https://"+config.Bouncer.Address,
+		"to", config.Bouncer.BackendUrl,
+		"ns", ns.String(),
 	)
 
 	reverseProxy := &httputil.ReverseProxy{

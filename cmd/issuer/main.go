@@ -30,7 +30,7 @@ func main() {
 	sha, timestamp := config.CommitInfo()
 	slog.InfoCtx(ctx, "build info", slog.String("sha", sha), slog.Any("timestamp", timestamp))
 
-	crt, err := cafiles.GetCertificate(ctx, config.Issuer.CrtUri)
+	_, crt, err := cafiles.GetCertificate(ctx, config.Issuer.CrtUri)
 	sundry.OnErrorExit(ctx, err, "error getting crt")
 
 	key, err := cafiles.GetPrivateKey(ctx, config.Issuer.KeyUri)

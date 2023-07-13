@@ -175,6 +175,24 @@ func readCSR(contentType string, body []byte) (*x509.CertificateRequest, error) 
 // The certificate is issued with the Subject Common Name set to the client ID
 // and the Subject Organization set to the identity namespace.
 func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
+	// Check identity namespace.
+	if len(csr.Subject.Organization) != 1 {
+		return nil, fmt.Errorf("%w: invalid bifrost namespace", bifrost.ErrCertificateFormat)
+	}
+	ns, err := uuid.Parse(csr.Subject.Organization[0])
+	if err != nil {
+		return nil, fmt.Errorf(
+			"%w, invalid bifrost namespace: %v",
+			bifrost.ErrCertificateFormat,
+			err,
+		)
+	}
+	if ns != ca.ns {
+		return nil, fmt.Errorf("%w: incorrect namespace %s, use %s instead",
+			bifrost.ErrWrongNamespace, ns, ca.ns)
+	}
+
+	// Check signature and public key algorithms.
 	if csr.SignatureAlgorithm != bifrost.SignatureAlgorithm {
 		return nil, fmt.Errorf("%w: invalid signature algorithm %s, use %s instead",
 			bifrost.ErrCertificateFormat, csr.SignatureAlgorithm, bifrost.SignatureAlgorithm)
@@ -183,17 +201,24 @@ func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
 		return nil, fmt.Errorf("%w: invalid public key algorithm %s, use %s instead",
 			bifrost.ErrCertificateFormat, csr.PublicKeyAlgorithm, bifrost.PublicKeyAlgorithm)
 	}
-
-	// This should not fail because of the above check.
 	ecdsaPubKey := csr.PublicKey.(*ecdsa.PublicKey)
 
-	clientID := bifrost.UUID(ca.ns, ecdsaPubKey).String()
-	if subName := csr.Subject.CommonName; clientID != csr.Subject.CommonName {
+	id := bifrost.UUID(ca.ns, ecdsaPubKey)
+	cid, err := uuid.Parse(csr.Subject.CommonName)
+	if err != nil {
 		return nil, fmt.Errorf(
-			"subject common name is %s but should be %s, %w?",
-			subName,
-			clientID,
+			"%w: subject common name is '%s' but should be '%s'",
+			bifrost.ErrCertificateFormat,
+			csr.Subject.CommonName,
+			id,
+		)
+	}
+	if cid != id {
+		return nil, fmt.Errorf(
+			"%w: subject common name is '%s' but should be '%s'",
 			bifrost.ErrWrongNamespace,
+			csr.Subject.CommonName,
+			id,
 		)
 	}
 
@@ -213,7 +238,7 @@ func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
 		Issuer: ca.crt.Issuer,
 		Subject: pkix.Name{
 			Organization: []string{ca.ns.String()},
-			CommonName:   clientID,
+			CommonName:   id.String(),
 		},
 		PublicKey:    csr.PublicKey,
 		Signature:    csr.Signature,

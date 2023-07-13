@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 // Hosts is a map of hostnames to backend URLs.
@@ -17,7 +18,7 @@ type mappedHostTransport struct {
 }
 
 func (t *mappedHostTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if u, ok := t.hosts[req.Host]; ok {
+	if u, ok := t.hosts[req.URL.Host]; ok {
 		req.URL.Scheme = u.Scheme
 		req.URL.Host = u.Host
 		path, err := url.JoinPath(u.Path, req.URL.Path)
@@ -44,10 +45,16 @@ func HTTPClient(
 		Transport: &mappedHostTransport{
 			hosts: h,
 			transport: &http.Transport{
-				Proxy:             http.ProxyFromEnvironment,
-				ForceAttemptHTTP2: true,
+				Proxy:                 http.ProxyFromEnvironment,
+				ForceAttemptHTTP2:     true,
+				MaxIdleConns:          100,
+				IdleConnTimeout:       90 * time.Second,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
 				TLSClientConfig: &tls.Config{
-					Certificates: []tls.Certificate{*clientCert},
+					GetClientCertificate: func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+						return clientCert, nil
+					},
 					RootCAs:      rootCAs,
 					KeyLogWriter: ssllog,
 				},
