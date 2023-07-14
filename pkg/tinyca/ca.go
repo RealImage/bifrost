@@ -126,7 +126,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			status = http.StatusForbidden
 		}
 		w.WriteHeader(status)
-		fmt.Fprintf(w, "%s\n", err.Error())
+		fmt.Fprintf(w, "%s", err.Error())
 		slog.Error("error issuing certificate", "err", err)
 		return
 	}
@@ -144,7 +144,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, err = w.Write(crt)
 	default:
 		w.WriteHeader(http.StatusNotAcceptable)
-		fmt.Fprintf(w, "media type %s unacceptable\n", accept)
+		fmt.Fprintf(w, "media type %s unacceptable", accept)
 		return
 	}
 	if err != nil {
@@ -177,7 +177,7 @@ func readCSR(contentType string, body []byte) (*x509.CertificateRequest, error) 
 func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
 	// Check identity namespace.
 	if len(csr.Subject.Organization) != 1 {
-		return nil, fmt.Errorf("%w: invalid bifrost namespace", bifrost.ErrCertificateFormat)
+		return nil, fmt.Errorf("%w: missing bifrost namespace", bifrost.ErrCertificateFormat)
 	}
 	ns, err := uuid.Parse(csr.Subject.Organization[0])
 	if err != nil {
@@ -188,7 +188,7 @@ func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
 		)
 	}
 	if ns != ca.ns {
-		return nil, fmt.Errorf("%w: incorrect namespace %s, use %s instead",
+		return nil, fmt.Errorf("%w: '%s', use '%s' instead",
 			bifrost.ErrWrongNamespace, ns, ca.ns)
 	}
 
