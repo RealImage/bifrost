@@ -7,7 +7,6 @@ ARG GO_VERSION="1.20"
 FROM docker.io/library/golang:${GO_VERSION} as builder
 WORKDIR /src
 COPY . .
-ENV GOPRIVATE="github.com/RealImage/*"
 RUN mkdir /build
 RUN go build -o /build ./...
 
