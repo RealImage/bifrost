@@ -69,11 +69,7 @@ type CA struct {
 
 func (ca CA) String() string {
 	return fmt.Sprintf(
-		"CA(ns=%s, crt=%s, keyid=%s, dur=%s)",
-		ca.ns,
-		ca.crt.Subject,
-		bifrost.UUID(ca.ns, &ca.key.PublicKey),
-		ca.dur,
+		"CA(ns=%s, id=%s, dur=%s)", ca.ns, bifrost.UUID(ca.ns, &ca.key.PublicKey), ca.dur,
 	)
 }
 
