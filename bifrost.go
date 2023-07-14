@@ -78,9 +78,9 @@ func ValidateCertificate(cert *x509.Certificate) (uuid.UUID, *ecdsa.PublicKey, e
 	// Check for bifrost signature algorithm
 	if cert.SignatureAlgorithm != SignatureAlgorithm {
 		return uuid.Nil, nil, fmt.Errorf(
-			"unsupported signature algorithm: %s, %w",
-			cert.SignatureAlgorithm,
+			"%w: unsupported signature algorithm '%s'",
 			ErrCertificateFormat,
+			cert.SignatureAlgorithm,
 		)
 	}
 
@@ -97,9 +97,9 @@ func ValidateCertificate(cert *x509.Certificate) (uuid.UUID, *ecdsa.PublicKey, e
 	pubkey, ok := cert.PublicKey.(*ecdsa.PublicKey)
 	if !ok {
 		return uuid.Nil, nil, fmt.Errorf(
-			"invalid public key: %T, %w",
-			cert.PublicKey,
+			"%w: invalid public key type: '%T'",
 			ErrCertificateFormat,
+			cert.PublicKey,
 		)
 	}
 
@@ -107,11 +107,11 @@ func ValidateCertificate(cert *x509.Certificate) (uuid.UUID, *ecdsa.PublicKey, e
 	id := UUID(ns, pubkey)
 	cid, err := uuid.Parse(cert.Subject.CommonName)
 	if err != nil {
-		return uuid.Nil, nil, fmt.Errorf("invalid subj CN '%s' %w: %s",
-			cert.Subject.CommonName, ErrCertificateFormat, err)
+		return uuid.Nil, nil, fmt.Errorf("%w: invalid subj CN '%s', %v",
+			ErrCertificateFormat, cert.Subject.CommonName, err)
 	}
 	if cid != id {
-		return uuid.Nil, nil, fmt.Errorf("certificate identity mismatch: %w", ErrCertificateFormat)
+		return uuid.Nil, nil, fmt.Errorf("%w: certificate identity incorrect", ErrCertificateFormat)
 	}
 
 	return ns, pubkey, nil
