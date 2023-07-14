@@ -88,10 +88,12 @@ a9rP0bn1HhVb/P8CIEMAqO2BWQ28M3Io0Wy+MTpqtX7/O1BAnSXT4BvZGUot
 	},
 	{
 		expectedCode: http.StatusBadRequest,
+		expectedBody: []byte("error decoding csr pem"),
 	},
 	{
-		requestBody:  []byte(""),
+		contentType:  mimeTypeBytes,
 		expectedCode: http.StatusBadRequest,
+		expectedBody: []byte("asn1: syntax error: sequence truncated"),
 	},
 	{
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
@@ -104,7 +106,7 @@ mgv/AEzrEMftJgIgJMVY2zEn/qS9M/yJb7IeSSWv9IbiHfP325aZsynerNg=
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusBadRequest,
 		expectedBody: []byte(
-			"invalid certificate format: invalid signature algorithm ECDSA-SHA512, use ECDSA-SHA256 instead",
+			"invalid certificate request format: unsupported signature algorithm 'ECDSA-SHA512'",
 		),
 	},
 	{
@@ -118,7 +120,7 @@ h3/5fgf2oAAwCgYIKoZIzj0EAwIDSAAwRQIgeb1ei3tJ4OPnX3UXUs3zT9vXfX+1
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusBadRequest,
 		expectedBody: []byte(
-			"invalid certificate format, invalid bifrost namespace: invalid UUID length: 37",
+			"invalid certificate request format: invalid identity namespace 00000000-0000-0000-0000-0000000000000: invalid UUID length: 37",
 		),
 	},
 	{
@@ -130,9 +132,9 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNGADBDAh8n+tbz1NmD1YPuCVSpXv6F5+FGSC8n
 /0VF8h3MlyMJAiAbtdpfYZElm0SMRfbVOGNVRxrurlXyENPSVzzgVx3MoQ==
 -----END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusForbidden,
+		expectedCode: http.StatusBadRequest,
 		expectedBody: []byte(
-			"wrong namespace: subject common name is '45FA7096-5E26-4B0F-82E8-3CA4FC28D3BE' but should be '8b9fca79-13e0-5157-b754-ff2e4e985c30'",
+			"invalid certificate request format: incorrect identity",
 		),
 	},
 	{
@@ -144,21 +146,7 @@ f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAil27xQI3XQqqoNXgPUMNpJUukVDD
 FOioc6+qkAh+Sv8CIQDxi4eJOHAg3+eSnryb3zgsDIoGWcw3NRWI12Kwwr9Upw==
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte(`invalid certificate format: missing bifrost namespace`),
-	},
-	{
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIIBGTCBwAIBADBeMS0wKwYDVQQDDCRDMzM2QUIzMS05MDc5LTQ2MUMtOEJGRS01
-N0E4NzFCRTVGQkExLTArBgNVBAoMJERGMTkwQjY5LThDOTAtNDlBMC04NjlGLTAx
-NjFFMkVBQTIxQzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
-aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
-f/l+B/agADAKBggqhkjOPQQDAgNIADBFAiA0uztDACLPHPsATXkPN6YFWcKFOAec
-z+LCMO8YSsF3wgIhAM0ELa3gPiGhSlAoPRxSeXUQ9dEOLOPWyXxaON+V2HJ4
------END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusForbidden,
-		expectedBody: []byte(
-			`wrong namespace: 'df190b69-8c90-49a0-869f-0161e2eaa21c', use '00000000-0000-0000-0000-000000000000' instead`,
-		),
+		expectedBody: []byte("invalid certificate request format: missing identity namespace"),
 	},
 }
 
@@ -238,18 +226,28 @@ func TestCA_ServeHTTP(t *testing.T) {
 				// If expected body is empty, check that the response body is valid.
 				switch resp.Header.Get(ctHeader) {
 				case "", mimeTypeText:
-					// Check that the response body is a valid PEM block.
-					if p, _ := pem.Decode(respBody); p == nil {
+					b, _ := pem.Decode(respBody)
+					if b == nil {
 						t.Fatal("response body is not a valid PEM block")
+						return
+					}
+					ns, _, _, err := bifrost.ParseCertificate(b.Bytes)
+					if err != nil {
+						t.Fatal("response body is not a valid bifrost certificate: ", err)
+					}
+					if ns != uuid.Nil {
+						t.Fatalf("expected namespace: %s, actual: %s\n", uuid.Nil, ns)
 					}
 				case mimeTypeBytes:
-					// Check that the response body is a valid DER certificate.
-					if _, err := x509.ParseCertificate(respBody); err != nil {
-						t.Fatal("response body is not a valid DER certificate: ", err)
+					ns, _, _, err := bifrost.ParseCertificate(respBody)
+					if err != nil {
+						t.Fatal("response body is not a valid bifrost certificate: ", err)
+					}
+					if ns != uuid.Nil {
+						t.Fatalf("expected namespace: %s, actual: %s\n", uuid.Nil, ns)
 					}
 				default:
 					t.Fatalf("unexpected Content-Type: %s\n", resp.Header.Get(ctHeader))
-
 				}
 			}
 		})
