@@ -8,10 +8,10 @@ Bifrost is a minimal Certificate Authority that issues X.509 certificates meant 
 mTLS client authentication. Bifrost CA does not authenticate certificate signing
 requests before issuance. You must authorise or control access to Bifrost CA as needed.
 
-Bifrost CA issues certificates signed by a private key and TLS X.509 certificate.
-A TLS reverse proxy can use the same certificate to authenticate clients and secure
+Bifrost CA issues certificates signed by a private key and a TLS X.509 certificate.
+A TLS reverse proxy can use the issuing certificate to authenticate clients and secure
 access to web applications.
-Bifrost identifies clients uniquely by mapping an ECDSA public key to a UUID deterministically.
+Bifrost identifies clients uniquely by ECDSA public keys.
 Client identity namespaces allow Bifrost to be natively multi-tenant.
 
 ## Releases
@@ -27,21 +27,20 @@ podman pull ghcr.io/realimage/bifrost
 
 ## Identity
 
-Bifrost UUIDs are UUIDv5 deterministically created from ECDSA public keys.
-The namespace UUID appended to the X and Y curve points (big-endian) from
-an ECDSA P256 public key hashed using SHA1 form the public key's UUID.
-A public key will always map to a UUID within a namespace.
+Bifrost identities are UUID version 5 UUIDs, derived from ECDSA public keys.
+A client's identity UUID is the namespace UUID appended to to the X and Y curve points
+(big-endian) from its ECDSA P256 public key, hashed using SHA1.
 
 In pseudo-code,
 
-`bifrostUUID = UUIDv5(sha1(NamespaceClientIdentity, PublicKey.X.Bytes() + PublicKey.Y.Bytes())`
+`bifrostUUID = UUIDv5(sha1(NamespaceClientIdentity + PublicKey.X.Bytes() + PublicKey.Y.Bytes())`
 
 ## Components
 
 ## [`bf`](cmd/bf) (alpha)
 
 `bf` is an interactive tool that generates Bifrost CA material.
-It uses [Charm Cloud] to store your key material securely in the cloud.
+It uses [Charm Cloud](https://charm.sh/cloud/) to store your key material securely in the cloud.
 
 ### [`bfid`](cmd/bfid)
 
@@ -50,7 +49,7 @@ It uses [Charm Cloud] to store your key material securely in the cloud.
 ### [`bouncer`](cmd/bouncer)
 
 `bouncer` is a simple mTLS reverse proxy suitable for local development.
-If client authentication succeeds, bouncer proxies the requests to the backend url.
+If client authentication succeeds, bouncer proxies the request to the backend url.
 The client's TLS certificate is available in the `x-amzn-request-context` header.
 
 Bouncer will log TLS Pre-Master secrets to a file if the `SSLKEYLOGFILE`
@@ -90,7 +89,7 @@ env BACKEND_URL=http://127.0.0.1:5000 ./bouncer
 Clients must send certificate requests signed by an ECDSA P256 private key
 using the ECDSA SHA256 signature algorithm.
 
-`issuer` can read its signing certificate and private key in PEM form from a variety
+`issuer` can read its signing certificate and private key in PEM form, from a variety
 of sources.
 If unconfigured, it looks for `crt.pem` and `key.pem` in the current working directory.
 
@@ -163,7 +162,43 @@ openssl req -new -key clientkey.pem -sha256 \
 
 7. Admire your shiny new client certificate (optional):
 
-    `openssl x509 -in clientcrt.pem -noout -text`
+```console
+$ openssl x509 -in clientcrt.pem -noout -text
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 871355257622038992 (0xc17acfd7bbb09d0)
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: CN = 46d6516e-715f-5a8a-8523-c2924b2a53d7, O = 00000000-0000-0000-0000-000000000000
+        Validity
+            Not Before: Jul 12 23:09:46 2023 GMT
+            Not After : Jul 13 00:09:46 2023 GMT
+        Subject: O = 00000000-0000-0000-0000-000000000000, CN = 8b9fca79-13e0-5157-b754-ff2e4e985c30
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:84:4a:3b:fa:2e:dd:07:d5:a7:96:26:68:ac:81:
+                    16:8a:cb:57:02:0a:c7:ae:d3:b3:da:b5:b4:2d:a5:
+                    c8:65:c2:4d:88:45:00:5a:44:f3:30:52:ab:63:42:
+                    59:3d:50:68:50:45:e0:60:61:e1:57:b8:5c:dc:87:
+                    7f:f9:7e:07:f6
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature
+            X509v3 Extended Key Usage: 
+                TLS Web Client Authentication
+            X509v3 Authority Key Identifier: 
+                CA:2F:94:0D:43:FB:6D:00:66:09:50:4C:8C:1F:A3:BC:C1:EF:98:F4
+    Signature Algorithm: ecdsa-with-SHA256
+    Signature Value:
+        30:45:02:21:00:a3:2a:99:6e:29:b6:97:61:55:ac:a5:96:9c:
+        ab:c3:86:44:4e:86:f5:1f:56:34:49:a7:36:b5:6c:db:72:65:
+        a6:02:20:14:a9:d2:07:d5:63:17:d5:e0:3b:e3:f7:ef:e7:d0:
+        65:86:c3:74:5e:b4:61:87:cd:af:6a:71:af:cd:cf:45:8b
+```
 
 ## Fishy Benchmarks
 

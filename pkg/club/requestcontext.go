@@ -12,9 +12,13 @@ import (
 
 // RequestContext is passed to the HTTP handler as a JSON encoded header value.
 type RequestContext struct {
-	Authentication struct {
-		ClientCert ClientCert `json:"clientCert"`
-	} `json:"authentication"`
+	Identity Identity `json:"identity"`
+}
+
+type Identity struct {
+	SourceIP   string     `json:"sourceIp"`
+	UserAgent  string     `json:"userAgent"`
+	ClientCert ClientCert `json:"clientCert"`
 }
 
 // ClientCert contains fields related to TLS Client Certificates.
@@ -33,7 +37,7 @@ type validity struct {
 
 func NewRequestContext(crt *x509.Certificate) *RequestContext {
 	var r RequestContext
-	r.Authentication.ClientCert = ClientCert{
+	r.Identity.ClientCert = ClientCert{
 		ClientCertPEM: pem.EncodeToMemory(&pem.Block{
 			Type:  "CERTIFICATE",
 			Bytes: crt.Raw,

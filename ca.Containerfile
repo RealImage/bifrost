@@ -7,7 +7,6 @@ ARG GO_VERSION="1.20"
 FROM docker.io/library/golang:${GO_VERSION} as builder
 WORKDIR /src
 COPY . .
-ENV GOPRIVATE="github.com/RealImage/*"
 RUN mkdir /build
 RUN go build -o /build ./...
 
@@ -15,7 +14,7 @@ FROM gcr.io/distroless/base-debian11
 # uses lambda-web-adapter to run our standard HTTP app in a lambda
 # https://github.com/awslabs/aws-lambda-web-adapter
 # for configuration see https://github.com/awslabs/aws-lambda-web-adapter#configurations
-ARG AWS_LAMBDA_WEB_ADAPTER_VERSION=0.6.0
+ARG AWS_LAMBDA_WEB_ADAPTER_VERSION=0.7.0
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:$AWS_LAMBDA_WEB_ADAPTER_VERSION \
   /lambda-adapter /opt/extensions/lambda-adapter
 COPY --from=builder /build/issuer /

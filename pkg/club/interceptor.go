@@ -57,7 +57,7 @@ func Interceptor(next http.Handler) http.Handler {
 			http.Error(w, "zen meditation error", http.StatusInternalServerError)
 			return
 		}
-		block, _ := pem.Decode(rctx.Authentication.ClientCert.ClientCertPEM)
+		block, _ := pem.Decode(rctx.Identity.ClientCert.ClientCertPEM)
 		if block == nil {
 			slog.ErrorCtx(ctx, "error decoding client certificate")
 			http.Error(w, "zen meditation error", http.StatusInternalServerError)
