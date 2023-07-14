@@ -35,10 +35,6 @@ func ID(ctx context.Context) (uuid.UUID, *x509.Certificate, *ecdsa.PublicKey) {
 		ctx.Value(keyPublicKey).(*ecdsa.PublicKey)
 }
 
-// Interceptor returns a HTTP Handler middleware function that reads The
-// x-amzn-request-context header and adds the client's UUID and certificate to
-// the request context.
-
 // Interceptor is a HTTP handler middleware function that parses the
 // x-amzn-request-context request header. The header is expected to contain a
 // JSON encoded RequestContext. The identity namespace, client's UUID, and

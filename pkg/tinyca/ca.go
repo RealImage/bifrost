@@ -87,8 +87,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
 	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		fmt.Fprintf(w, "method %s not allowed", r.Method)
+		http.Error(w, fmt.Sprintf("method %s not allowed", r.Method), http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -98,22 +97,24 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		contentType = mimeTypeText
 	case mimeTypeText, mimeTypeBytes:
 	default:
-		w.WriteHeader(http.StatusUnsupportedMediaType)
-		fmt.Fprintf(w, "unsupported Content-Type %s", contentType)
+		http.Error(
+			w,
+			fmt.Sprintf("unsupported Content-Type %s", contentType),
+			http.StatusUnsupportedMediaType,
+		)
+		slog.Error("unsupported Content-Type", "content-type", contentType)
 		return
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "unexpected error reading request\n")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		slog.Error("error reading request body", "err", err)
 		return
 	}
 	ns, csr, pubkey, err := readCSR(contentType, body)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		slog.Error("error reading csr", "err", err)
 		return
 	}
@@ -125,8 +126,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else if errors.Is(err, bifrost.ErrWrongNamespace) {
 			status = http.StatusForbidden
 		}
-		w.WriteHeader(status)
-		fmt.Fprintf(w, "%s", err.Error())
+		http.Error(w, err.Error(), status)
 		slog.Error("error issuing certificate", "err", err)
 		return
 	}
@@ -143,8 +143,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(ctHeader, accept)
 		_, err = w.Write(crt)
 	default:
-		w.WriteHeader(http.StatusNotAcceptable)
-		fmt.Fprintf(w, "media type %s unacceptable", accept)
+		http.Error(w, fmt.Sprintf("media type %s unacceptable", accept), http.StatusNotAcceptable)
 		return
 	}
 	if err != nil {
@@ -153,7 +152,10 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	requestsDuration.Update(time.Since(startTime).Seconds())
 }
 
-func readCSR(contentType string, body []byte) (uuid.UUID, *x509.CertificateRequest, *ecdsa.PublicKey, error) {
+func readCSR(
+	contentType string,
+	body []byte,
+) (uuid.UUID, *x509.CertificateRequest, *ecdsa.PublicKey, error) {
 	csr := body
 	switch contentType {
 	case mimeTypeBytes:
@@ -174,7 +176,11 @@ func readCSR(contentType string, body []byte) (uuid.UUID, *x509.CertificateReque
 // The CSR Subject Common Name must be set to the client ID.
 // The certificate is issued with the Subject Common Name set to the client ID
 // and the Subject Organization set to the identity namespace.
-func (ca CA) IssueCertificate(ns uuid.UUID, csr *x509.CertificateRequest, pubkey *ecdsa.PublicKey) ([]byte, error) {
+func (ca CA) IssueCertificate(
+	ns uuid.UUID,
+	csr *x509.CertificateRequest,
+	pubkey *ecdsa.PublicKey,
+) ([]byte, error) {
 	if ns != ca.ns {
 		return nil, fmt.Errorf("%w: '%s', use '%s' instead",
 			bifrost.ErrWrongNamespace, ns, ca.ns)

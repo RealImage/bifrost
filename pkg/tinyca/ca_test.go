@@ -212,18 +212,14 @@ func TestCA_ServeHTTP(t *testing.T) {
 			if ac := resp.Header.Get(acHeader); ac != "" && tc.accept != "" && ac != tc.accept {
 				t.Fatalf("expected response media type: %s, actual: %s\n", tc.accept, ac)
 			}
-			if ct := resp.Header.Get(ctHeader); ct != "" && tc.contentType != "" &&
-				ct != tc.contentType {
-				t.Fatalf("expected response Content-Type: %s, actual: %s\n", tc.contentType, ct)
-			}
 			respBody, _ := io.ReadAll(resp.Body)
 			if exp := tc.expectedBody; len(exp) != 0 {
-				if !bytes.Equal(exp, respBody) {
+				if !bytes.Equal(append(exp, "\n"...), respBody) {
 					t.Fatalf("expected body:\n```\n%s\n```\n\nactual body:\n```\n%s\n```\n",
 						exp, string(respBody))
 				}
 			} else if resp.StatusCode < 300 {
-				// If expected body is empty, check that the response body is valid.
+				// If request succeeded and expected body is empty, check that the response body is valid.
 				switch resp.Header.Get(ctHeader) {
 				case "", mimeTypeText:
 					b, _ := pem.Decode(respBody)
