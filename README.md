@@ -64,9 +64,9 @@ Sample Request Context containing Client Certificate:
     "authentication": {
         "clientCert": {
             "clientCertPem": "-----BEGIN CERTIFICATE-----\nMIIEZTCCAk0CAQEwDQ...",
-            "issuerDN": "C=IN,ST=Tamil Nadu,L=Chennai,O=Qube Cinema,OU=Qube Wire,CN=My Private CA",
+            "issuerDN": "C=012d325d-6a4e-4076-b49a-a3e84e52bf79,O=765e4c02-b41a-4226-8522-2a52f4fbeebe",
             "serialNumber": "1",
-            "subjectDN": "C=US,ST=Tamil Nadu,L=Chennai,O=Qube Cinema,OU=Qube Wire,CN=My Client",
+            "subjectDN": "C=2ef463c4-cca9-4885-a8e2-d041c90d61fa,O=765e4c02-b41a-4226-8522-2a52f4fbeebe",
             "validity": {
                 "notAfter": "Aug  5 00:28:21 2120 GMT",
                 "notBefore": "Aug 29 00:28:21 2020 GMT"

@@ -110,17 +110,17 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		slog.Error("error reading request body", "err", err)
 		return
 	}
-	csr, err := readCSR(contentType, body)
+	ns, csr, pubkey, err := readCSR(contentType, body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, "error reading csr\n")
+		fmt.Fprint(w, err.Error())
 		slog.Error("error reading csr", "err", err)
 		return
 	}
-	crt, err := ca.IssueCertificate(csr)
+	crt, err := ca.IssueCertificate(ns, csr, pubkey)
 	if err != nil {
 		status := http.StatusInternalServerError
-		if errors.Is(err, bifrost.ErrCertificateFormat) {
+		if errors.Is(err, bifrost.ErrCertificateRequestFormat) {
 			status = http.StatusBadRequest
 		} else if errors.Is(err, bifrost.ErrWrongNamespace) {
 			status = http.StatusForbidden
@@ -153,7 +153,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	requestsDuration.Update(time.Since(startTime).Seconds())
 }
 
-func readCSR(contentType string, body []byte) (*x509.CertificateRequest, error) {
+func readCSR(contentType string, body []byte) (uuid.UUID, *x509.CertificateRequest, *ecdsa.PublicKey, error) {
 	csr := body
 	switch contentType {
 	case mimeTypeBytes:
@@ -162,11 +162,11 @@ func readCSR(contentType string, body []byte) (*x509.CertificateRequest, error) 
 		// PEM
 		block, _ := pem.Decode(body)
 		if block == nil {
-			return nil, fmt.Errorf("error decoding csr pem")
+			return uuid.Nil, nil, nil, fmt.Errorf("error decoding csr pem")
 		}
 		csr = block.Bytes
 	}
-	return x509.ParseCertificateRequest(csr)
+	return bifrost.ParseCertificateRequest(csr)
 }
 
 // IssueCertificate issues a client certificate for the given CSR.
@@ -174,52 +174,10 @@ func readCSR(contentType string, body []byte) (*x509.CertificateRequest, error) 
 // The CSR Subject Common Name must be set to the client ID.
 // The certificate is issued with the Subject Common Name set to the client ID
 // and the Subject Organization set to the identity namespace.
-func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
-	// Check identity namespace.
-	if len(csr.Subject.Organization) != 1 {
-		return nil, fmt.Errorf("%w: missing bifrost namespace", bifrost.ErrCertificateFormat)
-	}
-	ns, err := uuid.Parse(csr.Subject.Organization[0])
-	if err != nil {
-		return nil, fmt.Errorf(
-			"%w, invalid bifrost namespace: %v",
-			bifrost.ErrCertificateFormat,
-			err,
-		)
-	}
+func (ca CA) IssueCertificate(ns uuid.UUID, csr *x509.CertificateRequest, pubkey *ecdsa.PublicKey) ([]byte, error) {
 	if ns != ca.ns {
 		return nil, fmt.Errorf("%w: '%s', use '%s' instead",
 			bifrost.ErrWrongNamespace, ns, ca.ns)
-	}
-
-	// Check signature and public key algorithms.
-	if csr.SignatureAlgorithm != bifrost.SignatureAlgorithm {
-		return nil, fmt.Errorf("%w: invalid signature algorithm %s, use %s instead",
-			bifrost.ErrCertificateFormat, csr.SignatureAlgorithm, bifrost.SignatureAlgorithm)
-	}
-	if csr.PublicKeyAlgorithm != bifrost.PublicKeyAlgorithm {
-		return nil, fmt.Errorf("%w: invalid public key algorithm %s, use %s instead",
-			bifrost.ErrCertificateFormat, csr.PublicKeyAlgorithm, bifrost.PublicKeyAlgorithm)
-	}
-	ecdsaPubKey := csr.PublicKey.(*ecdsa.PublicKey)
-
-	id := bifrost.UUID(ca.ns, ecdsaPubKey)
-	cid, err := uuid.Parse(csr.Subject.CommonName)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"%w: subject common name is '%s' but should be '%s'",
-			bifrost.ErrCertificateFormat,
-			csr.Subject.CommonName,
-			id,
-		)
-	}
-	if cid != id {
-		return nil, fmt.Errorf(
-			"%w: subject common name is '%s' but should be '%s'",
-			bifrost.ErrWrongNamespace,
-			csr.Subject.CommonName,
-			id,
-		)
 	}
 
 	serialNumber, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
@@ -238,7 +196,7 @@ func (ca CA) IssueCertificate(csr *x509.CertificateRequest) ([]byte, error) {
 		Issuer: ca.crt.Issuer,
 		Subject: pkix.Name{
 			Organization: []string{ca.ns.String()},
-			CommonName:   id.String(),
+			CommonName:   bifrost.UUID(ca.ns, pubkey).String(),
 		},
 		PublicKey:    csr.PublicKey,
 		Signature:    csr.Signature,
