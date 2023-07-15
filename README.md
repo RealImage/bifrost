@@ -28,8 +28,8 @@ podman pull ghcr.io/realimage/bifrost
 ## Identity
 
 Bifrost identities are UUID version 5 UUIDs, derived from ECDSA public keys.
-A client's identity UUID is the namespace UUID appended to to the X and Y curve points
-(big-endian) from its ECDSA P256 public key, hashed using SHA1.
+A client's identity is the sha1 hash of the namespace appended to the X and Y
+curve points (big-endian) of its ECDSA P256 public key.
 
 In pseudo-code,
 
@@ -40,7 +40,8 @@ In pseudo-code,
 ## [`bf`](cmd/bf) (alpha)
 
 `bf` is an interactive tool that generates Bifrost CA material.
-It uses [Charm Cloud](https://charm.sh/cloud/) to store your key material securely in the cloud.
+It uses [Charm Cloud](https://charm.sh/cloud/) to store your key material securely
+in the cloud.
 
 ### [`bfid`](cmd/bfid)
 
@@ -53,7 +54,7 @@ If client authentication succeeds, bouncer proxies the request to the backend ur
 The client's TLS certificate is available in the `x-amzn-request-context` header.
 
 Bouncer will log TLS Pre-Master secrets to a file if the `SSLKEYLOGFILE`
-environment variable is set. [Wireshark](https://www.wireshark.org)
+environment variable is present. [Wireshark](https://www.wireshark.org)
 can use this file to decrypt traffic.
 
 Sample Request Context containing Client Certificate:
@@ -132,13 +133,13 @@ podman build -f ca.Containerfile -t bifrost-ca .
 
 2. Create 10 year self-signed "CA" certificate:
 
-```console
-openssl req -new -key key.pem -x509 -nodes \
-  -days 3650 \
-  -subj "/CN=$(bfid -ns "$BF_ID" key.pem)/O=$BF_ID" \
-  -addext "subjectAltName = DNS:localhost" \
-  -out crt.pem
-```
+   ```console
+   openssl req -new -key key.pem -x509 -nodes \
+     -days 3650 \
+     -subj "/CN=$(bfid -ns "$BF_ID" key.pem)/O=$BF_ID" \
+    -addext "subjectAltName = DNS:localhost" \
+    -out crt.pem
+   ```
 
 3. Run the binary:
 
@@ -150,55 +151,58 @@ openssl req -new -key key.pem -x509 -nodes \
 
 5. Create a Certificate Signing Request with the client private key:
 
-```console
-openssl req -new -key clientkey.pem -sha256 \
-  -subj "/CN=$(bfid clientkey.pem)/O=$BF_ID" \
-  -out csr.pem
-```
+   ```console
+   openssl req -new -key clientkey.pem -sha256 \
+     -subj "/CN=$(bfid clientkey.pem)/O=$BF_ID" \
+     -out csr.pem
+   ```
 
 6. Fetch signed certificate from the CA:
 
-    `curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" localhost:8888/issue >clientcrt.pem`
+   ```console
+   curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" \
+     localhost:8888/issue >clientcrt.pem`
+   ```
 
 7. Admire your shiny new client certificate (optional):
 
-```console
-$ openssl x509 -in clientcrt.pem -noout -text
-Certificate:
-    Data:
-        Version: 3 (0x2)
-        Serial Number: 871355257622038992 (0xc17acfd7bbb09d0)
-        Signature Algorithm: ecdsa-with-SHA256
-        Issuer: CN = 46d6516e-715f-5a8a-8523-c2924b2a53d7, O = 00000000-0000-0000-0000-000000000000
-        Validity
-            Not Before: Jul 12 23:09:46 2023 GMT
-            Not After : Jul 13 00:09:46 2023 GMT
-        Subject: O = 00000000-0000-0000-0000-000000000000, CN = 8b9fca79-13e0-5157-b754-ff2e4e985c30
-        Subject Public Key Info:
-            Public Key Algorithm: id-ecPublicKey
-                Public-Key: (256 bit)
-                pub:
-                    04:84:4a:3b:fa:2e:dd:07:d5:a7:96:26:68:ac:81:
-                    16:8a:cb:57:02:0a:c7:ae:d3:b3:da:b5:b4:2d:a5:
-                    c8:65:c2:4d:88:45:00:5a:44:f3:30:52:ab:63:42:
-                    59:3d:50:68:50:45:e0:60:61:e1:57:b8:5c:dc:87:
-                    7f:f9:7e:07:f6
-                ASN1 OID: prime256v1
-                NIST CURVE: P-256
-        X509v3 extensions:
-            X509v3 Key Usage: critical
-                Digital Signature
-            X509v3 Extended Key Usage: 
-                TLS Web Client Authentication
-            X509v3 Authority Key Identifier: 
-                CA:2F:94:0D:43:FB:6D:00:66:09:50:4C:8C:1F:A3:BC:C1:EF:98:F4
-    Signature Algorithm: ecdsa-with-SHA256
-    Signature Value:
-        30:45:02:21:00:a3:2a:99:6e:29:b6:97:61:55:ac:a5:96:9c:
-        ab:c3:86:44:4e:86:f5:1f:56:34:49:a7:36:b5:6c:db:72:65:
-        a6:02:20:14:a9:d2:07:d5:63:17:d5:e0:3b:e3:f7:ef:e7:d0:
-        65:86:c3:74:5e:b4:61:87:cd:af:6a:71:af:cd:cf:45:8b
-```
+   ```console
+   $ openssl x509 -in clientcrt.pem -noout -text
+   Certificate:
+       Data:
+           Version: 3 (0x2)
+           Serial Number: 871355257622038992 (0xc17acfd7bbb09d0)
+           Signature Algorithm: ecdsa-with-SHA256
+           Issuer: CN = 46d6516e-715f-5a8a-8523-c2924b2a53d7, O = 00000000-0000-0000-0000-000000000000
+           Validity
+               Not Before: Jul 12 23:09:46 2023 GMT
+               Not After : Jul 13 00:09:46 2023 GMT
+           Subject: O = 00000000-0000-0000-0000-000000000000, CN = 8b9fca79-13e0-5157-b754-ff2e4e985c30
+           Subject Public Key Info:
+               Public Key Algorithm: id-ecPublicKey
+                   Public-Key: (256 bit)
+                   pub:
+                       04:84:4a:3b:fa:2e:dd:07:d5:a7:96:26:68:ac:81:
+                       16:8a:cb:57:02:0a:c7:ae:d3:b3:da:b5:b4:2d:a5:
+                       c8:65:c2:4d:88:45:00:5a:44:f3:30:52:ab:63:42:
+                       59:3d:50:68:50:45:e0:60:61:e1:57:b8:5c:dc:87:
+                       7f:f9:7e:07:f6
+                   ASN1 OID: prime256v1
+                   NIST CURVE: P-256
+           X509v3 extensions:
+               X509v3 Key Usage: critical
+                   Digital Signature
+               X509v3 Extended Key Usage: 
+                   TLS Web Client Authentication
+               X509v3 Authority Key Identifier: 
+                   CA:2F:94:0D:43:FB:6D:00:66:09:50:4C:8C:1F:A3:BC:C1:EF:98:F4
+       Signature Algorithm: ecdsa-with-SHA256
+       Signature Value:
+           30:45:02:21:00:a3:2a:99:6e:29:b6:97:61:55:ac:a5:96:9c:
+           ab:c3:86:44:4e:86:f5:1f:56:34:49:a7:36:b5:6c:db:72:65:
+           a6:02:20:14:a9:d2:07:d5:63:17:d5:e0:3b:e3:f7:ef:e7:d0:
+           65:86:c3:74:5e:b4:61:87:cd:af:6a:71:af:cd:cf:45:8b
+   ```
 
 ## Fishy Benchmarks
 

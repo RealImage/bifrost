@@ -22,18 +22,28 @@ func Bouncer(next http.Handler) http.Handler {
 		}
 		ctx := r.Context()
 		peerCert := r.TLS.PeerCertificates[0]
-		if _, _, err := bifrost.ValidateCertificate(peerCert); err != nil {
+		ns, key, err := bifrost.ValidateCertificate(peerCert)
+		if err != nil {
 			slog.ErrorCtx(ctx, "error validating client certificate", "error", err)
 			http.Error(w, "invalid client certificate", http.StatusUnauthorized)
+			return
 		}
-		requestCtx := NewRequestContext(peerCert)
-		rctx, err := json.Marshal(&requestCtx)
+
+		rctx := RequestContext{
+			ClientCertificate: peerCert,
+			ClientPublicKey:   key,
+			Namespace:         ns,
+			SourceIP:          r.RemoteAddr,
+			UserAgent:         r.UserAgent(),
+		}
+
+		rctxHeader, err := json.Marshal(&rctx)
 		if err != nil {
-			slog.ErrorCtx(r.Context(), "error marshaling request context", "error", err)
+			slog.ErrorCtx(ctx, "error marshaling request context", "error", err)
 			http.Error(w, "unexpected error", http.StatusInternalServerError)
 			return
 		}
-		r.Header.Set(RequestContextHeader, string(rctx))
+		r.Header.Set(RequestContextHeader, string(rctxHeader))
 		next.ServeHTTP(w, r)
 	})
 }
