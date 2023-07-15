@@ -84,8 +84,7 @@ func TestBouncer(t *testing.T) {
 			if err := json.Unmarshal([]byte(rctx), &requestContext); err != nil {
 				t.Errorf("error unmarshaling request context %s", err)
 			}
-
-			if string(requestContext.Identity.ClientCert.ClientCertPEM) != string(crtPem) {
+			if requestContext.ClientCertificate != crt.Leaf {
 				t.Errorf("unexpected certificate in request context header")
 			}
 		}),

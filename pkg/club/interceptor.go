@@ -6,33 +6,22 @@ package club
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"net/http"
 
-	"github.com/RealImage/bifrost"
-	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
 )
 
-type Key string
+type keyRequestContext struct{}
 
 const (
-	keyNamespace   Key = "ns"
-	keyCertificate Key = "crt"
-	keyPublicKey   Key = "key"
-
 	RequestContextHeader = "x-amzn-request-context"
 )
 
-// ID identifies a client from the request context.
+// FromContext identifies a client from the request context.
 // Interceptor must run before this function is called for a request.
-func ID(ctx context.Context) (uuid.UUID, *x509.Certificate, *ecdsa.PublicKey) {
-	return ctx.Value(keyNamespace).(uuid.UUID),
-		ctx.Value(keyCertificate).(*x509.Certificate),
-		ctx.Value(keyPublicKey).(*ecdsa.PublicKey)
+func FromContext(ctx context.Context) *RequestContext {
+	return ctx.Value(keyRequestContext{}).(*RequestContext)
 }
 
 // Interceptor is a HTTP handler middleware function that parses the
@@ -53,21 +42,7 @@ func Interceptor(next http.Handler) http.Handler {
 			http.Error(w, "zen meditation error", http.StatusInternalServerError)
 			return
 		}
-		block, _ := pem.Decode(rctx.Identity.ClientCert.ClientCertPEM)
-		if block == nil {
-			slog.ErrorCtx(ctx, "error decoding client certificate")
-			http.Error(w, "zen meditation error", http.StatusInternalServerError)
-			return
-		}
-		ns, cert, key, err := bifrost.ParseCertificate(block.Bytes)
-		if err != nil {
-			slog.ErrorCtx(ctx, "error parsing client certificate", "error", err)
-			http.Error(w, "zen meditation error", http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(ctx, keyNamespace, ns)
-		ctx = context.WithValue(ctx, keyCertificate, cert)
-		ctx = context.WithValue(ctx, keyPublicKey, key)
+		ctx = context.WithValue(ctx, keyRequestContext{}, &rctx)
 		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 	})

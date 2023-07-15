@@ -5,25 +5,93 @@
 package club
 
 import (
+	"crypto/ecdsa"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"time"
+
+	"github.com/RealImage/bifrost"
+	"github.com/google/uuid"
 )
 
-// RequestContext is passed to the HTTP handler as a JSON encoded header value.
 type RequestContext struct {
-	Identity Identity `json:"identity"`
+	Namespace         uuid.UUID
+	ClientCertificate *x509.Certificate
+	ClientPublicKey   *ecdsa.PublicKey
+	SourceIP          string `json:"sourceIp"`
+	UserAgent         string `json:"userAgent"`
 }
 
-type Identity struct {
+func (r RequestContext) MarshalJSON() ([]byte, error) {
+	return json.Marshal(requestContext{
+		Identity: identity{
+			SourceIP:   r.SourceIP,
+			UserAgent:  r.UserAgent,
+			ClientCert: r.getClientCert(),
+		},
+	})
+}
+
+func (r *RequestContext) UnmarshalJSON(data []byte) error {
+	var rc requestContext
+	if err := json.Unmarshal(data, &rc); err != nil {
+		return err
+	}
+	r.SourceIP = rc.Identity.SourceIP
+	r.UserAgent = rc.Identity.UserAgent
+	if rc.Identity.ClientCert.ClientCertPem != nil {
+		block, _ := pem.Decode(rc.Identity.ClientCert.ClientCertPem)
+		if block == nil {
+			return fmt.Errorf("failed to decode client certificate PEM")
+		}
+		ns, crt, key, err := bifrost.ParseCertificate(block.Bytes)
+		if err != nil {
+			return err
+		}
+		r.Namespace = ns
+		r.ClientCertificate = crt
+		r.ClientPublicKey = key
+		r.SourceIP = rc.Identity.SourceIP
+		r.UserAgent = rc.Identity.UserAgent
+	}
+	return nil
+}
+
+func (r RequestContext) getClientCert() clientCert {
+	if r.ClientCertificate == nil {
+		return clientCert{}
+	}
+	return clientCert{
+		ClientCertPem: pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: r.ClientCertificate.Raw,
+		}),
+		IssuerDN:     r.ClientCertificate.Issuer.ToRDNSequence().String(),
+		SerialNumber: r.ClientCertificate.Issuer.SerialNumber,
+		SubjectDN:    r.ClientCertificate.Subject.ToRDNSequence().String(),
+		Validity: validity{
+			NotAfter:  r.ClientCertificate.NotAfter,
+			NotBefore: r.ClientCertificate.NotBefore,
+		},
+	}
+}
+
+// RequestContext is passed to the HTTP handler as a JSON encoded header value.
+type requestContext struct {
+	Identity identity `json:"identity"`
+}
+
+type identity struct {
 	SourceIP   string     `json:"sourceIp"`
 	UserAgent  string     `json:"userAgent"`
-	ClientCert ClientCert `json:"clientCert"`
+	ClientCert clientCert `json:"clientCert"`
 }
 
-// ClientCert contains fields related to TLS Client Certificates.
-type ClientCert struct {
-	ClientCertPEM []byte   `json:"clientCertPem"`
+// clientCert contains fields related to TLS Client Certificates.
+type clientCert struct {
+	ClientCertPem []byte   `json:"clientCertPem"`
 	IssuerDN      string   `json:"issuerDN"`
 	SerialNumber  string   `json:"serialNumber"`
 	SubjectDN     string   `json:"subjectDN"`
@@ -33,22 +101,4 @@ type ClientCert struct {
 type validity struct {
 	NotAfter  time.Time `json:"notAfter"`
 	NotBefore time.Time `json:"notBefore"`
-}
-
-func NewRequestContext(crt *x509.Certificate) *RequestContext {
-	var r RequestContext
-	r.Identity.ClientCert = ClientCert{
-		ClientCertPEM: pem.EncodeToMemory(&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: crt.Raw,
-		}),
-		IssuerDN:     crt.Issuer.ToRDNSequence().String(),
-		SerialNumber: crt.Issuer.SerialNumber,
-		SubjectDN:    crt.Subject.ToRDNSequence().String(),
-		Validity: validity{
-			NotAfter:  crt.NotAfter,
-			NotBefore: crt.NotBefore,
-		},
-	}
-	return &r
 }
