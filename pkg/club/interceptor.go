@@ -20,8 +20,9 @@ const (
 
 // FromContext identifies a client from the request context.
 // Interceptor must run before this function is called for a request.
-func FromContext(ctx context.Context) *RequestContext {
-	return ctx.Value(keyRequestContext{}).(*RequestContext)
+func FromContext(ctx context.Context) (r *RequestContext, ok bool) {
+	r, ok = ctx.Value(keyRequestContext{}).(*RequestContext)
+	return
 }
 
 // Interceptor is a HTTP handler middleware function that parses the
