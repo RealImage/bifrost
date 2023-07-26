@@ -25,6 +25,12 @@ func FromContext(ctx context.Context) (r *RequestContext, ok bool) {
 	return
 }
 
+// MustFromContext is identical to FromContext, except that it panics
+// if the context doesn't have a RequestContext object.
+func MustFromContext(ctx context.Context) *RequestContext {
+	return ctx.Value(keyRequestContext{}).(*RequestContext)
+}
+
 // Interceptor is a HTTP handler middleware function that parses the
 // x-amzn-request-context request header. The header is expected to contain a
 // JSON encoded RequestContext. The identity namespace, client's UUID, and
