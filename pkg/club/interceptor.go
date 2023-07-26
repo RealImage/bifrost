@@ -39,7 +39,7 @@ func Interceptor(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rctxHeader := r.Header.Get(RequestContextHeader)
 		if rctxHeader == "" {
-			http.Error(w, "who is this?", http.StatusUnauthorized)
+			http.Error(w, "new phone who dis?", http.StatusUnauthorized)
 			return
 		}
 		ctx := r.Context()
