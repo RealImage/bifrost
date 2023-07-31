@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
@@ -39,13 +40,6 @@ func main() {
 	ca, err := tinyca.New(crt, key, config.Issuer.IssueDuration)
 	sundry.OnErrorExit(ctx, err, "error creating ca")
 
-	slog.InfoCtx(
-		ctx,
-		"serving requests",
-		slog.String("listen", config.Issuer.Address),
-		slog.String("ca", ca.String()),
-	)
-
 	mux := http.NewServeMux()
 	mux.Handle("/issue", ca)
 	mux.HandleFunc("/metrics", stats.MetricsHandler)
@@ -56,11 +50,19 @@ func main() {
 	}
 	go func() {
 		<-ctx.Done()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
 		slog.InfoCtx(ctx, "shutting down server")
 		if err := server.Shutdown(ctx); err != nil {
 			panic(err)
 		}
 	}()
+
+	slog.InfoCtx(ctx, "serving requests",
+		slog.String("address", config.Issuer.Address),
+		slog.String("ca", ca.String()),
+	)
+
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		sundry.OnErrorExit(ctx, err, "error serving requests")
 	}

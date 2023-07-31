@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/cafiles"
@@ -53,14 +54,6 @@ func main() {
 	clientCertPool := x509.NewCertPool()
 	clientCertPool.AddCert(crt)
 
-	slog.InfoCtx(
-		ctx,
-		"proxying requests",
-		"from", "https://"+config.Bouncer.Address,
-		"to", config.Bouncer.BackendUrl,
-		"ns", ns.String(),
-	)
-
 	reverseProxy := &httputil.ReverseProxy{
 		Rewrite: func(r *httputil.ProxyRequest) {
 			r.SetURL(backendUrl)
@@ -91,11 +84,20 @@ func main() {
 	}
 	go func() {
 		<-ctx.Done()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
 		slog.InfoCtx(ctx, "shutting down server")
 		if err := server.Shutdown(ctx); err != nil {
 			panic(err)
 		}
 	}()
+
+	slog.InfoCtx(ctx, "proxying requests",
+		"from", "https://"+config.Bouncer.Address,
+		"to", config.Bouncer.BackendUrl,
+		"ns", ns.String(),
+	)
+
 	if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 		sundry.OnErrorExit(ctx, err, "error serving requests")
 	}
