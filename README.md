@@ -136,7 +136,7 @@ podman build -f ca.Containerfile -t bifrost-ca .
    ```console
    openssl req -new -key key.pem -x509 -nodes \
      -days 3650 \
-     -subj "/CN=$(bfid -ns "$BF_ID" key.pem)/O=$BF_ID" \
+     -subj "/CN=$(bfid -ns "$BF_NS" key.pem)/O=$BF_NS" \
     -addext "subjectAltName = DNS:localhost" \
     -out crt.pem
    ```
@@ -153,7 +153,7 @@ podman build -f ca.Containerfile -t bifrost-ca .
 
    ```console
    openssl req -new -key clientkey.pem -sha256 \
-     -subj "/CN=$(bfid clientkey.pem)/O=$BF_ID" \
+     -subj "/CN=$(bfid -ns "$BF_NS" clientkey.pem)/O=$BF_NS" \
      -out csr.pem
    ```
 
