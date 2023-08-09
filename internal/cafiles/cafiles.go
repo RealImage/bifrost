@@ -139,5 +139,11 @@ func getSecret(ctx context.Context, secretARN string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return val.SecretBinary, nil
+	if val.SecretBinary != nil {
+		return val.SecretBinary, nil
+	}
+	if val.SecretString != nil {
+		return []byte(*val.SecretString), nil
+	}
+	return nil, fmt.Errorf("no secret data found")
 }
