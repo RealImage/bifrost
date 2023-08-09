@@ -8,7 +8,7 @@ FROM docker.io/library/golang:${GO_VERSION} as builder
 WORKDIR /src
 COPY . .
 RUN mkdir /build
-RUN go build -o /build ./...
+RUN env CGO_ENABLED=0 go build -o /build ./...
 
 FROM gcr.io/distroless/base-debian11
 # uses lambda-web-adapter to run our standard HTTP app in a lambda
