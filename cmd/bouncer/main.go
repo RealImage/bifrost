@@ -72,8 +72,10 @@ func main() {
 		defer ssllog.Close()
 	}
 
+	hdlr := sundry.RequestLogHandler(club.Bouncer(reverseProxy))
+
 	server := http.Server{
-		Handler: club.Bouncer(reverseProxy),
+		Handler: hdlr,
 		Addr:    config.Bouncer.Address,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*bifrost.X509ToTLSCertificate(crt, key)},
