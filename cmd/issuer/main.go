@@ -6,7 +6,6 @@ package main
 
 import (
 	"context"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -43,11 +42,9 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/issue", ca)
 	mux.HandleFunc("/metrics", stats.MetricsHandler)
+	hdlr := sundry.RequestLogHandler(mux)
 
-	server := http.Server{Addr: config.Issuer.Address, Handler: mux}
-	server.BaseContext = func(_ net.Listener) context.Context {
-		return ctx
-	}
+	server := http.Server{Addr: config.Issuer.Address, Handler: hdlr}
 	go func() {
 		<-ctx.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
