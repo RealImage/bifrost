@@ -4,10 +4,10 @@ on:
   push:
     branches:
       - main
+    tags:
   pull_request:
     branches:
       - main
-  release:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -94,37 +94,3 @@ jobs:
           files: |
             build/*
             docs/issuer/openapi.yml
-
-  ca_image:
-    name: Deploy bifrost-ca image
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Build bifrost-ca image
-        uses: redhat-actions/buildah-build@v2
-        id: build_ca
-        with:
-          build-args: GO_VERSION=${{ env.GO_VERSION }}
-          image: bifrost-ca
-          tags: >
-            latest
-            ${{ github.sha }}
-            ${{ github.event.release.tag_name }}
-          containerfiles: ca.Containerfile
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.QW_AWS_ACCESS_KEY_ID_PROD }}
-          aws-secret-access-key: ${{ secrets.QW_AWS_SECRET_ACCESS_KEY_PROD }}
-          aws-region: us-east-1
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-      - name: Push bifrost-ca to Amazon ECR
-        uses: redhat-actions/push-to-registry@v2
-        with:
-          registry: ${{ steps.login-ecr.outputs.registry }}
-          image: ${{ steps.build_ca.outputs.image }}
-          tags: ${{ steps.build_ca.outputs.tags }}
