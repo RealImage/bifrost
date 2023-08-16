@@ -56,7 +56,8 @@ type Spec struct {
 
 type bouncer struct {
 	Spec
-	Address       string `envconfig:"ADDR"          default:"localhost:8443"`
+	Host          string `envconfig:"HOST"          default:"localhost"`
+	Port          int    `envconfig:"PORT"          default:"8443"`
 	BackendUrl    string `envconfig:"BACKEND"       default:"http://localhost:8080"`
 	MetricsUrl    string `envconfig:"METRICS"       default:"localhost:9091"`
 	SSLKeyLogFile string `envconfig:"SSLKEYLOGFILE"`
@@ -64,6 +65,7 @@ type bouncer struct {
 
 type issuer struct {
 	Spec
-	Address       string        `envconfig:"ADDR"      default:"127.0.0.1:8888"`
+	Host          string        `envconfig:"HOST"      default:"localhost"`
+	Port          int           `envconfig:"PORT"      default:"8888"`
 	IssueDuration time.Duration `envconfig:"ISSUE_DUR" default:"1h"`
 }

@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -44,7 +45,9 @@ func main() {
 	mux.HandleFunc("/metrics", stats.MetricsHandler)
 	hdlr := sundry.RequestLogHandler(mux)
 
-	server := http.Server{Addr: config.Issuer.Address, Handler: hdlr}
+	addr := fmt.Sprintf("%s:%d", config.Issuer.Host, config.Issuer.Port)
+
+	server := http.Server{Addr: addr, Handler: hdlr}
 	go func() {
 		<-ctx.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -56,7 +59,7 @@ func main() {
 	}()
 
 	slog.InfoCtx(ctx, "serving requests",
-		slog.String("address", config.Issuer.Address),
+		slog.String("address", addr),
 		slog.String("ca", ca.String()),
 	)
 

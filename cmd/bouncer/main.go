@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -73,10 +74,10 @@ func main() {
 	}
 
 	hdlr := sundry.RequestLogHandler(club.Bouncer(reverseProxy))
-
+	addr := fmt.Sprintf("%s:%d", config.Bouncer.Host, config.Bouncer.Port)
 	server := http.Server{
 		Handler: hdlr,
-		Addr:    config.Bouncer.Address,
+		Addr:    addr,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*bifrost.X509ToTLSCertificate(crt, key)},
 			ClientAuth:   tls.RequireAndVerifyClientCert,
@@ -95,7 +96,7 @@ func main() {
 	}()
 
 	slog.InfoCtx(ctx, "proxying requests",
-		"from", "https://"+config.Bouncer.Address,
+		"from", "https://"+addr,
 		"to", config.Bouncer.BackendUrl,
 		"ns", ns.String(),
 	)
