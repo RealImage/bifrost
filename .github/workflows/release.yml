@@ -29,9 +29,9 @@ jobs:
           build-args: GO_VERSION=${{ env.GO_VERSION }}
           image: bifrost-ca
           tags: >
-            latest
-            ${{ github.sha }}
             ${{ github.event.release.tag_name }}
+            ${{ github.sha }}
+            latest
           containerfiles: ca.Containerfile
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
