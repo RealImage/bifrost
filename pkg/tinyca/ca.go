@@ -27,8 +27,8 @@ import (
 )
 
 const (
-	acHeader      = "Accept"
-	ctHeader      = "Content-Type"
+	acHeader      = "accept"
+	ctHeader      = "content-type"
 	mimeTypeText  = "text/plain"
 	mimeTypeBytes = "application/octet-stream"
 )
