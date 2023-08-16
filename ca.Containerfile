@@ -18,6 +18,6 @@ ARG AWS_LAMBDA_WEB_ADAPTER_VERSION=0.7.0
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:$AWS_LAMBDA_WEB_ADAPTER_VERSION \
   /lambda-adapter /opt/extensions/lambda-adapter
 COPY --from=builder /build/issuer /
-ENV AWS_LWA_PORT=8888
+ENV PORT=8888
 ENV AWS_LWA_READINESS_CHECK_PATH="/metrics"
 ENTRYPOINT [ "/issuer" ]
