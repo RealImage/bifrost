@@ -28,13 +28,15 @@ import (
 
 func main() {
 	envconfig.MustProcess(config.EnvPrefix, &config.Bouncer)
-	config.LogLevel.Set(config.Bouncer.LogLevel)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	sha, timestamp := config.CommitInfo()
-	slog.InfoCtx(ctx, "build info", "sha", sha, "timestamp", timestamp)
+	slog.InfoCtx(
+		ctx, "build info",
+		slog.String("rev", config.BuildRevision),
+		slog.Time("timestamp", config.BuildTime),
+	)
 
 	http.HandleFunc("/", stats.MetricsHandler)
 	go func() {

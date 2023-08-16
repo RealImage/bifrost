@@ -23,13 +23,15 @@ import (
 
 func main() {
 	envconfig.MustProcess(config.EnvPrefix, &config.Issuer)
-	config.LogLevel.Set(config.Issuer.LogLevel)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	sha, timestamp := config.CommitInfo()
-	slog.InfoCtx(ctx, "build info", slog.String("sha", sha), slog.Any("timestamp", timestamp))
+	slog.InfoCtx(
+		ctx, "build info",
+		slog.String("rev", config.BuildRevision),
+		slog.Time("timestamp", config.BuildTime),
+	)
 
 	_, crt, err := cafiles.GetCertificate(ctx, config.Issuer.CrtUri)
 	sundry.OnErrorExit(ctx, err, "error getting crt")
