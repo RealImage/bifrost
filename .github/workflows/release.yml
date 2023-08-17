@@ -29,7 +29,7 @@ jobs:
           build-args: GO_VERSION=${{ env.GO_VERSION }}
           image: bifrost-ca
           tags: >
-            ${{ github.event.release.tag_name }}
+            ${{ github.ref_name }}
             ${{ github.sha }}
             latest
           containerfiles: ca.Containerfile

@@ -74,10 +74,10 @@ jobs:
           entrypoint: /bf
           image: ${{ github.repository }}
           tags: >
-            ${{ env.LATEST_TAG }}
-            ${{ env.PR_TAG }}
+            ${{ github.ref_name }}
             ${{ github.sha }}
-            ${{ github.event.release.tag_name }}
+            ${{ env.PR_TAG }}
+            ${{ env.LATEST_TAG }}
       - name: Push bifrost image to ghcr.io
         uses: redhat-actions/push-to-registry@v2
         with:
