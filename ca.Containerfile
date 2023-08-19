@@ -1,8 +1,10 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# vim:set ft=Dockerfile:
 
-ARG GO_VERSION="1.20"
+ARG GO_VERSION="1.21"
 
 FROM docker.io/library/golang:${GO_VERSION} as builder
 WORKDIR /src
