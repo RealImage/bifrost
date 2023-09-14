@@ -17,6 +17,7 @@ import (
 	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/RealImage/bifrost/internal/sundry"
 	"github.com/RealImage/bifrost/pkg/tinyca"
+	"github.com/RealImage/bifrost/web"
 	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/exp/slog"
 )
@@ -39,12 +40,17 @@ func main() {
 	key, err := cafiles.GetPrivateKey(ctx, config.Issuer.KeyUri)
 	sundry.OnErrorExit(ctx, err, "error getting key")
 
-	ca, err := tinyca.New(crt, key, config.Issuer.IssueDuration)
+	ca, err := tinyca.New(crt, key, config.Issuer.Validity)
 	sundry.OnErrorExit(ctx, err, "error creating ca")
 
 	mux := http.NewServeMux()
 	mux.Handle("/issue", ca)
 	mux.HandleFunc("/metrics", stats.MetricsHandler)
+
+	if config.Issuer.Web {
+		mux.Handle("/", http.FileServer(http.FS(web.Static)))
+	}
+
 	hdlr := sundry.RequestLogHandler(mux)
 
 	addr := fmt.Sprintf("%s:%d", config.Issuer.Host, config.Issuer.Port)
