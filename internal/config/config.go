@@ -7,6 +7,7 @@ package config
 import (
 	"os"
 	"runtime/debug"
+	"strconv"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -77,5 +78,24 @@ type issuer struct {
 	CrtUri   string        `envconfig:"CRT"      default:"crt.pem"`
 	KeyUri   string        `envconfig:"KEY"      default:"key.pem"`
 	Validity time.Duration `envconfig:"VALIDITY" default:"1h"`
-	Web      string        `envconfig:"WEB"      default:"false"`
+	Web      web           `envconfig:"WEB"      default:"false"`
+}
+
+type web struct {
+	Serve      bool
+	LocalFiles bool
+}
+
+func (w *web) Decode(value string) error {
+	if value == "dev" {
+		w.Serve = true
+		w.LocalFiles = true
+		return nil
+	}
+	if enable, err := strconv.ParseBool(value); err != nil {
+		return err
+	} else {
+		w.Serve = enable
+	}
+	return nil
 }
