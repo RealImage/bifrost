@@ -72,10 +72,10 @@ type bouncer struct {
 }
 
 type issuer struct {
-	Host     string        `envconfig:"HOST"      default:"localhost"`
-	Port     int           `envconfig:"PORT"      default:"8888"`
-	CrtUri   string        `envconfig:"CRT"       default:"crt.pem"`
-	KeyUri   string        `envconfig:"KEY"       default:"key.pem"`
+	Host     string        `envconfig:"HOST"     default:"localhost"`
+	Port     int           `envconfig:"PORT"     default:"8888"`
+	CrtUri   string        `envconfig:"CRT"      default:"crt.pem"`
+	KeyUri   string        `envconfig:"KEY"      default:"key.pem"`
 	Validity time.Duration `envconfig:"VALIDITY" default:"1h"`
-	Web      bool          `envconfig:"WEB" default:"false"`
+	Web      string        `envconfig:"WEB"      default:"false"`
 }
