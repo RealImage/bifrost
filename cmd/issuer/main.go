@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"time"
 
 	"github.com/RealImage/bifrost/internal/cafiles"
@@ -52,14 +51,11 @@ func main() {
 	mux.Handle("/issue", ca)
 	mux.HandleFunc("/metrics", stats.MetricsHandler)
 
-	if w := config.Issuer.Web; w == "dev" {
-		// Serve web files from local filesystem if web is set to "dev".
-		slog.DebugCtx(ctx, "serving web from local filesystem")
-		mux.Handle("/", http.FileServer(http.Dir("web")))
-	} else {
-		if enable, err := strconv.ParseBool(w); err != nil {
-			slog.WarnCtx(ctx, "invalid web config", "web", w, "error", err)
-		} else if enable {
+	if w := config.Issuer.Web; w.Serve {
+		if w.LocalFiles {
+			slog.DebugCtx(ctx, "serving web from local filesystem")
+			mux.Handle("/", http.FileServer(http.Dir("web")))
+		} else {
 			slog.DebugCtx(ctx, "serving web from embedded filesystem")
 			mux.Handle("/", http.FileServer(http.FS(web.Static)))
 		}
