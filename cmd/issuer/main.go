@@ -34,7 +34,7 @@ func main() {
 		slog.Time("timestamp", config.BuildTime),
 	)
 
-	_, crt, err := cafiles.GetCertificate(ctx, config.Issuer.CrtUri)
+	ns, crt, err := cafiles.GetCertificate(ctx, config.Issuer.CrtUri)
 	sundry.OnErrorExit(ctx, err, "error getting crt")
 
 	key, err := cafiles.GetPrivateKey(ctx, config.Issuer.KeyUri)
@@ -44,9 +44,10 @@ func main() {
 	sundry.OnErrorExit(ctx, err, "error creating ca")
 
 	mux := http.NewServeMux()
+	nss, _ := ns.MarshalText()
 	mux.HandleFunc("/namespace", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte(crt.Subject.Organization[0]))
+		_, _ = w.Write(nss)
 	})
 	mux.Handle("/issue", ca)
 	mux.HandleFunc("/metrics", stats.MetricsHandler)

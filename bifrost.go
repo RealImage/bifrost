@@ -99,6 +99,9 @@ func ValidateCertificate(cert *x509.Certificate) (uuid.UUID, *ecdsa.PublicKey, e
 			err,
 		)
 	}
+	if ns == uuid.Nil {
+		return uuid.Nil, nil, fmt.Errorf("%w: nil identity namespace", ErrCertificateFormat)
+	}
 
 	pubkey, ok := cert.PublicKey.(*ecdsa.PublicKey)
 	if !ok {
