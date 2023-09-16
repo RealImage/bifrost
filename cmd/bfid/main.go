@@ -22,10 +22,14 @@ import (
 
 const (
 	usage = `bfid prints the UUID of a Bifrost public key, private key, or certificate.
+Namespace can be specified with the -ns flag or the BS_NS environment variable.
+The environment variable takes precedence over the flag.
 
 Usage:
   bfid [-v] [-ns=UUID] FILE
   bfid [-v] [-ns=UUID] < FILE
+  export BS_NS=UUID; bfid [-v] FILE
+
 `
 )
 
@@ -40,22 +44,23 @@ func init() {
 		fmt.Fprint(os.Stderr, usage)
 		flag.PrintDefaults()
 	}
+
 	var ns string
-	flag.StringVar(&ns, "ns", uuid.Nil.String(),
-		"Bifrost Identity Namespace")
+	flag.StringVar(&ns, "ns", uuid.Nil.String(), "Bifrost Identity Namespace")
 	flag.BoolVar(&verbose, "v", false, "Verbose output")
+
 	flag.Parse()
-	// 0 or empty string means no namespace.
-	if ns == "" || ns == "0" {
-		namespace = uuid.Nil
-	} else {
-		var err error
-		namespace, err = uuid.Parse(ns)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
+
+	if ens := os.Getenv("BS_NS"); ens != "" {
+		ns = ens
 	}
+
+	var err error
+	if namespace, err = uuid.Parse(ns); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	if flag.NArg() > 1 {
 		fmt.Fprintf(os.Stderr, "too many arguments\n\n")
 		flag.Usage()
@@ -110,9 +115,7 @@ func main() {
 	case "CERTIFICATE":
 		ns, _, key, err := bifrost.ParseCertificate(block.Bytes)
 		sundry.OnErrorExit(ctx, err, "error parsing certificate")
-		if namespace != uuid.Nil && namespace != ns {
-			sundry.OnErrorExit(ctx, fmt.Errorf("ns doesn't match certificate namespace"), "")
-		}
+		namespace = ns
 		pubkey = key
 	default:
 		sundry.OnErrorExit(ctx, fmt.Errorf("unexpected block type: %s", block.Type), "")

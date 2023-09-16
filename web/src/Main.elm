@@ -4,11 +4,11 @@ import Array exposing (Array)
 import Browser
 import File exposing (File)
 import File.Select
-import Html exposing (Html, article, button, header, main_, section, text)
+import Html exposing (Html, main_, text)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 import Http
-import RemoteData exposing (RemoteData)
+import RemoteData exposing (RemoteData, WebData)
 import Task
 import UUID exposing (UUID)
 
@@ -20,7 +20,7 @@ type alias Model =
 
 
 type alias Request =
-    { crt : RemoteData String String
+    { crt : WebData String
     , key : String
     }
 
@@ -55,9 +55,11 @@ update msg model =
             ( model, File.Select.files mimes FilesSelected )
 
         FilesSelected file files ->
-            ( model
-            , Cmd.batch <| List.map (\f -> Task.perform FileRead (File.toString f)) (file :: files)
-            )
+            let
+                readFile f =
+                    Task.perform FileRead <| File.toString f
+            in
+            ( model, Cmd.batch <| List.map readFile <| file :: files )
 
         FileRead string ->
             ( { model
@@ -80,68 +82,72 @@ gotNamespace res =
                 Result.Ok uuid ->
                     RemoteData.Success uuid
 
-                Result.Err e ->
-                    case e of
-                        UUID.UnsupportedVariant ->
-                            RemoteData.Failure "Unsupported variant"
+                Result.Err _ ->
+                    RemoteData.Failure "Error parsing namespace"
 
-                        UUID.WrongFormat ->
-                            RemoteData.Failure "Wrong format"
-
-                        UUID.WrongLength ->
-                            RemoteData.Failure "Wrong length"
-
-                        UUID.NoVersion ->
-                            RemoteData.Failure "No version"
-
-                        UUID.IsNil ->
-                            RemoteData.Failure "Is nil"
-
-        Result.Err e ->
-            case e of
-                Http.BadUrl u ->
-                    RemoteData.Failure <| "Bad URL: " ++ u
-
-                Http.Timeout ->
-                    RemoteData.Failure "Timeout"
-
-                Http.NetworkError ->
-                    RemoteData.Failure "Network error"
-
-                Http.BadStatus s ->
-                    RemoteData.Failure <| "Bad status: " ++ String.fromInt s
-
-                Http.BadBody s ->
-                    RemoteData.Failure <| "Bad body: " ++ s
+        Result.Err _ ->
+            RemoteData.Failure "Error fetching namespace"
 
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = "Bifrost - Issue Certificates"
-    , body =
-        [ Html.nav
-            [ class "container-fluid" ]
-            [ Html.ul [] [ Html.li [] [ text "Bifrost" ] ] ]
-        , header [ class "container" ]
-            [ hgroup
-                []
-                [ Html.h1 [] [ text "Certificate Issuer" ]
-                , Html.p [] [ text "Hot off the presses" ]
-                ]
-            , section []
-                [ Html.h2 [] [ text "New Request" ]
-                , button [ class "button" ] [ text "Generate private key" ]
-                , button [ class "button", onClick OpenFilesClicked ] [ text "Upload private keys" ]
-                ]
+    let
+        ( title, body ) =
+            case model.namespace of
+                RemoteData.NotAsked ->
+                    ( "", [] )
+
+                RemoteData.Loading ->
+                    ( "Bifrost", [ Html.text "Loading" ] )
+
+                RemoteData.Failure e ->
+                    ( "zen meditation error"
+                    , [ Html.h1 [] [ text e ] ]
+                    )
+
+                RemoteData.Success ns ->
+                    ( "Bifrost Certificate Issuer"
+                    , viewIssuer model <| UUID.toString ns
+                    )
+    in
+    { title = title
+    , body = body
+    }
+
+
+viewIssuer : Model -> String -> List (Html Msg)
+viewIssuer model ns =
+    [ Html.nav [ class "nav" ]
+        [ Html.div
+            [ class "nav-left" ]
+            [ Html.a [ class "brand" ] [ text "Bifrost" ] ]
+        , Html.div
+            [ class "nav-right" ]
+            [ Html.a [] [ text ns ] ]
+        ]
+    , Html.header [ class "container" ]
+        [ Html.node "hgroup"
+            []
+            [ Html.h1 [] [ text "Certificate Issuer" ]
+            , Html.p [] [ text "Hot off the presses" ]
             ]
-        , main_ [ class "container" ]
-            [ section []
-                [ Html.h2 [] [ text "Requests" ]
-                , Html.div [ class "grid" ] <| Array.foldl viewRequests [] model.requests
-                ]
+        , Html.section []
+            [ Html.h2 [] [ text "New Request" ]
+            , Html.button
+                [ class "button" ]
+                [ text "Generate private key" ]
+            , Html.button
+                [ class "button", onClick OpenFilesClicked ]
+                [ text "Upload private keys" ]
             ]
         ]
-    }
+    , main_ [ class "container" ]
+        [ Html.section []
+            [ Html.h2 [] [ text "Requests" ]
+            , Html.div [ class "row" ] <| Array.foldl viewRequests [] model.requests
+            ]
+        ]
+    ]
 
 
 viewRequests : Request -> List (Html a) -> List (Html a)
@@ -155,15 +161,29 @@ viewRequests r acc =
                 RemoteData.Loading ->
                     "Loading"
 
-                RemoteData.Failure s ->
-                    "Failed " ++ s
+                RemoteData.Failure e ->
+                    case e of
+                        Http.BadUrl u ->
+                            "Bad URL: " ++ u
+
+                        Http.Timeout ->
+                            "Timeout"
+
+                        Http.NetworkError ->
+                            "Network error"
+
+                        Http.BadStatus s ->
+                            "Bad status: " ++ String.fromInt s
+
+                        Http.BadBody s ->
+                            "Bad body: " ++ s
 
                 RemoteData.Success s ->
                     "Success " ++ s
 
         a =
-            article []
-                [ header [] [ Html.h3 [] [ text "Certificate" ] ]
+            Html.article [ class "card" ]
+                [ Html.header [] [ Html.h3 [] [ text "Certificate" ] ]
                 , Html.h4 [] [ text "Request" ]
                 , Html.p [] [ text r.key ]
                 , Html.h4 [] [ text "Response" ]
@@ -171,11 +191,6 @@ viewRequests r acc =
                 ]
     in
     a :: acc
-
-
-hgroup : List (Html.Attribute a) -> List (Html.Html a) -> Html.Html a
-hgroup =
-    Html.node "hgroup"
 
 
 main : Program () Model Msg
