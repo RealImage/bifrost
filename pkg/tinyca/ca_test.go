@@ -32,27 +32,35 @@ var serveHTTPTests = []struct {
 	expectedCode  int
 	expectedBody  []byte
 }{
+	// Certificate requests are generated using the following command:
+	//
+	// export BF_NS=80485314-6C73-40FF-86C5-A5942A0F514F
+	// openssl req -new \
+	//   -key clientkey.pem -nodes \
+	//   -subj "/CN=$(bfid clientkey.pem)/O=$BF_NS)" \
+	//   -out clientcsr.pem
+	//
 	// Good requests.
 	{
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIIBGDCBwAIBADBeMS0wKwYDVQQDDCQ4YjlmY2E3OS0xM2UwLTUxNTctYjc1NC1m
-ZjJlNGU5ODVjMzAxLTArBgNVBAoMJDAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAw
-MDAwMDAwMDAwMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
+OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
+OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
 aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
-f/l+B/agADAKBggqhkjOPQQDAgNHADBEAiAOhgfkcjs16H2ZNpNUiOJcS8P+mpiC
-f+0l7+v5i1OW0AIgFft4Xc7mEo5XxJuHItDSf9lOxilweHpEVbv+zw0Uogs=
+f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
+l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusOK,
 	},
 	{
 		accept: mimeTypeBytes,
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIIBGDCBwAIBADBeMS0wKwYDVQQDDCQ4YjlmY2E3OS0xM2UwLTUxNTctYjc1NC1m
-ZjJlNGU5ODVjMzAxLTArBgNVBAoMJDAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAw
-MDAwMDAwMDAwMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
+OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
+OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
 aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
-f/l+B/agADAKBggqhkjOPQQDAgNHADBEAiAOhgfkcjs16H2ZNpNUiOJcS8P+mpiC
-f+0l7+v5i1OW0AIgFft4Xc7mEo5XxJuHItDSf9lOxilweHpEVbv+zw0Uogs=
+f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
+l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusOK,
 	},
@@ -76,15 +84,15 @@ a9rP0bn1HhVb/P8CIEMAqO2BWQ28M3Io0Wy+MTpqtX7/O1BAnSXT4BvZGUot
 	{
 		accept:        "application/json",
 		requestMethod: http.MethodPost,
+		expectedCode:  http.StatusNotAcceptable,
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIIBGTCBwAIBADBeMS0wKwYDVQQDDCQ4YjlmY2E3OS0xM2UwLTUxNTctYjc1NC1m
-ZjJlNGU5ODVjMzAxLTArBgNVBAoMJDAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAw
-MDAwMDAwMDAwMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
+OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
+OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
 aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
-f/l+B/agADAKBggqhkjOPQQDAgNIADBFAiEA9e4/Ntkgv8DB19EWs+BwLKnlA94V
-a9rP0bn1HhVb/P8CIEMAqO2BWQ28M3Io0Wy+MTpqtX7/O1BAnSXT4BvZGUot
+f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
+l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 -----END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusNotAcceptable,
 	},
 	{
 		expectedCode: http.StatusBadRequest,
@@ -159,14 +167,15 @@ func TestCA_ServeHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id := bifrost.UUID(uuid.Nil, &key.PublicKey)
+	testns := uuid.Must(uuid.Parse("80485314-6C73-40FF-86C5-A5942A0F514F"))
+	id := bifrost.UUID(testns, &key.PublicKey)
 
 	// Create root certificate.
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(2),
 		Subject: pkix.Name{
 			CommonName:   id.String(),
-			Organization: []string{uuid.Nil.String()},
+			Organization: []string{testns.String()},
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(time.Hour * 24),
@@ -178,7 +187,11 @@ func TestCA_ServeHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	crt, _ := x509.ParseCertificate(crtDer)
+	crt, err := x509.ParseCertificate(crtDer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	ca, err := New(crt, key, time.Hour)
 	if err != nil {
 		t.Fatal(err)
@@ -231,16 +244,16 @@ func TestCA_ServeHTTP(t *testing.T) {
 					if err != nil {
 						t.Fatal("response body is not a valid bifrost certificate: ", err)
 					}
-					if ns != uuid.Nil {
-						t.Fatalf("expected namespace: %s, actual: %s\n", uuid.Nil, ns)
+					if ns != testns {
+						t.Fatalf("expected namespace: %s, actual: %s\n", testns, ns)
 					}
 				case mimeTypeBytes:
 					ns, _, _, err := bifrost.ParseCertificate(respBody)
 					if err != nil {
 						t.Fatal("response body is not a valid bifrost certificate: ", err)
 					}
-					if ns != uuid.Nil {
-						t.Fatalf("expected namespace: %s, actual: %s\n", uuid.Nil, ns)
+					if ns != testns {
+						t.Fatalf("expected namespace: %s, actual: %s\n", testns, ns)
 					}
 				default:
 					t.Fatalf("unexpected Content-Type: %s\n", resp.Header.Get(ctHeader))
