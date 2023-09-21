@@ -32,21 +32,24 @@ func MustFromContext(ctx context.Context) *RequestContext {
 }
 
 // Interceptor is a HTTP handler middleware function that parses the
-// x-amzn-request-context request header. The header is expected to contain a
-// JSON encoded RequestContext. The identity namespace, client's UUID, and
-// certificate are added to the request context.
+// `x-amzn-request-context` header into the RequestContext struct.
+// The header is expected to contain a JSON encoded RequestContext.
+//
+// If the header is missing or malformed, the middleware responds with
+// a 401 Unauthorized error.
 func Interceptor(next http.Handler) http.Handler {
+	const newPhoneWhoDis = "new phone who dis?"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rctxHeader := r.Header.Get(RequestContextHeader)
-		if rctxHeader == "" {
-			http.Error(w, "new phone who dis?", http.StatusUnauthorized)
+		hdr := r.Header.Get(RequestContextHeader)
+		if hdr == "" {
+			http.Error(w, newPhoneWhoDis, http.StatusUnauthorized)
 			return
 		}
 		ctx := r.Context()
 		var rctx RequestContext
-		if err := json.Unmarshal([]byte(rctxHeader), &rctx); err != nil {
+		if err := json.Unmarshal([]byte(hdr), &rctx); err != nil {
 			slog.ErrorCtx(ctx, "error unmarshaling request context", "error", err)
-			http.Error(w, "zen meditation error", http.StatusInternalServerError)
+			http.Error(w, newPhoneWhoDis, http.StatusUnauthorized)
 			return
 		}
 		ctx = context.WithValue(ctx, keyRequestContext{}, &rctx)

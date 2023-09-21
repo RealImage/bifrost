@@ -20,6 +20,9 @@ import (
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/RealImage/bifrost"
+	"github.com/google/uuid"
 )
 
 func TestBouncerNoTLS(t *testing.T) {
@@ -51,10 +54,14 @@ func TestBouncer(t *testing.T) {
 		t.Errorf("error marshaling private key %s", err)
 	}
 
+	ns := uuid.MustParse("80485314-6c73-40ff-86c5-a5942a0f514f")
+	identity := bifrost.UUID(ns, &priv.PublicKey)
+
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject: pkix.Name{
-			Organization: []string{"Acme Co"},
+			CommonName:   identity.String(),
+			Organization: []string{ns.String()},
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(time.Hour),
@@ -84,7 +91,7 @@ func TestBouncer(t *testing.T) {
 			if err := json.Unmarshal([]byte(rctx), &requestContext); err != nil {
 				t.Errorf("error unmarshaling request context %s", err)
 			}
-			if requestContext.ClientCertificate != crt.Leaf {
+			if requestContext.ClientCertificate.Equal(crt.Leaf) {
 				t.Errorf("unexpected certificate in request context header")
 			}
 		}),
