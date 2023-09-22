@@ -1,0 +1,25 @@
+{
+  "name": "bifrost-web",
+  "version": "1.0.0",
+  "description": "Bifrost Certificate Issuer",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RealImage/bifrost.git"
+  },
+  "author": "Qube Cinema",
+  "license": "MPL-2.0",
+  "bugs": {
+    "url": "https://github.com/RealImage/bifrost/issues"
+  },
+  "homepage": "https://github.com/RealImage/bifrost#readme",
+  "dependencies": {
+    "elm": "^0.19.1-5",
+    "esbuild-plugin-elm": "^0.0.12"
+  }
+}
