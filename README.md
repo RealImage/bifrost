@@ -96,26 +96,41 @@ If unconfigured, it looks for `crt.pem` and `key.pem` in the current working dir
 
 `issuer` exposes prometheus format metrics at the `/metrics` path.
 
+#### [Web Application](web) (alpha)
+
+`issuer` ships a web application written that can generate private keys and request
+certificates from the API. Enable it by settings `WEB=true` in the process environment.
+
+Setting `web=dev` instead causes `issuer` to serve the application from the local filesystem
+instead of from an `embed.FS` containing static files. This is useful for development.
+Especially when combined with `npm run build --watch` running in the [web](web) directory.
+
 ## Build
 
-### Go toolchain
+### Native
 
-Build Go binaries on your machine:
+Install Node.js & Go.
+Build static binaries on your machine.
 
 ```console
+pushd web
+npm ci
+popd
+
 mkdir build
-go build -o build ./...
+go generate -x ./...
+env CGO_ENABLED=0 go build -o build ./...
 ```
 
 ### Container
 
-Build all binaries:
+Build all binaries.
 
 ```console
 podman build -t ghcr.io/realimage/bifrost .
 ```
 
-Build the CA container with the AWS Lambda Web Adapter extension:
+Build the CA container with the AWS Lambda Web Adapter extension.
 
 ```console
 podman build -f ca.Containerfile -t bifrost-ca .
