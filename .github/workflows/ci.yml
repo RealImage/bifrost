@@ -59,7 +59,9 @@ jobs:
             web/package-lock.json
       - name: Build
         run: |
+          pushd web
           npm ci
+          popd
           mkdir build
           go generate -x ./...
           env CGO_ENABLED=0 go build -o build ./...
