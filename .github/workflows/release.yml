@@ -5,7 +5,8 @@ on:
     tags:
       - v**
   release:
-    types: [published]
+    types:
+      - published
   workflow_dispatch:
 
 concurrency:
@@ -23,6 +24,27 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: Build bifrost image
+        uses: redhat-actions/buildah-build@v2
+        id: build_bf
+        with:
+          build-args: |
+            GO_VERSION=${{ env.GO_VERSION }}
+            NODE_VERSION=${{ env.NODE_VERSION }}
+          image: bifrost
+          tags: >
+            ${{ github.ref_name }}
+            ${{ github.sha }}
+            latest
+          containerfiles: Containerfile
+      - name: Push bifrost image to ghcr.io
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          image: ${{ steps.build_bf.outputs.image }}
+          tags: ${{ steps.build_bf.outputs.tags }}
       - name: Build bifrost-ca image
         uses: redhat-actions/buildah-build@v2
         id: build_ca
@@ -45,6 +67,8 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
+        with:
+          mask-password: true
       - name: Push bifrost-ca to Amazon ECR
         uses: redhat-actions/push-to-registry@v2
         with:
