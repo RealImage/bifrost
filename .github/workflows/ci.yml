@@ -7,8 +7,7 @@ on:
   pull_request:
     branches:
       - main
-  release:
-    types: [created]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -72,10 +71,6 @@ jobs:
           path: |
             build/*
             docs/issuer/openapi.yaml
-      - if: github.ref == 'refs/heads/main'
-        run: echo "LATEST_TAG=latest" >>"$GITHUB_ENV"
-      - if: github.event_name == 'pull_request'
-        run: echo "PR_TAG=pr-${{ github.event.pull_request.number }}" >>"$GITHUB_ENV"
       - name: Build bifrost container image
         uses: redhat-actions/buildah-build@v2
         id: build_bifrost
@@ -88,8 +83,6 @@ jobs:
           tags: >
             ${{ github.ref_name }}
             ${{ github.sha }}
-            ${{ env.PR_TAG }}
-            ${{ env.LATEST_TAG }}
       - name: Push bifrost image to ghcr.io
         uses: redhat-actions/push-to-registry@v2
         with:
