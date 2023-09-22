@@ -31,7 +31,7 @@ jobs:
           build-args: |
             GO_VERSION=${{ env.GO_VERSION }}
             NODE_VERSION=${{ env.NODE_VERSION }}
-          image: bifrost
+          image: ${{ github.repository }}
           tags: >
             ${{ github.ref_name }}
             ${{ github.sha }}
