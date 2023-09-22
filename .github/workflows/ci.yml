@@ -16,6 +16,7 @@ concurrency:
 
 env:
   GO_VERSION: "1.21"
+  NODE_VERSION: "20.7.0"
 
 jobs:
   lint_test:
@@ -49,9 +50,18 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Build binary
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            web/package-lock.json
+      - name: Build
         run: |
+          npm ci
           mkdir build
+          go generate -x ./...
           env CGO_ENABLED=0 go build -o build ./...
       - name: Upload binary
         uses: actions/upload-artifact@v3

@@ -14,6 +14,7 @@ concurrency:
 
 env:
   GO_VERSION: "1.21"
+  NODE_VERSION: "20.7.0"
 
 jobs:
   ca_image:
@@ -26,7 +27,9 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         id: build_ca
         with:
-          build-args: GO_VERSION=${{ env.GO_VERSION }}
+          build-args: |
+            GO_VERSION=${{ env.GO_VERSION }}
+            NODE_VERSION=${{ env.NODE_VERSION }}
           image: bifrost-ca
           tags: >
             ${{ github.ref_name }}
