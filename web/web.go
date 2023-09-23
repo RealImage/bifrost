@@ -7,11 +7,22 @@ package web
 
 import (
 	"embed"
+	"io/fs"
 )
 
 //go:generate env NODE_ENV=production npm run build
 
-// Static holds our static web server content.
-//
-//go:embed index.html static
-var Static embed.FS
+var (
+	//go:embed static
+	static embed.FS
+
+	// Static is the embedded filesystem containing the static website files.
+	Static fs.FS
+)
+
+func init() {
+	var err error
+	if Static, err = fs.Sub(static, "static"); err != nil {
+		panic("error embedding static files: " + err.Error())
+	}
+}

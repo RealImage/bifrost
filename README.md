@@ -2,7 +2,7 @@
 
 [![CI 🏗](https://github.com/RealImage/bifrost/actions/workflows/ci.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yml) [![Release 🚀](https://github.com/RealImage/bifrost/actions/workflows/release.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/release.yml)
 
-![My First CA](docs/my-first-ca.jpg)
+![Bifrost](docs/bifrost.jpg)
 
 Bifrost is a minimal Certificate Authority that issues X.509 certificates meant for
 mTLS client authentication. Bifrost CA does not authenticate certificate signing
@@ -223,7 +223,7 @@ podman build -f ca.Containerfile -t bifrost-ca .
 
 A toy benchmark for your favourite toy CA.
 
-![my-first-benchmark.jpg](docs/my-first-benchmark%20(ca).jpg)
+![Fishy Benchmark](docs/fishy-benchmark.jpg)
 
 `issuer` issued 10,000 certificates on my Macbook Pro M1 Pro in ~41s.
 The slowest request completed in 12ms.
