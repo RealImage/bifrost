@@ -55,7 +55,7 @@ func main() {
 	if w := config.Issuer.Web; w.Serve {
 		if w.LocalFiles {
 			slog.DebugCtx(ctx, "serving web from local filesystem")
-			mux.Handle("/", http.FileServer(http.Dir("web")))
+			mux.Handle("/", http.FileServer(http.Dir("web/static")))
 		} else {
 			slog.DebugCtx(ctx, "serving web from embedded filesystem")
 			mux.Handle("/", http.FileServer(http.FS(web.Static)))

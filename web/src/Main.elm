@@ -12,7 +12,7 @@ import Browser
 import File exposing (File)
 import File.Select
 import Html exposing (Html, main_, text)
-import Html.Attributes exposing (class)
+import Html.Attributes exposing (alt, class, src)
 import Html.Events exposing (onClick)
 import Http
 import RemoteData exposing (RemoteData, WebData)
@@ -127,7 +127,12 @@ viewIssuer model ns =
     [ Html.nav [ class "nav" ]
         [ Html.div
             [ class "nav-left" ]
-            [ Html.a [ class "brand" ] [ text "Bifrost" ] ]
+            [ Html.a
+                [ class "brand" ]
+                [ Html.img [ src "/bifrost.jpg", alt "Bifrost" ] []
+                , text "Bifrost"
+                ]
+            ]
         , Html.div
             [ class "nav-right" ]
             [ Html.a [] [ text ns ] ]
