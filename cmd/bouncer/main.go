@@ -21,7 +21,7 @@ import (
 	"github.com/RealImage/bifrost/internal/config"
 	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/RealImage/bifrost/internal/sundry"
-	"github.com/RealImage/bifrost/pkg/club"
+	"github.com/RealImage/bifrost/pkg/asgard"
 	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/exp/slog"
 )
@@ -75,7 +75,8 @@ func main() {
 		defer ssllog.Close()
 	}
 
-	hdlr := sundry.RequestLogHandler(club.Bouncer(reverseProxy))
+	id := asgard.Identify(asgard.DefaultRequestContextHeader)
+	hdlr := sundry.RequestLogHandler(id(reverseProxy))
 	addr := fmt.Sprintf("%s:%d", config.Bouncer.Host, config.Bouncer.Port)
 	server := http.Server{
 		Handler: hdlr,
