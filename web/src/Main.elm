@@ -5,7 +5,7 @@
 -}
 
 
-module Main exposing (Identity, Model, Msg(..), main)
+module Main exposing (Identity, Model, Msg, main)
 
 import Array exposing (Array)
 import Browser
@@ -56,6 +56,16 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        askCsr : RemoteData String UUID -> Maybe String -> Cmd msg
+        askCsr n k =
+            case n of
+                Success ns ->
+                    Csr.generate { namespace = UUID.toString ns, key = k }
+
+                _ ->
+                    Cmd.none
+    in
     case msg of
         GotNamespace r ->
             ( { model | namespace = gotNamespace r }, Cmd.none )
@@ -77,17 +87,17 @@ update msg model =
             ( model, Cmd.batch <| List.map readFile <| file :: files )
 
         FileRead k ->
-            ( model, genCsr model.namespace <| Just k )
+            ( model, askCsr model.namespace <| Just k )
 
         IdentityRequested ->
-            ( model, genCsr model.namespace Nothing )
+            ( model, askCsr model.namespace Nothing )
 
         GotCSR v ->
             case Decode.decodeValue Csr.replyDecoder v of
                 Ok r ->
                     case r of
                         Ok c ->
-                            ( model, getCertificate c )
+                            ( model, requestCrt c )
 
                         Err e ->
                             ( { model
@@ -127,27 +137,17 @@ update msg model =
                     ( model, Cmd.none )
 
 
-genCsr : RemoteData String UUID -> Maybe String -> Cmd msg
-genCsr n k =
-    case n of
-        Success ns ->
-            Csr.generate { namespace = UUID.toString ns, key = k }
-
-        _ ->
-            Cmd.none
-
-
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Csr.receive GotCSR
 
 
-getCertificate : Csr.Csr -> Cmd Msg
-getCertificate r =
+requestCrt : Csr.Csr -> Cmd Msg
+requestCrt c =
     Http.post
-        { expect = Http.expectString <| GotIdentity r.uuid r.key << RemoteData.fromResult
+        { expect = Http.expectString <| RemoteData.fromResult >> GotIdentity c.uuid c.key
         , url = "/issue"
-        , body = Http.stringBody "text/plain" r.csr
+        , body = Http.stringBody "text/plain" c.csr
         }
 
 
