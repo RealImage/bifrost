@@ -85,12 +85,12 @@ update msg model =
                 Ok c ->
                     ( model, getCertificate c )
 
-                Err e ->
-                    let
-                        _ =
-                            Debug.log "error" e
-                    in
-                    ( model, Cmd.none )
+                Err _ ->
+                    ( { model
+                        | requests = Array.push (RemoteData.Failure "zen meditation error") <| model.requests
+                      }
+                    , Cmd.none
+                    )
 
         GotIdentity u k c ->
             case c of
