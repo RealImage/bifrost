@@ -50,7 +50,10 @@ func main() {
 		_, _ = w.Write(nss)
 	})
 	mux.Handle("/issue", ca)
-	mux.HandleFunc("/metrics", stats.MetricsHandler)
+
+	if config.Issuer.Metrics {
+		mux.HandleFunc("/metrics", stats.MetricsHandler)
+	}
 
 	if w := config.Issuer.Web; w.Serve {
 		if w.LocalFiles {

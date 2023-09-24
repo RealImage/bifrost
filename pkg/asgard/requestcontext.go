@@ -5,6 +5,7 @@
 package asgard
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/json"
@@ -15,6 +16,27 @@ import (
 	"github.com/RealImage/bifrost"
 	"github.com/google/uuid"
 )
+
+type keyRequestContext struct{}
+
+const (
+	DefaultRequestContextHeader = "x-amzn-request-context"
+)
+
+// FromContext returns a *RequestContext from http.Request.Context.
+// If it doesn't exist (i.e. Heimdall hasn't run yet), the second
+// return parameter is false.
+func FromContext(ctx context.Context) (r *RequestContext, ok bool) {
+	r, ok = ctx.Value(keyRequestContext{}).(*RequestContext)
+	return
+}
+
+// MustFromContext is identical to FromContext, except that it panics
+// if the context doesn't have a RequestContext object.
+// Heimdall must have run before this function is called.
+func MustFromContext(ctx context.Context) *RequestContext {
+	return ctx.Value(keyRequestContext{}).(*RequestContext)
+}
 
 type RequestContext struct {
 	Namespace         uuid.UUID

@@ -38,12 +38,14 @@ func main() {
 		slog.Time("timestamp", config.BuildTime),
 	)
 
-	http.HandleFunc("/", stats.MetricsHandler)
-	go func() {
-		if err := http.ListenAndServe(config.Bouncer.MetricsUrl, nil); err != nil {
-			panic(err)
-		}
-	}()
+	if config.Bouncer.MetricsUrl != "" {
+		http.HandleFunc("/", stats.MetricsHandler)
+		go func() {
+			if err := http.ListenAndServe(config.Bouncer.MetricsUrl, nil); err != nil {
+				panic(err)
+			}
+		}()
+	}
 
 	backendUrl, err := url.Parse(config.Bouncer.BackendUrl)
 	sundry.OnErrorExit(ctx, err, "error parsing backend url")

@@ -28,5 +28,6 @@ COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:$AWS_LWA_VERSION \
   /lambda-adapter /opt/extensions/lambda-adapter
 COPY --from=go /build/issuer /
 ENV PORT=8888
-ENV AWS_LWA_READINESS_CHECK_PATH="/metrics"
+ENV AWS_LWA_READINESS_CHECK_PATH="/namespace"
+ENV AWS_LWA_ENABLE_COMPRESSION="true"
 ENTRYPOINT [ "/issuer" ]

@@ -12,27 +12,6 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-type keyRequestContext struct{}
-
-const (
-	DefaultRequestContextHeader = "x-amzn-request-context"
-)
-
-// FromContext returns a *RequestContext from http.Request.Context.
-// If it doesn't exist (i.e. Heimdall hasn't run yet), the second
-// return parameter is false.
-func FromContext(ctx context.Context) (r *RequestContext, ok bool) {
-	r, ok = ctx.Value(keyRequestContext{}).(*RequestContext)
-	return
-}
-
-// MustFromContext is identical to FromContext, except that it panics
-// if the context doesn't have a RequestContext object.
-// Heimdall must have run before this function is called.
-func MustFromContext(ctx context.Context) *RequestContext {
-	return ctx.Value(keyRequestContext{}).(*RequestContext)
-}
-
 // Heimdall returns HTTP handler middleware function that parses headerName
 // as JSON into the RequestContext struct.
 // If the header is missing or malformed, the middleware responds with
