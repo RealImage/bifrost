@@ -87,7 +87,8 @@ update msg model =
 
                 Err _ ->
                     ( { model
-                        | requests = Array.push (RemoteData.Failure "zen meditation error") <| model.requests
+                        | requests =
+                            Array.push (RemoteData.Failure "zen meditation error") model.requests
                       }
                     , Cmd.none
                     )
@@ -95,21 +96,18 @@ update msg model =
         GotIdentity u k c ->
             case c of
                 RemoteData.Success crt ->
-                    ( { model
-                        | requests =
-                            Array.push
-                                (RemoteData.Success { uuid = u, key = k, crt = crt })
-                                model.requests
-                      }
-                    , Cmd.none
-                    )
+                    let
+                        success =
+                            RemoteData.Success { uuid = u, key = k, crt = crt }
+                    in
+                    ( { model | requests = Array.push success model.requests }, Cmd.none )
 
                 RemoteData.Failure _ ->
-                    ( { model
-                        | requests = Array.push (RemoteData.Failure "failed") model.requests
-                      }
-                    , Cmd.none
-                    )
+                    let
+                        failure =
+                            RemoteData.Failure "error creating identity"
+                    in
+                    ( { model | requests = Array.push failure model.requests }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
