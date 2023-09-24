@@ -9,7 +9,7 @@ module Main exposing (Identity, Model, Msg(..), main)
 
 import Array exposing (Array)
 import Browser
-import CSR
+import Csr
 import File exposing (File)
 import File.Select
 import Html exposing (Html, main_, text)
@@ -17,7 +17,7 @@ import Html.Attributes exposing (alt, class, src)
 import Html.Events exposing (onClick)
 import Http
 import Json.Decode as Decode
-import RemoteData exposing (RemoteData, WebData)
+import RemoteData exposing (RemoteData(..), WebData)
 import Task
 import UUID exposing (UUID)
 
@@ -37,7 +37,7 @@ type alias Identity =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { namespace = RemoteData.Loading
+    ( { namespace = Loading
       , requests = Array.empty
       }
     , Http.get { expect = Http.expectString GotNamespace, url = "/namespace" }
@@ -77,49 +77,49 @@ update msg model =
             ( model, Cmd.batch <| List.map readFile <| file :: files )
 
         FileRead k ->
-            ( model, generateCSR model.namespace <| Just k )
+            ( model, genCsr model.namespace <| Just k )
 
         IdentityRequested ->
-            ( model, generateCSR model.namespace Nothing )
+            ( model, genCsr model.namespace Nothing )
 
         GotCSR v ->
-            case Decode.decodeValue CSR.decoder v of
+            case Decode.decodeValue Csr.replyDecoder v of
                 Ok r ->
                     case r of
-                        Result.Ok c ->
+                        Ok c ->
                             ( model, getCertificate c )
 
-                        Result.Err e ->
+                        Err e ->
                             ( { model
                                 | requests =
-                                    Array.push (RemoteData.Failure e) model.requests
+                                    Array.push (Failure e) model.requests
                               }
                             , Cmd.none
                             )
 
-                Err _ ->
+                Err e ->
                     ( { model
                         | requests =
-                            Array.push (RemoteData.Failure "zen meditation error") model.requests
+                            Array.push (Failure <| Decode.errorToString e) model.requests
                       }
                     , Cmd.none
                     )
 
         GotIdentity u k c ->
             case c of
-                RemoteData.Success crt ->
+                Success crt ->
                     let
                         success : RemoteData String Identity
                         success =
-                            RemoteData.Success { uuid = u, key = k, crt = crt }
+                            Success { uuid = u, key = k, crt = crt }
                     in
                     ( { model | requests = Array.push success model.requests }, Cmd.none )
 
-                RemoteData.Failure _ ->
+                Failure _ ->
                     let
                         failure : RemoteData String Identity
                         failure =
-                            RemoteData.Failure "error creating identity"
+                            Failure "error creating identity"
                     in
                     ( { model | requests = Array.push failure model.requests }, Cmd.none )
 
@@ -127,11 +127,11 @@ update msg model =
                     ( model, Cmd.none )
 
 
-generateCSR : RemoteData String UUID -> Maybe String -> Cmd Msg
-generateCSR n k =
+genCsr : RemoteData String UUID -> Maybe String -> Cmd msg
+genCsr n k =
     case n of
-        RemoteData.Success ns ->
-            CSR.generate { namespace = UUID.toString ns, key = k }
+        Success ns ->
+            Csr.generate { namespace = UUID.toString ns, key = k }
 
         _ ->
             Cmd.none
@@ -139,10 +139,10 @@ generateCSR n k =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    CSR.receive GotCSR
+    Csr.receive GotCSR
 
 
-getCertificate : CSR.Response -> Cmd Msg
+getCertificate : Csr.Csr -> Cmd Msg
 getCertificate r =
     Http.post
         { expect = Http.expectString <| GotIdentity r.uuid r.key << RemoteData.fromResult
@@ -154,16 +154,16 @@ getCertificate r =
 gotNamespace : Result Http.Error String -> RemoteData String UUID
 gotNamespace res =
     case res of
-        Result.Ok s ->
+        Ok s ->
             case UUID.fromString s of
-                Result.Ok uuid ->
-                    RemoteData.Success uuid
+                Ok uuid ->
+                    Success uuid
 
-                Result.Err _ ->
-                    RemoteData.Failure "Error parsing namespace"
+                Err _ ->
+                    Failure "Error parsing namespace"
 
-        Result.Err _ ->
-            RemoteData.Failure "Error fetching namespace"
+        Err _ ->
+            Failure "Error fetching namespace"
 
 
 view : Model -> Browser.Document Msg
@@ -171,18 +171,18 @@ view model =
     let
         ( title, body ) =
             case model.namespace of
-                RemoteData.NotAsked ->
+                NotAsked ->
                     ( "", [] )
 
-                RemoteData.Loading ->
+                Loading ->
                     ( "Bifrost", [ Html.text "Loading" ] )
 
-                RemoteData.Failure e ->
+                Failure e ->
                     ( "zen meditation error"
                     , [ Html.h1 [] [ text e ] ]
                     )
 
-                RemoteData.Success ns ->
+                Success ns ->
                     ( "Bifrost Certificate Issuer"
                     , viewIssuer model <| UUID.toString ns
                     )
@@ -235,13 +235,13 @@ viewIssuer model ns =
 viewRequests : RemoteData String Identity -> List (Html a) -> List (Html a)
 viewRequests r acc =
     case r of
-        RemoteData.NotAsked ->
+        NotAsked ->
             acc
 
-        RemoteData.Loading ->
+        Loading ->
             Html.article [ class "card" ] [ Html.p [] [ text "Loading" ] ] :: acc
 
-        RemoteData.Success i ->
+        Success i ->
             Html.article [ class "card" ]
                 [ Html.header [] [ Html.h3 [] [ text "Identity" ] ]
                 , Html.h4 [] [ text "UUID" ]
@@ -251,7 +251,7 @@ viewRequests r acc =
                 ]
                 :: acc
 
-        RemoteData.Failure e ->
+        Failure e ->
             Html.article [ class "card" ] [ Html.p [] [ text e ] ] :: acc
 
 
