@@ -5,7 +5,7 @@
 -}
 
 
-module Main exposing (Msg(..), main, update, view)
+module Main exposing (Identity, Model, Msg(..), main)
 
 import Array exposing (Array)
 import Browser
@@ -62,6 +62,7 @@ update msg model =
 
         OpenFilesClicked ->
             let
+                mimes : List String
                 mimes =
                     [ "application/octet-stream", "text/plain", ".pem", ".der", ".cer", ".crt" ]
             in
@@ -69,6 +70,7 @@ update msg model =
 
         FilesSelected file files ->
             let
+                readFile : File -> Cmd Msg
                 readFile f =
                     Task.perform FileRead <| File.toString f
             in
@@ -86,6 +88,7 @@ update msg model =
                     case r of
                         Result.Ok c ->
                             ( model, getCertificate c )
+
                         Result.Err e ->
                             ( { model
                                 | requests =
@@ -106,6 +109,7 @@ update msg model =
             case c of
                 RemoteData.Success crt ->
                     let
+                        success : RemoteData String Identity
                         success =
                             RemoteData.Success { uuid = u, key = k, crt = crt }
                     in
@@ -113,6 +117,7 @@ update msg model =
 
                 RemoteData.Failure _ ->
                     let
+                        failure : RemoteData String Identity
                         failure =
                             RemoteData.Failure "error creating identity"
                     in

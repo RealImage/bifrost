@@ -5,10 +5,9 @@
 -}
 
 
-port module CSR exposing (Request, Response, decoder, encoder, generate, receive)
+port module CSR exposing (Request, Response, decoder, generate, receive)
 
 import Json.Decode as Decode
-import Json.Encode as Encode
 
 
 port generate : Request -> Cmd msg
@@ -28,14 +27,6 @@ type alias Response =
     , key : String
     , csr : String
     }
-
-
-encoder : Request -> Encode.Value
-encoder r =
-    Encode.object
-        [ ( "namespace", Encode.string r.namespace )
-        , ( "key", Maybe.withDefault Encode.null <| Maybe.map Encode.string r.key )
-        ]
 
 
 decoder : Decode.Decoder (Result String Response)
