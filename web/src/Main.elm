@@ -9,12 +9,14 @@ module Main exposing (Msg(..), main, update, view)
 
 import Array exposing (Array)
 import Browser
+import CSR
 import File exposing (File)
 import File.Select
 import Html exposing (Html, main_, text)
 import Html.Attributes exposing (alt, class, src)
 import Html.Events exposing (onClick)
 import Http
+import Json.Decode as Decode
 import RemoteData exposing (RemoteData, WebData)
 import Task
 import UUID exposing (UUID)
@@ -22,13 +24,14 @@ import UUID exposing (UUID)
 
 type alias Model =
     { namespace : RemoteData String UUID
-    , requests : Array Request
+    , requests : Array (RemoteData String Identity)
     }
 
 
-type alias Request =
-    { crt : WebData String
+type alias Identity =
+    { uuid : String
     , key : String
+    , crt : String
     }
 
 
@@ -46,6 +49,9 @@ type Msg
     | OpenFilesClicked
     | FilesSelected File (List File)
     | FileRead String
+    | IdentityRequested
+    | GotCSR Decode.Value
+    | GotIdentity String String (WebData String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -68,17 +74,69 @@ update msg model =
             in
             ( model, Cmd.batch <| List.map readFile <| file :: files )
 
-        FileRead string ->
-            ( { model
-                | requests =
-                    Array.push
-                        { crt = RemoteData.Loading
-                        , key = string
-                        }
-                        model.requests
-              }
-            , Cmd.none
-            )
+        FileRead k ->
+            ( model, generateCSR model.namespace <| Just k )
+
+        IdentityRequested ->
+            ( model, generateCSR model.namespace Nothing )
+
+        GotCSR v ->
+            case Decode.decodeValue CSR.decoder v of
+                Ok c ->
+                    ( model, getCertificate c )
+
+                Err e ->
+                    let
+                        _ =
+                            Debug.log "error" e
+                    in
+                    ( model, Cmd.none )
+
+        GotIdentity u k c ->
+            case c of
+                RemoteData.Success crt ->
+                    ( { model
+                        | requests =
+                            Array.push
+                                (RemoteData.Success { uuid = u, key = k, crt = crt })
+                                model.requests
+                      }
+                    , Cmd.none
+                    )
+
+                RemoteData.Failure _ ->
+                    ( { model
+                        | requests = Array.push (RemoteData.Failure "failed") model.requests
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+
+generateCSR : RemoteData String UUID -> Maybe String -> Cmd Msg
+generateCSR n k =
+    case n of
+        RemoteData.Success ns ->
+            CSR.generate { namespace = UUID.toString ns, key = k }
+
+        _ ->
+            Cmd.none
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    CSR.receive GotCSR
+
+
+getCertificate : CSR.Response -> Cmd Msg
+getCertificate r =
+    Http.post
+        { expect = Http.expectString <| GotIdentity r.uuid r.key << RemoteData.fromResult
+        , url = "/issue"
+        , body = Http.stringBody "text/plain" r.csr
+        }
 
 
 gotNamespace : Result Http.Error String -> RemoteData String UUID
@@ -144,72 +202,52 @@ viewIssuer model ns =
             , Html.p [] [ text "Hot off the presses" ]
             ]
         , Html.section []
-            [ Html.h2 [] [ text "New Request" ]
+            [ Html.h2 [] [ text "New" ]
             , Html.button
-                [ class "button" ]
-                [ text "Generate private key" ]
+                [ class "button", onClick IdentityRequested ]
+                [ text "Create" ]
             , Html.button
                 [ class "button", onClick OpenFilesClicked ]
-                [ text "Upload private keys" ]
+                [ text "Upload" ]
             ]
         ]
     , main_ [ class "container" ]
         [ Html.section []
-            [ Html.h2 [] [ text "Requests" ]
+            [ Html.h2 [] [ text "Identities" ]
             , Html.div [ class "row" ] <| Array.foldl viewRequests [] model.requests
             ]
         ]
     ]
 
 
-viewRequests : Request -> List (Html a) -> List (Html a)
+viewRequests : RemoteData String Identity -> List (Html a) -> List (Html a)
 viewRequests r acc =
-    let
-        respText =
-            case r.crt of
-                RemoteData.NotAsked ->
-                    "Not asked"
+    case r of
+        RemoteData.NotAsked ->
+            acc
 
-                RemoteData.Loading ->
-                    "Loading"
+        RemoteData.Loading ->
+            Html.article [ class "card" ] [ Html.p [] [ text "Loading" ] ] :: acc
 
-                RemoteData.Failure e ->
-                    case e of
-                        Http.BadUrl u ->
-                            "Bad URL: " ++ u
-
-                        Http.Timeout ->
-                            "Timeout"
-
-                        Http.NetworkError ->
-                            "Network error"
-
-                        Http.BadStatus s ->
-                            "Bad status: " ++ String.fromInt s
-
-                        Http.BadBody s ->
-                            "Bad body: " ++ s
-
-                RemoteData.Success s ->
-                    "Success " ++ s
-
-        a =
+        RemoteData.Success i ->
             Html.article [ class "card" ]
-                [ Html.header [] [ Html.h3 [] [ text "Certificate" ] ]
-                , Html.h4 [] [ text "Request" ]
-                , Html.p [] [ text r.key ]
-                , Html.h4 [] [ text "Response" ]
-                , Html.p [] [ text respText ]
+                [ Html.header [] [ Html.h3 [] [ text "Identity" ] ]
+                , Html.h4 [] [ text "UUID" ]
+                , Html.p [] [ text i.uuid ]
+                , Html.h4 [] [ text "Certificate" ]
+                , Html.p [] [ text i.crt ]
                 ]
-    in
-    a :: acc
+                :: acc
+
+        RemoteData.Failure e ->
+            Html.article [ class "card" ] [ Html.p [] [ text e ] ] :: acc
 
 
 main : Program () Model Msg
 main =
     Browser.document
         { init = init
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = subscriptions
         , update = update
         , view = view
         }

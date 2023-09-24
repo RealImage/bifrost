@@ -20,6 +20,7 @@
   "homepage": "https://github.com/RealImage/bifrost#readme",
   "dependencies": {
     "elm": "^0.19.1-5",
-    "esbuild-plugin-elm": "^0.0.12"
+    "esbuild-plugin-elm": "^0.0.12",
+    "pkijs": "^3.0.15"
   }
 }
