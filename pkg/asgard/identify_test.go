@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package club
+package asgard
 
 import (
 	"crypto/ecdsa"
@@ -25,7 +25,9 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestBouncerNoTLS(t *testing.T) {
+const testHeader = "rctx-test"
+
+func TestIdentifyNoTLS(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
 			t.Errorf("this should panic but did not")
@@ -36,13 +38,13 @@ func TestBouncerNoTLS(t *testing.T) {
 	defer backendServer.Close()
 	backendUrl, _ := url.Parse(backendServer.URL)
 
-	br := Bouncer(httputil.NewSingleHostReverseProxy(backendUrl))
+	id := Identify(testHeader)(httputil.NewSingleHostReverseProxy(backendUrl))
 	rr := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	br.ServeHTTP(rr, request)
+	id.ServeHTTP(rr, request)
 }
 
-func TestBouncer(t *testing.T) {
+func TestIdentify(t *testing.T) {
 	randReader := rand.New(rand.NewSource(42))
 	// generate key pair and certificate
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), randReader)
@@ -83,9 +85,9 @@ func TestBouncer(t *testing.T) {
 	// backend server handler checks if request has expected header
 	backendServer := httptest.NewServer(
 		http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-			rctx := r.Header.Get(RequestContextHeader)
+			rctx := r.Header.Get(testHeader)
 			if rctx == "" {
-				t.Errorf("expected %s header in request", RequestContextHeader)
+				t.Errorf("expected %s header in request", testHeader)
 			}
 			requestContext := RequestContext{}
 			if err := json.Unmarshal([]byte(rctx), &requestContext); err != nil {
@@ -103,10 +105,10 @@ func TestBouncer(t *testing.T) {
 	}
 
 	// bouncer wraps around a reverse proxy that proxies requests to the HTTP backend
-	br := Bouncer(httputil.NewSingleHostReverseProxy(backendUrl))
+	id := Identify(testHeader)(httputil.NewSingleHostReverseProxy(backendUrl))
 
 	// TLS server accepts client requests requiring TLS client cert auth
-	server := httptest.NewUnstartedServer(br)
+	server := httptest.NewUnstartedServer(id)
 	server.TLS = &tls.Config{
 		ClientAuth: tls.RequireAnyClientCert,
 	}
