@@ -1,8 +1,7 @@
-# Bifrost
+# ![Bifrost](docs/bifrost.png) Bifrost
 
 [![CI 🏗](https://github.com/RealImage/bifrost/actions/workflows/ci.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yml) [![Release 🚀](https://github.com/RealImage/bifrost/actions/workflows/release.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/release.yml)
 
-![Bifrost](docs/bifrost.jpg)
 
 Bifrost is a minimal Certificate Authority that issues X.509 certificates meant for
 mTLS client authentication. Bifrost CA does not authenticate certificate signing

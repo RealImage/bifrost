@@ -187,7 +187,7 @@ viewIssuer model ns =
             [ class "nav-left" ]
             [ Html.a
                 [ class "brand" ]
-                [ Html.img [ src "/bifrost.jpg", alt "Bifrost" ] []
+                [ Html.img [ src "/bifrost.webp", alt "Bifrost" ] []
                 , text "Bifrost"
                 ]
             ]
