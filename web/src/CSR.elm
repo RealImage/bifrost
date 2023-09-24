@@ -5,11 +5,10 @@
 -}
 
 
-port module CSR exposing (Request, Response, decoder, encoder, generate, generated, receive)
+port module CSR exposing (Request, Response, decoder, encoder, generate, receive)
 
 import Json.Decode as Decode
 import Json.Encode as Encode
-import RemoteData exposing (RemoteData)
 
 
 port generate : Request -> Cmd msg
@@ -39,16 +38,17 @@ encoder r =
         ]
 
 
-decoder : Decode.Decoder Response
+decoder : Decode.Decoder (Result String Response)
 decoder =
+    Decode.oneOf
+        [ Decode.map Result.Ok responseDecoder
+        , Decode.map Result.Err (Decode.field "error" Decode.string)
+        ]
+
+
+responseDecoder : Decode.Decoder Response
+responseDecoder =
     Decode.map3 Response
         (Decode.field "uuid" Decode.string)
         (Decode.field "key" Decode.string)
         (Decode.field "csr" Decode.string)
-
-
-generated : (RemoteData Decode.Error Response -> msg) -> Decode.Value -> msg
-generated tag =
-    Decode.decodeValue decoder
-        >> RemoteData.fromResult
-        >> tag

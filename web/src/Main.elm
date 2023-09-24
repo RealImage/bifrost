@@ -82,8 +82,17 @@ update msg model =
 
         GotCSR v ->
             case Decode.decodeValue CSR.decoder v of
-                Ok c ->
-                    ( model, getCertificate c )
+                Ok r ->
+                    case r of
+                        Result.Ok c ->
+                            ( model, getCertificate c )
+                        Result.Err e ->
+                            ( { model
+                                | requests =
+                                    Array.push (RemoteData.Failure e) model.requests
+                              }
+                            , Cmd.none
+                            )
 
                 Err _ ->
                     ( { model
