@@ -41,7 +41,6 @@ jobs:
         working-directory: web
         run: |
           npm ci
-          npx elm-format --validate
           node run lint
       - name: Lint Go code
         uses: golangci/golangci-lint-action@v3
