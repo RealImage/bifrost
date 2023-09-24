@@ -4,16 +4,33 @@ info:
   description: >
     Bifrost Issuer issues certificates in response to certificate requests.
   contact:
-    email: "support@qubewire.com"
+    email: "ananth.b@qubecinema.com"
   license:
-    name: CLOSED
-    identifier: CLOSED
-    url: https://bifrost.services.qubewire.com
-  version: 0.0.1
+    name: "Mozilla Public License 2.0"
+    identifier: "MPL-2.0"
+  version: 1.10.0
 security: []
-servers:
-  - url: "https://bifrost.services.qubewire.com"
 paths:
+  /namespace:
+    get:
+      operationId: getNamespace
+      summary: Get the instance's namespace
+      description: Returns the instance's namespace uuid in text form.
+      responses:
+        "200":
+          description: Instance namespace
+          content:
+            text/plain:
+              schema:
+                type: string
+                format: uuid
+                example: a3d129b3-ac16-4047-84cc-2e97447d31ea
+        "500":
+          description: Internal Server Error.
+          content:
+            "text/plain":
+              schema:
+                type: string
   /issue:
     post:
       operationId: issueCertificate
