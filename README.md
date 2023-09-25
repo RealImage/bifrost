@@ -1,10 +1,14 @@
-# ![Bifrost](docs/bifrost.png) Bifrost
+# ![Bifrost](docs/bifrost.png) Bifrost  
 
-[![CI 🏗](https://github.com/RealImage/bifrost/actions/workflows/ci.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yml) [![Release 🚀](https://github.com/RealImage/bifrost/actions/workflows/release.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/release.yml)
+[![CI 🏗](https://github.com/RealImage/bifrost/actions/workflows/ci.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yml)
 
+A simple mTLS authentication toolkit.
 
-Bifrost is a minimal Certificate Authority that issues X.509 certificates meant for
-mTLS client authentication. Bifrost CA does not authenticate certificate signing
+Bifrost consists of a Certificate Authority (CA) server that issues X.509 certificates,
+a Go package to fetch such certificates, and a Go package with HTTP middleware
+to identify and authenticate clients using such TLS certificates in requests.
+
+Bifrost CA does not authenticate certificate signing
 requests before issuance. You must authorise or control access to Bifrost CA as needed.
 
 Bifrost CA issues certificates signed by a private key and a TLS X.509 certificate.
@@ -14,6 +18,8 @@ Bifrost identifies clients uniquely by ECDSA public keys.
 Client identity namespaces allow Bifrost to be natively multi-tenant.
 
 ## Releases
+
+[![Release 🚀](https://github.com/RealImage/bifrost/actions/workflows/release.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/release.yml)
 
 Bifrost binaries are available on the [releases](https://github.com/RealImage/bifrost/releases)
 page.
