@@ -252,7 +252,10 @@ viewRequests r acc =
                 :: acc
 
         Failure e ->
-            Html.article [ class "card" ] [ Html.p [] [ text e ] ] :: acc
+            Html.article
+                [ class "card" ]
+                [ Html.p [] [ Html.pre [] [ text e ] ] ]
+                :: acc
 
 
 main : Program () Model Msg

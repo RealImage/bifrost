@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Package club provides middleware for use in HTTP API servers and gateways.
 package asgard
 
 import (
@@ -13,11 +12,11 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-// Identify returns a HTTP Handler middleware function that identifies clients
+// Hofund returns a HTTP Handler middleware function that identifies clients
 // by their TLS client certificates.
 // It parses the client certficiate into a RequestContext which is
 // JSON-serialised into the headerName header.
-func Identify(headerName string) func(http.Handler) http.Handler {
+func Hofund(headerName string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {

@@ -83,7 +83,7 @@ env BACKEND_URL=http://127.0.0.1:5000 ./bouncer
 
 ### [`issuer`](cmd/issuer)
 
-[OpenAPI schema](docs/issuer/openapi.yml)
+[OpenAPI schema](docs/issuer-openapi.yml)
 
 `issuer` signs certificates with the configured certificate and its private key.
 Clients must send certificate requests signed by an ECDSA P256 private key

@@ -27,7 +27,7 @@ import (
 
 const testHeader = "rctx-test"
 
-func TestIdentifyNoTLS(t *testing.T) {
+func TestHofundNoTLS(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
 			t.Errorf("this should panic but did not")
@@ -38,13 +38,13 @@ func TestIdentifyNoTLS(t *testing.T) {
 	defer backendServer.Close()
 	backendUrl, _ := url.Parse(backendServer.URL)
 
-	id := Identify(testHeader)(httputil.NewSingleHostReverseProxy(backendUrl))
+	hf := Hofund(testHeader)(httputil.NewSingleHostReverseProxy(backendUrl))
 	rr := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	id.ServeHTTP(rr, request)
+	hf.ServeHTTP(rr, request)
 }
 
-func TestIdentify(t *testing.T) {
+func TestHofund(t *testing.T) {
 	randReader := rand.New(rand.NewSource(42))
 	// generate key pair and certificate
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), randReader)
@@ -104,11 +104,10 @@ func TestIdentify(t *testing.T) {
 		t.Errorf("error parsing backedn url %s", err)
 	}
 
-	// bouncer wraps around a reverse proxy that proxies requests to the HTTP backend
-	id := Identify(testHeader)(httputil.NewSingleHostReverseProxy(backendUrl))
+	hf := Hofund(testHeader)(httputil.NewSingleHostReverseProxy(backendUrl))
 
 	// TLS server accepts client requests requiring TLS client cert auth
-	server := httptest.NewUnstartedServer(id)
+	server := httptest.NewUnstartedServer(hf)
 	server.TLS = &tls.Config{
 		ClientAuth: tls.RequireAnyClientCert,
 	}

@@ -33,7 +33,7 @@ func init() {
 	testPubKey.Y = y
 }
 
-var heimdallTestCases = []struct {
+var heimdallrTestCases = []struct {
 	headerName   string
 	headerValue  string
 	expectedCode int
@@ -59,8 +59,8 @@ var heimdallTestCases = []struct {
 	},
 }
 
-func TestHeimdall(t *testing.T) {
-	for i, tc := range heimdallTestCases {
+func TestHeimdallr(t *testing.T) {
+	for i, tc := range heimdallrTestCases {
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			if tc.headerName == "" {
@@ -68,7 +68,7 @@ func TestHeimdall(t *testing.T) {
 			}
 			req.Header.Set(tc.headerName, tc.headerValue)
 			w := httptest.NewRecorder()
-			Heimdall(testHeader)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			Heimdallr(testHeader)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				rctx := MustFromContext(r.Context())
 				if !reflect.DeepEqual(rctx.ClientPublicKey, tc.expectedKey) {
 					t.Errorf("expected key %v, got %v", tc.expectedKey, rctx.ClientPublicKey)

@@ -77,7 +77,7 @@ func main() {
 		defer ssllog.Close()
 	}
 
-	id := asgard.Identify(asgard.DefaultRequestContextHeader)
+	id := asgard.Hofund(asgard.DefaultRequestContextHeader)
 	hdlr := sundry.RequestLogHandler(id(reverseProxy))
 	addr := fmt.Sprintf("%s:%d", config.Bouncer.Host, config.Bouncer.Port)
 	server := http.Server{
