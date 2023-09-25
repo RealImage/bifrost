@@ -64,6 +64,18 @@ l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusOK,
 	},
+	{
+		contentType: "text/plain; charset=utf-8",
+		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
+OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
+OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
+f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
+l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
+-----END CERTIFICATE REQUEST-----`),
+		expectedCode: http.StatusOK,
+	},
 	// Bad.
 	{
 		requestMethod: http.MethodGet,
@@ -209,10 +221,10 @@ func TestCA_ServeHTTP(t *testing.T) {
 				t.Fatal(err)
 			}
 			if ac := tc.accept; ac != "" {
-				req.Header.Set(acHeader, ac)
+				req.Header.Set(acHeaderName, ac)
 			}
 			if ct := tc.contentType; ct != "" {
-				req.Header.Set(ctHeader, ct)
+				req.Header.Set(ctHeaderName, ct)
 			}
 			rr := httptest.NewRecorder()
 			ca.ServeHTTP(rr, req)
@@ -222,7 +234,7 @@ func TestCA_ServeHTTP(t *testing.T) {
 				t.Fatalf("expected code: %d, actual: %d,\n\nbody:\n```\n%s\n```\n",
 					tc.expectedCode, rr.Code, rr.Body.String())
 			}
-			if ac := resp.Header.Get(acHeader); ac != "" && tc.accept != "" && ac != tc.accept {
+			if ac := resp.Header.Get(acHeaderName); ac != "" && tc.accept != "" && ac != tc.accept {
 				t.Fatalf("expected response media type: %s, actual: %s\n", tc.accept, ac)
 			}
 			respBody, _ := io.ReadAll(resp.Body)
@@ -233,7 +245,7 @@ func TestCA_ServeHTTP(t *testing.T) {
 				}
 			} else if resp.StatusCode < 300 {
 				// If request succeeded and expected body is empty, check that the response body is valid.
-				switch resp.Header.Get(ctHeader) {
+				switch resp.Header.Get(ctHeaderName) {
 				case "", mimeTypeText:
 					b, _ := pem.Decode(respBody)
 					if b == nil {
@@ -256,7 +268,7 @@ func TestCA_ServeHTTP(t *testing.T) {
 						t.Fatalf("expected namespace: %s, actual: %s\n", testns, ns)
 					}
 				default:
-					t.Fatalf("unexpected Content-Type: %s\n", resp.Header.Get(ctHeader))
+					t.Fatalf("unexpected Content-Type: %s\n", resp.Header.Get(ctHeaderName))
 				}
 			}
 		})
