@@ -14,7 +14,7 @@ import File exposing (File)
 import File.Select
 import Html exposing (Html, main_, text)
 import Html.Attributes as Attr exposing (alt, class, src)
-import Html.Events exposing (onClick)
+import Html.Events as Evt exposing (onClick)
 import Http
 import Json.Decode as Decode
 import RemoteData exposing (RemoteData(..), WebData)
@@ -47,7 +47,7 @@ init _ =
 
 type Msg
     = GotNss (Result Http.Error String)
-    | ChangedNs UUID
+    | ChangedNs String
     | OpenFilesClicked
     | FilesSelected File (List File)
     | FileRead String
@@ -104,9 +104,11 @@ update msg model =
     case msg of
         GotNss r ->
             let
+                ns : RemoteData String (List UUID)
                 ns =
                     gotNss r
 
+                c : Maybe UUID
                 c =
                     case ns of
                         Success (n :: _) ->
@@ -118,7 +120,12 @@ update msg model =
             ( { model | ns = c, nss = ns }, Cmd.none )
 
         ChangedNs ns ->
-            ( { model | ns = Just ns }, Cmd.none )
+            case UUID.fromString ns of
+                Ok n ->
+                    ( { model | ns = Just n }, Cmd.none )
+
+                Err _ ->
+                    ( { model | ns = Nothing }, Cmd.none )
 
         OpenFilesClicked ->
             let
@@ -230,6 +237,10 @@ viewIssuer model nss =
 
             else
                 o []
+
+        onChange : (String -> msg) -> Html.Attribute msg
+        onChange tagger =
+            Evt.on "change" (Evt.targetValue |> Decode.map tagger)
     in
     [ Html.nav [ class "nav" ]
         [ Html.div
@@ -250,7 +261,9 @@ viewIssuer model nss =
             ]
         , Html.section []
             [ Html.h2 [] [ text "Select namespace" ]
-            , Html.select [] <| List.map (UUID.toString >> nsOpt) nss
+            , Html.select
+                [ onChange ChangedNs ]
+                (List.map (UUID.toString >> nsOpt) nss)
             ]
         , Html.section []
             [ Html.h2 [] [ text "New" ]

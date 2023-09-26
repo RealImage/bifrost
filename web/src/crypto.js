@@ -15,7 +15,6 @@ const signAlg = 'ECDSA';
 /**
  * @param {{ ns : string, key? : string }} req
  * @returns {Promise<{key: string, csr: string}>}
- *
  * @example
  * const { id, key, csr } = await createKeyAndCSR({
  *   ns: 'ba64ca66-4f02-431d-8f31-e8ea8d0e8011',
@@ -34,9 +33,8 @@ export async function createKeyAndCsr(req) {
       getAlgorithm(signAlg, hashAlg), true, ['encrypt', 'sign', 'verify']);
   }
 
-  const pubkey = await crypto.exportKey('raw', keyPair.publicKey);
-  const xAndY = pubkey.slice(1, 65);
-  const id = uuidv5(new Uint8Array(xAndY), req.ns);
+  const pubKey = await crypto.exportKey('raw', keyPair.publicKey);
+  const id = bifrostId(pubKey, req.ns);
 
   return {
     id: id,
@@ -47,6 +45,19 @@ export async function createKeyAndCsr(req) {
       toBase64(arrayBufferToString(await createCsr(keyPair, hashAlg, id, req.ns)))
     )}\n-----END CERTIFICATE REQUEST-----`
   };
+}
+
+/**
+ * @param {ArrayBuffer} pubKey
+ * @param {string} ns
+ * @returns {string}
+ * @example
+ * const pubkey = await crypto.exportKey('raw', keyPair.publicKey);
+ * const id = bifrostId(pubKey, 'ba64ca66-4f02-431d-8f31-e8ea8d0e8011')
+ */
+function bifrostId(pubKey, ns) {
+  const xyBytes = pubKey.slice(1, 65);
+  return uuidv5(new Uint8Array(xyBytes), ns);
 }
 
 async function createCsr(keyPair, hashAlg, id, ns) {
