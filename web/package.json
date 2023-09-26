@@ -6,8 +6,7 @@
   "main": "index.js",
   "scripts": {
     "lint": "elm-format --validate src && elm-review",
-    "build": "node build.js",
-    "watch": "node build.js --watch"
+    "build": "node build.js"
   },
   "repository": {
     "type": "git",

@@ -1,4 +1,4 @@
-# ![Bifrost](docs/bifrost.png) Bifrost  
+# ![Bifrost](docs/bifrost.png) Bifrost
 
 [![CI 🏗](https://github.com/RealImage/bifrost/actions/workflows/ci.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yml)
 
@@ -103,12 +103,12 @@ If unconfigured, it looks for `crt.pem` and `key.pem` in the current working dir
 
 #### [Web Application](web) (alpha)
 
-`issuer` ships a web application written that can generate private keys and request
-certificates from the API. Enable it by settings `WEB=true` in the process environment.
+`issuer` includes an embedded web application that can generate private keys and request
+certificates from the API. Enable it by setting `WEB=true` in the issuer process's environment.
 
 Setting `web=dev` instead causes `issuer` to serve the application from the local filesystem
-instead of from an `embed.FS` containing static files. This is useful for development.
-Especially when combined with `npm run build --watch` running in the [web](web) directory.
+instead of from the `embed.FS` instance. This is useful for development, when combined
+with `npm run build -- --watch` ran in the [web](web) directory.
 
 ## Build
 
