@@ -16,7 +16,7 @@ const signAlg = 'ECDSA'
  * @returns {Promise<{uuid: string, key: string, csr: string}>}
  *
  * @example
- * const { uuid, key, csr } = createKeyAndCSR({
+ * const { uuid, key, csr } = await createKeyAndCSR({
  *   namespace: 'ba64ca66-4f02-431d-8f31-e8ea8d0e8011',
  *   key: '-----BEGIN EC PRIVATE KEY-----\n...\n-----END EC PRIVATE KEY-----'
  * })
