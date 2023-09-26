@@ -23,6 +23,7 @@
     "elm-format": "^0.8.7",
     "elm-review": "^2.10.2",
     "esbuild-plugin-elm": "^0.0.12",
-    "pkijs": "^3.0.15"
+    "pkijs": "^3.0.15",
+    "uuid": "^9.0.1"
   }
 }

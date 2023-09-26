@@ -11,13 +11,13 @@ import Json.Decode as D
 
 
 type alias RawKey =
-    { namespace : String
+    { ns : String
     , key : Maybe String
     }
 
 
 type alias Csr =
-    { uuid : String
+    { ns : String
     , key : String
     , csr : String
     }
@@ -40,6 +40,6 @@ replyDecoder =
 decoder : D.Decoder Csr
 decoder =
     D.map3 Csr
-        (D.field "uuid" D.string)
+        (D.field "ns" D.string)
         (D.field "key" D.string)
         (D.field "csr" D.string)

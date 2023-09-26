@@ -91,15 +91,23 @@ env BACKEND_URL=http://127.0.0.1:5000 ./bouncer
 
 [OpenAPI schema](docs/issuer-openapi.yml)
 
-`issuer` signs certificates with the configured certificate and its private key.
-Clients must send certificate requests signed by an ECDSA P256 private key
-using the ECDSA SHA256 signature algorithm.
+`issuer` accepts certificate requests and returns signed certificates.
+It reads a list of CA certificates and keys from the `CRTS` and `KEYS` environment
+variables respectively. Each variable is a comma-separated list of URIs to PEM-encoded
+certificates or keys. Certificates must be valid Bifrost certificates.
+Certificates and keys must be supplied in pairs.
 
-`issuer` can read its signing certificate and private key in PEM form, from a variety
-of sources.
+Each namespace has its own certificate authority. The namespace is the first path
+component of the request URL. Clients must send certificate requests to the correct namespace URL.
+Certificate requests must be signed by an ECDSA P256 private key using the
+ECDSA SHA256 signature algorithm.
+
+`issuer` can read its signing certificates and private keys in PEM DER ASN.1 form,
+from a variety of sources.
 If unconfigured, it looks for `crt.pem` and `key.pem` in the current working directory.
 
-`issuer` exposes prometheus format metrics at the `/metrics` path.
+`issuer` returns a list of issuing namespaces, one per line, at `/namespaces`
+If enabled, `issuer` exposes prometheus format metrics at `/metrics`.
 
 #### [Web Application](web) (alpha)
 
@@ -163,7 +171,7 @@ podman build -f ca.Containerfile -t bifrost-ca .
 
 3. Run the binary:
 
-    `./issuer`
+    `issuer`
 
 4. Generate a new client identity key:
 
@@ -181,7 +189,7 @@ podman build -f ca.Containerfile -t bifrost-ca .
 
    ```console
    curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" \
-     localhost:8888/issue >clientcrt.pem`
+     "localhost:8888/$BF_NS/issue" >clientcrt.pem`
    ```
 
 7. Admire your shiny new client certificate (optional):

@@ -11,47 +11,67 @@ info:
   version: 1.10.0
 security: []
 paths:
-  /namespace:
+  /namespaces:
     get:
-      operationId: getNamespace
-      summary: Get the instance's namespace
-      description: Returns the instance's namespace uuid in text form.
+      operationId: getNamespaces
+      summary: Get a list of namespaces separated by newlines
+      description: >
+        Returns a list of namespace UUIDs that the issuer can issue certificates for.
+        Namespace UUIDs are in hex format separated by newlines.
       responses:
         "200":
-          description: Instance namespace
+          description: List of namespaces.
           content:
             text/plain:
               schema:
-                type: string
-                format: uuid
-                example: a3d129b3-ac16-4047-84cc-2e97447d31ea
+                type: array
+                minItems: 1
+                uniqueItems: true
+                items:
+                  type: string
+                  format: uuid
+                example: |
+                  a3d129b3-ac16-4047-84cc-2e97447d31ea
+                  d798e509-4d8c-455b-9814-2941df035b88
         "500":
           description: Internal Server Error.
           content:
             "text/plain":
               schema:
                 type: string
-  /issue:
+  /{namespace}/issue:
     post:
       operationId: issueCertificate
       summary: Fetch a signed authentication certificate
       description: >
-        Send a Certificate Request in plain text or binary and receive a signed certificate.
-        Response content type mirrors the request. A 403 response status code usually indicates
-        that the client is using an incorrect namespace UUID.
+        Send an X.509 certificate request in PEM-encoded DER ASN.1 form (text/plain) or in
+        DER ASN.1 form (application/octet-stream) and receive a signed certificate.
+        Response content type mirrors the request's, unless the Accept header is set.
+        A 403 response status code usually indicates
+        that the client is using the wrong namespace UUID.
+      parameters:
+        - in: path
+          name: namespace
+          required: true
+          description: Namespace UUID
+          schema:
+            type: string
+            format: uuid
+            example: 80485314-6c73-40ff-86c5-a5942a0f514f
       requestBody:
         content:
           "text/plain":
             schema:
               type: string
               pattern: '(-----BEGIN CERTIFICATE REQUEST-----(\n|\r|\r\n)([0-9a-zA-Z\+\/=]{64}(\n|\r|\r\n))*([0-9a-zA-Z\+\/=]{1,63}(\n|\r|\r\n))?-----END CERTIFICATE REQUEST-----)'
-              example: >
+              example: |
                 -----BEGIN CERTIFICATE REQUEST-----
-                MIHIMHACAQAwDjEMMAoGA1UEAwwDYXNkMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcD
-                QgAEVJQBcKxJshLf1q7n2Ny82x8gSdCeORhzTx3UOMDwHB+z2w6jZpsnDYvU5rzz
-                brdUoaBjkA82y67IR2FOJajGDaAAMAoGCCqGSM49BAMCA0gAMEUCIQCLhW9S+/tn
-                bU4zNCvrU1yQAj08iNZLk2eJKus08Nrd9gIgeWHqxNPAMp4le3+9XTvQUCJqc+13
-                K84BHAeb/nDpq+8=
+                MIIBGTCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
+                OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
+                OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+                aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
+                f/l+B/agADAKBggqhkjOPQQDAgNIADBFAiEAkabuKtTmT721rFNrdt8Cd9ukNHUf
+                bJ261eOVJ1BBfz0CIGHvTy+4SbWHi3HGWt9L8dFBjscq4hAcguApp71QsFuA
                 -----END CERTIFICATE REQUEST-----
           "application/octet-stream":
             schema:
@@ -64,7 +84,7 @@ paths:
             "text/plain":
               schema:
                 type: string
-                example: >
+                example: |
                   -----BEGIN CERTIFICATE-----
                   MIIBcTCCARgCCQCdZeJe6CYRUDAKBggqhkjOPQQDAjBBMRQwEgYDVQQKDAtRdWJl
                   IENpbmVtYTESMBAGA1UECwwJUXViZSBXaXJlMRUwEwYDVQQDDAxCaWZyb3N0IENB
@@ -80,16 +100,18 @@ paths:
                 type: string
                 format: binary
         "400":
-          description: Bad Request. Invalid Certificate Request.
+          description: >
+            Bad Request. Invalid certificate request.
           content:
             "text/plain":
               schema:
                 type: string
         "403":
-          description: Forbidden. Certificate CommonName must be the client uuid.
-          content: 
+          description: >
+            Forbidden. Incorrect certificate request namespace UUID.
+          content:
             "text/plain":
-              schema: 
+              schema:
                 type: string
         "405":
           description: Method Not Allowed.

@@ -5,73 +5,71 @@
 */
 
 import * as asn1js from 'asn1js';
-import { getCrypto, getAlgorithmParameters, CertificationRequest, AttributeTypeAndValue } from 'pkijs'
+import { getCrypto, getAlgorithmParameters, CertificationRequest, AttributeTypeAndValue } from 'pkijs';
 import { arrayBufferToString, toBase64 } from 'pvutils';
+import { v5 as uuidv5 } from 'uuid';
 
-const hashAlg = 'SHA-256'
-const signAlg = 'ECDSA'
+const hashAlg = 'SHA-256';
+const signAlg = 'ECDSA';
 
 /**
- * @param {{ namespace : string, key? : string }} req
- * @returns {Promise<{uuid: string, key: string, csr: string}>}
+ * @param {{ ns : string, key? : string }} req
+ * @returns {Promise<{key: string, csr: string}>}
  *
  * @example
- * const { uuid, key, csr } = await createKeyAndCSR({
- *   namespace: 'ba64ca66-4f02-431d-8f31-e8ea8d0e8011',
+ * const { id, key, csr } = await createKeyAndCSR({
+ *   ns: 'ba64ca66-4f02-431d-8f31-e8ea8d0e8011',
  *   key: '-----BEGIN EC PRIVATE KEY-----\n...\n-----END EC PRIVATE KEY-----'
  * })
  */
-export async function createKeyAndCSR(req) {
-  const crypto = getWebCrypto()
+export async function createKeyAndCsr(req) {
+  const crypto = getWebCrypto();
 
-  let keyPair
+  let keyPair;
   if (req.key == null) {
-    keyPair = await generateKeyPair(crypto, getAlgorithm(signAlg, hashAlg))
+    keyPair = await generateKeyPair(crypto, getAlgorithm(signAlg, hashAlg));
   } else {
-    const keybuf = pemToArrayBuffer(req.key)
+    const keybuf = pemToArrayBuffer(req.key);
     keyPair = await crypto.importKey('pkcs8', keybuf,
-      getAlgorithm(signAlg, hashAlg), true, ['encrypt', 'sign', 'verify'])
+      getAlgorithm(signAlg, hashAlg), true, ['encrypt', 'sign', 'verify']);
   }
 
-  const uuid = "" // TODO: calculate uuid
+  const pubkey = await crypto.exportKey('raw', keyPair.publicKey);
+  const xAndY = pubkey.slice(1, 65);
+  const id = uuidv5(new Uint8Array(xAndY), req.ns);
 
   return {
-    uuid: uuid,
-    key: `-----BEGIN PRIVATE KEY-----\n${toBase64(
-      arrayBufferToString(
-        await crypto.exportKey('pkcs8', keyPair.privateKey)))
-      }\n-----END PRIVATE KEY-----`,
+    id: id,
+    key: `-----BEGIN PRIVATE KEY-----\n${formatPEM(
+      toBase64(arrayBufferToString(await crypto.exportKey('pkcs8', keyPair.privateKey)))
+      )}\n-----END PRIVATE KEY-----`,
     csr: `-----BEGIN CERTIFICATE REQUEST-----\n${formatPEM(
-      toBase64(
-        arrayBufferToString(
-          await createCSR(keyPair, hashAlg, uuid, req.namespace)
-        )
-      )
+      toBase64(arrayBufferToString(await createCsr(keyPair, hashAlg, id, req.ns)))
     )}\n-----END CERTIFICATE REQUEST-----`
-  }
+  };
 }
 
-async function createCSR(keyPair, hashAlg, uuid, namespace) {
-  const pkcs10 = new CertificationRequest()
-  pkcs10.version = 0
-  pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({
-    type: '2.5.4.10', // organizationName
-    value: new asn1js.Utf8String({ value: namespace })
-  }))
+async function createCsr(keyPair, hashAlg, id, ns) {
+  const pkcs10 = new CertificationRequest();
+  pkcs10.version = 0;
   pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({
     type: '2.5.4.3', // commonName
-    value: new asn1js.Utf8String({ value: uuid })
-  }))
+    value: new asn1js.Utf8String({ value: id })
+  }));
+  pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({
+    type: '2.5.4.10', // organizationName
+    value: new asn1js.Utf8String({ value: ns })
+  }));
 
   // Add attributes to make CSR valid
   // Attributes must be "a0:00" if empty
-  pkcs10.attributes = []
+  pkcs10.attributes = [];
 
-  await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey)
+  await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
   // Signing final PKCS#10 request
-  await pkcs10.sign(keyPair.privateKey, hashAlg)
+  await pkcs10.sign(keyPair.privateKey, hashAlg);
 
-  return pkcs10.toSchema().toBER(false)
+  return pkcs10.toSchema().toBER(false);
 }
 
 // PEM to ArrayBuffer courtesy of https://stackoverflow.com/q/41529138/1656503
@@ -113,23 +111,23 @@ function b64EncodeUnicode(str) {
 
 // Add line break every 64th character
 function formatPEM(pemString) {
-  return pemString.replace(/(.{64})/g, '$1\n')
+  return pemString.replace(/(.{64})/g, '$1\n');
 }
 
 function getWebCrypto() {
-  const crypto = getCrypto()
+  const crypto = getCrypto();
   if (typeof crypto === 'undefined')
-    throw 'No WebCrypto extension found'
-  return crypto
+    throw 'No WebCrypto extension found';
+  return crypto;
 }
 
 function getAlgorithm(signAlg, hashAlg) {
-  const algorithm = getAlgorithmParameters(signAlg, 'generatekey')
+  const algorithm = getAlgorithmParameters(signAlg, 'generatekey');
   if ('hash' in algorithm.algorithm)
-    algorithm.algorithm.hash.name = hashAlg
-  return algorithm
+    algorithm.algorithm.hash.name = hashAlg;
+  return algorithm;
 }
 
 function generateKeyPair(crypto, algorithm) {
-  return crypto.generateKey(algorithm.algorithm, true, algorithm.usages)
+  return crypto.generateKey(algorithm.algorithm, true, algorithm.usages);
 }

@@ -13,7 +13,7 @@ import Csr
 import File exposing (File)
 import File.Select
 import Html exposing (Html, main_, text)
-import Html.Attributes exposing (alt, class, src)
+import Html.Attributes as Attr exposing (alt, class, src)
 import Html.Events exposing (onClick)
 import Http
 import Json.Decode as Decode
@@ -23,52 +23,102 @@ import UUID exposing (UUID)
 
 
 type alias Model =
-    { namespace : RemoteData String UUID
-    , requests : Array (RemoteData String Identity)
+    { nss : RemoteData String (List UUID)
+    , ns : Maybe UUID
+    , ids : Array (RemoteData String Identity)
     }
 
 
 type alias Identity =
-    { uuid : String
-    , key : String
+    { key : String
     , crt : String
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { namespace = Loading
-      , requests = Array.empty
+    ( { nss = Loading
+      , ns = Nothing
+      , ids = Array.empty
       }
-    , Http.get { expect = Http.expectString GotNamespace, url = "/namespace" }
+    , Http.get { expect = Http.expectString GotNss, url = "/namespaces" }
     )
 
 
 type Msg
-    = GotNamespace (Result Http.Error String)
+    = GotNss (Result Http.Error String)
+    | ChangedNs UUID
     | OpenFilesClicked
     | FilesSelected File (List File)
     | FileRead String
-    | IdentityRequested
-    | GotCSR Decode.Value
-    | GotIdentity String String (WebData String)
+    | IdRequested
+    | GotCsr Decode.Value
+    | GotId String (WebData String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        askCsr : RemoteData String UUID -> Maybe String -> Cmd msg
+        gotNss : Result Http.Error String -> RemoteData String (List UUID)
+        gotNss res =
+            let
+                f : String -> RemoteData String (List UUID) -> RemoteData String (List UUID)
+                f n a =
+                    if RemoteData.isFailure a then
+                        a
+
+                    else
+                        case UUID.fromString n of
+                            Ok ns ->
+                                RemoteData.map (List.append [ ns ]) a
+
+                            Err _ ->
+                                RemoteData.Failure <| "Error parsing UUID: " ++ n
+            in
+            case res of
+                Ok s ->
+                    String.lines s
+                        |> List.filter (not << String.isEmpty)
+                        |> List.foldr f (RemoteData.Success [])
+
+                Err _ ->
+                    Failure "Error fetching namespace"
+
+        askCsr : Maybe UUID -> Maybe String -> Cmd msg
         askCsr n k =
             case n of
-                Success ns ->
-                    Csr.generate { namespace = UUID.toString ns, key = k }
+                Just ns ->
+                    Csr.generate { ns = UUID.toString ns, key = k }
 
-                _ ->
+                Nothing ->
                     Cmd.none
+
+        reqCrt : Csr.Csr -> Cmd Msg
+        reqCrt c =
+            Http.post
+                { expect = Http.expectString <| RemoteData.fromResult >> GotId c.key
+                , url = "/" ++ c.ns ++ "/issue"
+                , body = Http.stringBody "text/plain" c.csr
+                }
     in
     case msg of
-        GotNamespace r ->
-            ( { model | namespace = gotNamespace r }, Cmd.none )
+        GotNss r ->
+            let
+                ns =
+                    gotNss r
+
+                c =
+                    case ns of
+                        Success (n :: _) ->
+                            Just n
+
+                        _ ->
+                            Nothing
+            in
+            ( { model | ns = c, nss = ns }, Cmd.none )
+
+        ChangedNs ns ->
+            ( { model | ns = Just ns }, Cmd.none )
 
         OpenFilesClicked ->
             let
@@ -87,51 +137,39 @@ update msg model =
             ( model, Cmd.batch <| List.map readFile <| file :: files )
 
         FileRead k ->
-            ( model, askCsr model.namespace <| Just k )
+            ( model, askCsr model.ns <| Just k )
 
-        IdentityRequested ->
-            ( model, askCsr model.namespace Nothing )
+        IdRequested ->
+            ( model, askCsr model.ns Nothing )
 
-        GotCSR v ->
+        GotCsr v ->
             case Decode.decodeValue Csr.replyDecoder v of
                 Ok r ->
                     case r of
                         Ok c ->
-                            ( model, requestCrt c )
+                            ( model, reqCrt c )
 
                         Err e ->
-                            ( { model
-                                | requests =
-                                    Array.push (Failure e) model.requests
-                              }
+                            ( { model | ids = Array.push (Failure e) model.ids }
                             , Cmd.none
                             )
 
                 Err e ->
-                    ( { model
-                        | requests =
-                            Array.push (Failure <| Decode.errorToString e) model.requests
-                      }
+                    ( { model | ids = Array.push (Failure <| Decode.errorToString e) model.ids }
                     , Cmd.none
                     )
 
-        GotIdentity u k c ->
+        GotId k c ->
             case c of
                 Success crt ->
-                    let
-                        success : RemoteData String Identity
-                        success =
-                            Success { uuid = u, key = k, crt = crt }
-                    in
-                    ( { model | requests = Array.push success model.requests }, Cmd.none )
+                    ( { model | ids = Array.push (Success { key = k, crt = crt }) model.ids }
+                    , Cmd.none
+                    )
 
                 Failure _ ->
-                    let
-                        failure : RemoteData String Identity
-                        failure =
-                            Failure "error creating identity"
-                    in
-                    ( { model | requests = Array.push failure model.requests }, Cmd.none )
+                    ( { model | ids = Array.push (Failure "Error creating identity") model.ids }
+                    , Cmd.none
+                    )
 
                 _ ->
                     ( model, Cmd.none )
@@ -139,38 +177,14 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Csr.receive GotCSR
-
-
-requestCrt : Csr.Csr -> Cmd Msg
-requestCrt c =
-    Http.post
-        { expect = Http.expectString <| RemoteData.fromResult >> GotIdentity c.uuid c.key
-        , url = "/issue"
-        , body = Http.stringBody "text/plain" c.csr
-        }
-
-
-gotNamespace : Result Http.Error String -> RemoteData String UUID
-gotNamespace res =
-    case res of
-        Ok s ->
-            case UUID.fromString s of
-                Ok uuid ->
-                    Success uuid
-
-                Err _ ->
-                    Failure "Error parsing namespace"
-
-        Err _ ->
-            Failure "Error fetching namespace"
+    Csr.receive GotCsr
 
 
 view : Model -> Browser.Document Msg
 view model =
     let
         ( title, body ) =
-            case model.namespace of
+            case model.nss of
                 NotAsked ->
                     ( "", [] )
 
@@ -184,7 +198,7 @@ view model =
 
                 Success ns ->
                     ( "Bifrost Certificate Issuer"
-                    , viewIssuer model <| UUID.toString ns
+                    , viewIssuer model ns
                     )
     in
     { title = title
@@ -192,8 +206,31 @@ view model =
     }
 
 
-viewIssuer : Model -> String -> List (Html Msg)
-viewIssuer model ns =
+viewIssuer : Model -> List UUID -> List (Html Msg)
+viewIssuer model nss =
+    let
+        cns : String
+        cns =
+            case model.ns of
+                Just n ->
+                    UUID.toString n
+
+                Nothing ->
+                    "Not selected"
+
+        nsOpt : String -> Html Msg
+        nsOpt ns =
+            let
+                o : List (Html.Attribute Msg) -> Html Msg
+                o a =
+                    Html.option (Attr.value ns :: a) [ text ns ]
+            in
+            if cns == ns then
+                o [ Attr.selected True ]
+
+            else
+                o []
+    in
     [ Html.nav [ class "nav" ]
         [ Html.div
             [ class "nav-left" ]
@@ -203,9 +240,7 @@ viewIssuer model ns =
                 , text "Bifrost"
                 ]
             ]
-        , Html.div
-            [ class "nav-right" ]
-            [ Html.a [] [ text ns ] ]
+        , Html.div [ class "nav-right" ] [ Html.a [] [ text cns ] ]
         ]
     , Html.header [ class "container" ]
         [ Html.node "hgroup"
@@ -214,9 +249,13 @@ viewIssuer model ns =
             , Html.p [] [ text "Hot off the presses" ]
             ]
         , Html.section []
+            [ Html.h2 [] [ text "Select namespace" ]
+            , Html.select [] <| List.map (UUID.toString >> nsOpt) nss
+            ]
+        , Html.section []
             [ Html.h2 [] [ text "New" ]
             , Html.button
-                [ class "button", onClick IdentityRequested ]
+                [ class "button", onClick IdRequested ]
                 [ text "Create" ]
             , Html.button
                 [ class "button", onClick OpenFilesClicked ]
@@ -226,7 +265,7 @@ viewIssuer model ns =
     , main_ [ class "container" ]
         [ Html.section []
             [ Html.h2 [] [ text "Identities" ]
-            , Html.div [ class "row" ] <| Array.foldl viewRequests [] model.requests
+            , Html.div [ class "row" ] <| Array.foldl viewRequests [] model.ids
             ]
         ]
     ]
@@ -244,8 +283,6 @@ viewRequests r acc =
         Success i ->
             Html.article [ class "card" ]
                 [ Html.header [] [ Html.h3 [] [ text "Identity" ] ]
-                , Html.h4 [] [ text "UUID" ]
-                , Html.p [] [ text i.uuid ]
                 , Html.h4 [] [ text "Certificate" ]
                 , Html.p [] [ text i.crt ]
                 ]

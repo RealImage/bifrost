@@ -32,6 +32,9 @@ const (
 	ctHeaderName  = "content-type"
 	mimeTypeText  = "text/plain"
 	mimeTypeBytes = "application/octet-stream"
+	mimeTypeAll   = "*/*"
+
+	mimeTypeTextCharset = "text/plain; charset=utf-8"
 )
 
 // Metrics.
@@ -68,12 +71,6 @@ type CA struct {
 	dur time.Duration
 }
 
-func (ca CA) String() string {
-	return fmt.Sprintf(
-		"CA(ns=%s, id=%s, dur=%s)", ca.ns, bifrost.UUID(ca.ns, &ca.key.PublicKey), ca.dur,
-	)
-}
-
 // ServeHTTP issues a certificate if a valid certificate request is read from the request.
 //
 // Requests carrying a content-type of "text/plain" should have a PEM encoded certificate request.
@@ -105,32 +102,26 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("unsupported Content-Type %s", contentType),
 			http.StatusUnsupportedMediaType,
 		)
-		slog.Error("unsupported Content-Type", "content-type", contentType)
 		return
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		slog.Error("error reading request body", "err", err)
 		return
 	}
 	ns, csr, pubkey, err := readCSR(contentType, body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		slog.Error("error reading csr", "err", err)
 		return
 	}
 	crt, err := ca.IssueCertificate(ns, csr, pubkey)
 	if err != nil {
 		status := http.StatusInternalServerError
-		if errors.Is(err, bifrost.ErrCertificateRequestFormat) {
-			status = http.StatusBadRequest
-		} else if errors.Is(err, bifrost.ErrWrongNamespace) {
+		if errors.Is(err, bifrost.ErrWrongNamespace) {
 			status = http.StatusForbidden
 		}
 		http.Error(w, err.Error(), status)
-		slog.Error("error issuing certificate", "err", err)
 		return
 	}
 
@@ -142,8 +133,8 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch accept {
-	case mimeTypeText:
-		w.Header().Set(ctHeaderName, accept)
+	case mimeTypeAll, "", mimeTypeText:
+		w.Header().Set(ctHeaderName, mimeTypeTextCharset)
 		err = pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt})
 	case mimeTypeBytes:
 		w.Header().Set(ctHeaderName, accept)
@@ -175,13 +166,6 @@ func readCSR(
 		csr = block.Bytes
 	}
 	return bifrost.ParseCertificateRequest(csr)
-}
-
-func getMimeTypeHeader(value, defaultValue string) (string, map[string]string, error) {
-	if value == "" {
-		return defaultValue, nil, nil
-	}
-	return mime.ParseMediaType(value)
 }
 
 // IssueCertificate issues a client certificate for the given CSR.
@@ -236,4 +220,11 @@ func (ca CA) IssueCertificate(
 	}
 	issuedCertsTotal.Inc()
 	return crtBytes, nil
+}
+
+func getMimeTypeHeader(value, defaultValue string) (string, map[string]string, error) {
+	if value == "" {
+		return defaultValue, nil, nil
+	}
+	return mime.ParseMediaType(value)
 }
