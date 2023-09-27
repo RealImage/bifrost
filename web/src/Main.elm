@@ -7,14 +7,14 @@
 
 module Main exposing (Identity, Model, Msg, main)
 
-import Array exposing (Array)
 import Browser
 import Csr
+import Dict exposing (Dict)
 import File exposing (File)
 import File.Select
 import Html exposing (Html, main_, text)
-import Html.Attributes as Attr exposing (alt, class, src)
-import Html.Events as Evt exposing (onClick)
+import Html.Attributes exposing (alt, class, src)
+import Html.Events exposing (onClick)
 import Http
 import Json.Decode as Decode
 import RemoteData exposing (RemoteData(..), WebData)
@@ -23,35 +23,35 @@ import UUID exposing (UUID)
 
 
 type alias Model =
-    { nss : RemoteData String (List UUID)
-    , ns : Maybe UUID
-    , ids : Array (RemoteData String Identity)
+    { ns : RemoteData String UUID
+    , ids : Dict String Identity
+    , errors : Maybe String
     }
 
 
 type alias Identity =
     { key : String
-    , crt : String
+    , csr : String
+    , crts : List (WebData String)
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { nss = Loading
-      , ns = Nothing
-      , ids = Array.empty
+    ( { ns = Loading
+      , ids = Dict.empty
+      , errors = Nothing
       }
-    , Http.get { expect = Http.expectString GotNss, url = "/namespaces" }
+    , Http.get { expect = Http.expectString GotNs, url = "/namespace" }
     )
 
 
 type Msg
-    = GotNss (Result Http.Error String)
-    | ChangedNs String
+    = GotNs (Result Http.Error String)
     | OpenFilesClicked
     | FilesSelected File (List File)
     | FileRead String
-    | IdRequested
+    | IdAsked
     | GotCsr Decode.Value
     | GotId String (WebData String)
 
@@ -59,73 +59,31 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        gotNss : Result Http.Error String -> RemoteData String (List UUID)
-        gotNss res =
-            let
-                f : String -> RemoteData String (List UUID) -> RemoteData String (List UUID)
-                f n a =
-                    if RemoteData.isFailure a then
-                        a
-
-                    else
-                        case UUID.fromString n of
-                            Ok ns ->
-                                RemoteData.map (List.append [ ns ]) a
-
-                            Err _ ->
-                                RemoteData.Failure <| "Error parsing UUID: " ++ n
-            in
+        gotNs : Result Http.Error String -> RemoteData String UUID
+        gotNs res =
             case res of
                 Ok s ->
-                    String.lines s
-                        |> List.filter (not << String.isEmpty)
-                        |> List.foldr f (RemoteData.Success [])
+                    case UUID.fromString s of
+                        Ok ns ->
+                            RemoteData.Success ns
+
+                        Err _ ->
+                            RemoteData.Failure <| "Error parsing UUID: " ++ s
 
                 Err _ ->
                     Failure "Error fetching namespace"
 
-        askCsr : Maybe UUID -> Maybe String -> Cmd msg
-        askCsr n k =
-            case n of
-                Just ns ->
-                    Csr.generate { ns = UUID.toString ns, key = k }
-
-                Nothing ->
-                    Cmd.none
-
         reqCrt : Csr.Csr -> Cmd Msg
         reqCrt c =
             Http.post
-                { expect = Http.expectString <| RemoteData.fromResult >> GotId c.key
-                , url = "/" ++ c.ns ++ "/issue"
+                { expect = Http.expectString <| RemoteData.fromResult >> GotId (UUID.toString c.id)
+                , url = "/issue"
                 , body = Http.stringBody "text/plain" c.csr
                 }
     in
     case msg of
-        GotNss r ->
-            let
-                ns : RemoteData String (List UUID)
-                ns =
-                    gotNss r
-
-                c : Maybe UUID
-                c =
-                    case ns of
-                        Success (n :: _) ->
-                            Just n
-
-                        _ ->
-                            Nothing
-            in
-            ( { model | ns = c, nss = ns }, Cmd.none )
-
-        ChangedNs ns ->
-            case UUID.fromString ns of
-                Ok n ->
-                    ( { model | ns = Just n }, Cmd.none )
-
-                Err _ ->
-                    ( { model | ns = Nothing }, Cmd.none )
+        GotNs r ->
+            ( { model | ns = gotNs r }, Cmd.none )
 
         OpenFilesClicked ->
             let
@@ -144,42 +102,42 @@ update msg model =
             ( model, Cmd.batch <| List.map readFile <| file :: files )
 
         FileRead k ->
-            ( model, askCsr model.ns <| Just k )
+            case model.ns of
+                RemoteData.Success n ->
+                    ( model, Csr.generate { ns = UUID.toString n, key = Just k } )
 
-        IdRequested ->
-            ( model, askCsr model.ns Nothing )
+                _ ->
+                    ( model, Cmd.none )
 
         GotCsr v ->
-            case Decode.decodeValue Csr.replyDecoder v of
+            case Decode.decodeValue Csr.decoder v of
+                -- TODO: handle errors
                 Ok r ->
                     case r of
                         Ok c ->
                             ( model, reqCrt c )
 
-                        Err e ->
-                            ( { model | ids = Array.push (Failure e) model.ids }
-                            , Cmd.none
-                            )
+                        _ ->
+                            ( model, Cmd.none )
 
-                Err e ->
-                    ( { model | ids = Array.push (Failure <| Decode.errorToString e) model.ids }
-                    , Cmd.none
-                    )
+                Err _ ->
+                    ( model, Cmd.none )
 
-        GotId k c ->
-            case c of
-                Success crt ->
-                    ( { model | ids = Array.push (Success { key = k, crt = crt }) model.ids }
-                    , Cmd.none
-                    )
-
-                Failure _ ->
-                    ( { model | ids = Array.push (Failure "Error creating identity") model.ids }
-                    , Cmd.none
-                    )
+        IdAsked ->
+            case model.ns of
+                RemoteData.Success n ->
+                    ( model, Csr.generate { ns = UUID.toString n, key = Nothing } )
 
                 _ ->
                     ( model, Cmd.none )
+
+        GotId i c ->
+            let
+                ids : Dict String Identity
+                ids =
+                    Dict.update i (Maybe.map (\v -> { v | crts = c :: v.crts })) model.ids
+            in
+            ( { model | ids = ids }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -191,7 +149,7 @@ view : Model -> Browser.Document Msg
 view model =
     let
         ( title, body ) =
-            case model.nss of
+            case model.ns of
                 NotAsked ->
                     ( "", [] )
 
@@ -205,7 +163,7 @@ view model =
 
                 Success ns ->
                     ( "Bifrost Certificate Issuer"
-                    , viewIssuer model ns
+                    , viewIssuer ns model.ids
                     )
     in
     { title = title
@@ -213,34 +171,12 @@ view model =
     }
 
 
-viewIssuer : Model -> List UUID -> List (Html Msg)
-viewIssuer model nss =
+viewIssuer : UUID -> Dict String Identity -> List (Html Msg)
+viewIssuer ns ids =
     let
         cns : String
         cns =
-            case model.ns of
-                Just n ->
-                    UUID.toString n
-
-                Nothing ->
-                    "Not selected"
-
-        nsOpt : String -> Html Msg
-        nsOpt ns =
-            let
-                o : List (Html.Attribute Msg) -> Html Msg
-                o a =
-                    Html.option (Attr.value ns :: a) [ text ns ]
-            in
-            if cns == ns then
-                o [ Attr.selected True ]
-
-            else
-                o []
-
-        onChange : (String -> msg) -> Html.Attribute msg
-        onChange tagger =
-            Evt.on "change" (Evt.targetValue |> Decode.map tagger)
+            UUID.toString ns
     in
     [ Html.nav [ class "nav" ]
         [ Html.div
@@ -251,61 +187,43 @@ viewIssuer model nss =
                 , text "Bifrost"
                 ]
             ]
-        , Html.div [ class "nav-right" ] [ Html.a [] [ text cns ] ]
+        , Html.div
+            [ class "nav-right" ]
+            [ Html.a [] [ Html.strong [] [ text cns ] ] ]
         ]
     , Html.header [ class "container" ]
         [ Html.node "hgroup"
             []
             [ Html.h1 [] [ text "Certificate Issuer" ]
-            , Html.p [] [ text "Hot off the presses" ]
-            ]
-        , Html.section []
-            [ Html.h2 [] [ text "Select namespace" ]
-            , Html.select
-                [ onChange ChangedNs ]
-                (List.map (UUID.toString >> nsOpt) nss)
-            ]
-        , Html.section []
-            [ Html.h2 [] [ text "New" ]
-            , Html.button
-                [ class "button", onClick IdRequested ]
-                [ text "Create" ]
-            , Html.button
-                [ class "button", onClick OpenFilesClicked ]
-                [ text "Upload" ]
+            , Html.p [] [ text "Hot off the presses!" ]
             ]
         ]
     , main_ [ class "container" ]
         [ Html.section []
+            [ Html.h2 [] [ text "Keys" ]
+            , Html.button
+                [ class "button", onClick IdAsked ]
+                [ text "Generate" ]
+            , Html.button
+                [ class "button", onClick OpenFilesClicked ]
+                [ text "Upload" ]
+            ]
+        , Html.section []
             [ Html.h2 [] [ text "Identities" ]
-            , Html.div [ class "row" ] <| Array.foldl viewRequests [] model.ids
+            , Html.div [ class "row" ] <| Dict.foldl viewIds [] ids
             ]
         ]
     ]
 
 
-viewRequests : RemoteData String Identity -> List (Html a) -> List (Html a)
-viewRequests r acc =
-    case r of
-        NotAsked ->
-            acc
-
-        Loading ->
-            Html.article [ class "card" ] [ Html.p [] [ text "Loading" ] ] :: acc
-
-        Success i ->
-            Html.article [ class "card" ]
-                [ Html.header [] [ Html.h3 [] [ text "Identity" ] ]
-                , Html.h4 [] [ text "Certificate" ]
-                , Html.p [] [ text i.crt ]
-                ]
-                :: acc
-
-        Failure e ->
-            Html.article
-                [ class "card" ]
-                [ Html.p [] [ Html.pre [] [ text e ] ] ]
-                :: acc
+viewIds : String -> Identity -> List (Html a) -> List (Html a)
+viewIds id ident acc =
+    Html.article [ class "card" ]
+        [ Html.header [] [ Html.h3 [] [ text "Identity", text id ] ]
+        , Html.h4 [] [ text "Certificate Request" ]
+        , Html.p [] [ Html.pre [] [ text ident.csr ] ]
+        ]
+        :: acc
 
 
 main : Program () Model Msg

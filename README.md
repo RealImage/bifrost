@@ -92,21 +92,13 @@ env BACKEND_URL=http://127.0.0.1:5000 ./bouncer
 [OpenAPI schema](docs/issuer-openapi.yml)
 
 `issuer` accepts certificate requests and returns signed certificates.
-It reads a list of CA certificates and keys from the `CRTS` and `KEYS` environment
-variables respectively. Each variable is a comma-separated list of URIs to PEM-encoded
-certificates or keys. Certificates must be valid Bifrost certificates.
-Certificates and keys must be supplied in pairs.
-
-Each namespace has its own certificate authority. The namespace is the first path
-component of the request URL. Clients must send certificate requests to the correct namespace URL.
-Certificate requests must be signed by an ECDSA P256 private key using the
-ECDSA SHA256 signature algorithm.
-
-`issuer` can read its signing certificates and private keys in PEM DER ASN.1 form,
-from a variety of sources.
+It reads a CA certificate and key from the `CRT` and `KEY` environment
+variables respectively. Each variable must be a URI to a PEM-encoded
+certificate or key. File, S3, and AWS ARN URIs are supported.
+The CA certificate must be a valid Bifrost certificate.
 If unconfigured, it looks for `crt.pem` and `key.pem` in the current working directory.
 
-`issuer` returns a list of issuing namespaces, one per line, at `/namespaces`
+`issuer` returns its issuing namespace at `/namespace`.
 If enabled, `issuer` exposes prometheus format metrics at `/metrics`.
 
 #### [Web Application](web) (alpha)

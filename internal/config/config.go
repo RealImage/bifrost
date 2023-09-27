@@ -63,20 +63,20 @@ func buildInfo() (rev string, t time.Time) {
 }
 
 type bouncer struct {
-	Host          string `envconfig:"HOST" default:"localhost"`
-	Port          int    `envconfig:"PORT" default:"8443"`
-	CrtUri        string `envconfig:"CRT"  default:"crt.pem"`
-	KeyUri        string `envconfig:"KEY"  default:"key.pem"`
+	Host          string `envconfig:"HOST"          default:"localhost"`
+	Port          int    `envconfig:"PORT"          default:"8443"`
+	CrtUri        string `envconfig:"CRT"           default:"crt.pem"`
+	KeyUri        string `envconfig:"KEY"           default:"key.pem"`
 	BackendUrl    string `envconfig:"BACKEND"       default:"http://localhost:8080"`
 	MetricsUrl    string `envconfig:"METRICS"       default:"localhost:9091"`
 	SSLKeyLogFile string `envconfig:"SSLKEYLOGFILE"`
 }
 
 type issuer struct {
-	Host     string        `envconfig:"HOST" default:"localhost"`
-	Port     int           `envconfig:"PORT" default:"8888"`
-	CrtUris  []string      `envconfig:"CRTS"  default:"crt.pem"`
-	KeyUris  []string      `envconfig:"KEYS"  default:"key.pem"`
+	Host     string        `envconfig:"HOST"     default:"localhost"`
+	Port     int           `envconfig:"PORT"     default:"8888"`
+	CrtUri   string        `envconfig:"CRT"      default:"crt.pem"`
+	KeyUri   string        `envconfig:"KEY"      default:"key.pem"`
 	Validity time.Duration `envconfig:"VALIDITY" default:"1h"`
 	Web      web           `envconfig:"WEB"      default:"false"`
 	Metrics  bool          `envconfig:"METRICS"  default:"false"`

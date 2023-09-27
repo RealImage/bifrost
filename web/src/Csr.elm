@@ -5,41 +5,70 @@
 -}
 
 
-port module Csr exposing (Csr, RawKey, generate, receive, replyDecoder)
+port module Csr exposing (Csr, Gen, decoder, generate, receive)
 
 import Json.Decode as D
+import UUID exposing (UUID)
 
 
-type alias RawKey =
+type alias Gen =
     { ns : String
     , key : Maybe String
     }
 
 
 type alias Csr =
-    { ns : String
+    { id : UUID
     , key : String
     , csr : String
     }
 
 
-port generate : RawKey -> Cmd msg
+port generate : Gen -> Cmd msg
 
 
 port receive : (D.Value -> msg) -> Sub msg
 
 
-replyDecoder : D.Decoder (Result String Csr)
-replyDecoder =
+uuidDecoder : D.Decoder UUID
+uuidDecoder =
+    D.string
+        |> D.andThen
+            (\str ->
+                case UUID.fromString str of
+                    Ok uuid ->
+                        D.succeed uuid
+
+                    Err err ->
+                        case err of
+                            UUID.WrongFormat ->
+                                D.fail "Wrong UUID format"
+
+                            UUID.WrongLength ->
+                                D.fail "Wrong UUID length"
+
+                            UUID.UnsupportedVariant ->
+                                D.fail "Unsupported UUID variant"
+
+                            UUID.IsNil ->
+                                D.fail "UUID is nil"
+
+                            UUID.NoVersion ->
+                                D.fail "UUID has no version"
+            )
+
+
+decoder : D.Decoder (Result String Csr)
+decoder =
+    let
+        d : D.Decoder Csr
+        d =
+            D.map3 Csr
+                (D.field "id" uuidDecoder)
+                (D.field "key" D.string)
+                (D.field "csr" D.string)
+    in
     D.oneOf
-        [ D.map Ok decoder
+        [ D.map Ok d
         , D.map Err (D.field "error" D.string)
         ]
-
-
-decoder : D.Decoder Csr
-decoder =
-    D.map3 Csr
-        (D.field "ns" D.string)
-        (D.field "key" D.string)
-        (D.field "csr" D.string)

@@ -5,7 +5,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -35,7 +34,7 @@ func main() {
 		slog.Time("timestamp", config.BuildTime),
 	)
 
-	crtsKeys, err := cafiles.GetCrtsKeys(ctx, config.Issuer.CrtUris, config.Issuer.KeyUris)
+	crtKey, err := cafiles.GetCrtKey(ctx, config.Issuer.CrtUri, config.Issuer.KeyUri)
 	sundry.OnErrorExit(ctx, err, "error getting crts and keys")
 
 	mux := http.NewServeMux()
@@ -44,20 +43,15 @@ func main() {
 		mux.HandleFunc("/metrics", stats.MetricsHandler)
 	}
 
-	var namespaces bytes.Buffer
-	for _, c := range crtsKeys {
-		ca, err := tinyca.New(c.Crt, c.Key, config.Issuer.Validity)
-		sundry.OnErrorExit(ctx, err, "error creating ca")
+	ca, err := tinyca.New(crtKey.Crt, crtKey.Key, config.Issuer.Validity)
+	sundry.OnErrorExit(ctx, err, "error creating ca")
 
-		nss := c.Ns.String()
-		namespaces.WriteString(nss)
-		namespaces.WriteString("\n")
-		mux.Handle(fmt.Sprintf("/%s/issue", nss), ca)
-	}
+	mux.Handle("/issue", ca)
 
-	mux.HandleFunc("/namespaces", func(w http.ResponseWriter, r *http.Request) {
+	nss := crtKey.Ns.String()
+	mux.HandleFunc("/namespace", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Write(namespaces.Bytes())
+		_, _ = fmt.Fprintln(w, nss)
 	})
 
 	if w := config.Issuer.Web; w.Serve {
@@ -87,7 +81,7 @@ func main() {
 
 	slog.InfoCtx(ctx, "serving requests",
 		slog.String("address", addr),
-		slog.Any("namespaces", namespaces),
+		slog.String("namespace", nss),
 	)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

@@ -5,19 +5,19 @@
 */
 
 import { Elm } from './src/Main.elm';
-import { createKeyAndCsr } from './src/crypto';
+import { createCsr } from './src/csr';
+import "@peculiar/certificates-viewer";
 
 const app = Elm.Main.init();
 
 app.ports.generate.subscribe(async (req) => {
+  console.count('generate');
   let res;
   try {
-    res = await createKeyAndCsr(req);
-    res.ns = req.ns;
+    res = await createCsr(req);
   } catch (e) {
     console.error(e);
     res = { error: e.message };
   }
-  console.log(res);
   app.ports.receive.send(res);
 });

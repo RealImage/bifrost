@@ -167,40 +167,26 @@ type CrtKey struct {
 	Key *ecdsa.PrivateKey
 }
 
-// GetCrtsKeys returns a slice of CrtKey structs from slices of certificate and key uris.
-// crtUris and keyUris must be the same length and the order of the uris must match.
-func GetCrtsKeys(ctx context.Context, crtUris []string, keyUris []string) ([]CrtKey, error) {
-	if nc, nk := len(crtUris), len(keyUris); nc == 0 || nk == 0 {
-		return nil, fmt.Errorf("missing crts or keys")
-	} else if nc != nk {
-		return nil, fmt.Errorf("mismatched crts and keys")
+// GetCrtKey returns a namespace, certificate and private key from crtUri and keyUri.
+func GetCrtKey(ctx context.Context, crtUri string, keyUri string) (*CrtKey, error) {
+	ns, crt, err := GetCertificate(ctx, crtUri)
+	if err != nil {
+		return nil, fmt.Errorf("error getting crt: %w", err)
 	}
 
-	crtsKeys := make([]CrtKey, 0, len(crtUris))
-	for i := range crtUris {
-		crtUri, keyUri := crtUris[i], keyUris[i]
-
-		ns, crt, err := GetCertificate(ctx, crtUri)
-		if err != nil {
-			return nil, fmt.Errorf("error getting crt: %w", err)
-		}
-
-		key, err := GetPrivateKey(ctx, keyUri)
-		if err != nil {
-			return nil, fmt.Errorf("error getting key: %w", err)
-		}
-
-		crtPubKey, ok := crt.PublicKey.(*ecdsa.PublicKey)
-		if !ok {
-			return nil, fmt.Errorf("error getting public key from certificate")
-		}
-
-		if crtPubKey.X.Cmp(key.X) != 0 || crtPubKey.Y.Cmp(key.Y) != 0 {
-			return nil, fmt.Errorf("certificate and key do not match")
-		}
-
-		crtsKeys = append(crtsKeys, CrtKey{ns, crt, key})
+	key, err := GetPrivateKey(ctx, keyUri)
+	if err != nil {
+		return nil, fmt.Errorf("error getting key: %w", err)
 	}
 
-	return crtsKeys, nil
+	crtPubKey, ok := crt.PublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("error getting public key from certificate")
+	}
+
+	if crtPubKey.X.Cmp(key.X) != 0 || crtPubKey.Y.Cmp(key.Y) != 0 {
+		return nil, fmt.Errorf("certificate and key do not match")
+	}
+
+	return &CrtKey{Ns: ns, Crt: crt, Key: key}, nil
 }

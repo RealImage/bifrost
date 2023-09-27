@@ -11,35 +11,27 @@ info:
   version: 1.10.0
 security: []
 paths:
-  /namespaces:
+  /namespace:
     get:
-      operationId: getNamespaces
-      summary: Get a list of namespaces separated by newlines
-      description: >
-        Returns a list of namespace UUIDs that the issuer can issue certificates for.
-        Namespace UUIDs are in hex format separated by newlines.
+      operationId: getNamespace
+      summary: Get issuer namespace
+      description: Returns the issuer instance's namespace UUID in hex format.
       responses:
         "200":
-          description: List of namespaces.
+          description: Namespace UUID
           content:
             text/plain:
               schema:
-                type: array
-                minItems: 1
-                uniqueItems: true
-                items:
-                  type: string
-                  format: uuid
-                example: |
-                  a3d129b3-ac16-4047-84cc-2e97447d31ea
-                  d798e509-4d8c-455b-9814-2941df035b88
+                type: string
+                format: uuid
+                example: d798e509-4d8c-455b-9814-2941df035b88
         "500":
           description: Internal Server Error.
           content:
             "text/plain":
               schema:
                 type: string
-  /{namespace}/issue:
+  /issue:
     post:
       operationId: issueCertificate
       summary: Fetch a signed authentication certificate
@@ -47,17 +39,7 @@ paths:
         Send an X.509 certificate request in PEM-encoded DER ASN.1 form (text/plain) or in
         DER ASN.1 form (application/octet-stream) and receive a signed certificate.
         Response content type mirrors the request's, unless the Accept header is set.
-        A 403 response status code usually indicates
-        that the client is using the wrong namespace UUID.
-      parameters:
-        - in: path
-          name: namespace
-          required: true
-          description: Namespace UUID
-          schema:
-            type: string
-            format: uuid
-            example: 80485314-6c73-40ff-86c5-a5942a0f514f
+        A 403 response status code indicates that the client is using the wrong namespace UUID.
       requestBody:
         content:
           "text/plain":

@@ -6,27 +6,28 @@
 
 import * as asn1js from 'asn1js';
 import { getCrypto, getAlgorithmParameters, CertificationRequest, AttributeTypeAndValue } from 'pkijs';
-import { arrayBufferToString, toBase64 } from 'pvutils';
 import { v5 as uuidv5 } from 'uuid';
+import { arrayBufferToString, toBase64 } from 'pvutils';
 
 const hashAlg = 'SHA-256';
 const signAlg = 'ECDSA';
 
 /**
- * @param {{ ns : string, key? : string }} req
- * @returns {Promise<{key: string, csr: string}>}
+ * @param {{ ns : string, key : string? }} req
+ * @returns {Promise<{ id: string, key: string, csr: string }>}
  * @example
- * const { id, key, csr } = await createKeyAndCSR({
+ * const { id, key, csr } = await createCsr({
  *   ns: 'ba64ca66-4f02-431d-8f31-e8ea8d0e8011',
  *   key: '-----BEGIN EC PRIVATE KEY-----\n...\n-----END EC PRIVATE KEY-----'
  * })
  */
-export async function createKeyAndCsr(req) {
+export async function createCsr(req) {
   const crypto = getWebCrypto();
+  const algorithm = getAlgorithm(signAlg, hashAlg);
 
   let keyPair;
   if (req.key == null) {
-    keyPair = await generateKeyPair(crypto, getAlgorithm(signAlg, hashAlg));
+    keyPair = await crypto.generateKey(algorithm.algorithm, true, algorithm.usages);
   } else {
     const keybuf = pemToArrayBuffer(req.key);
     keyPair = await crypto.importKey('pkcs8', keybuf,
@@ -36,13 +37,33 @@ export async function createKeyAndCsr(req) {
   const pubKey = await crypto.exportKey('raw', keyPair.publicKey);
   const id = bifrostId(pubKey, req.ns);
 
+  const pkcs10 = new CertificationRequest();
+  pkcs10.version = 0;
+  pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({
+    type: '2.5.4.3', // commonName
+    value: new asn1js.Utf8String({ value: id })
+  }));
+  pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({
+    type: '2.5.4.10', // organizationName
+    value: new asn1js.Utf8String({ value: req.ns })
+  }));
+
+  pkcs10.attributes = [];
+
+  await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
+
+  // Signing final PKCS#10 request
+  await pkcs10.sign(keyPair.privateKey, hashAlg);
+
+  const csr = pkcs10.toSchema().toBER(false);
+
   return {
     id: id,
     key: `-----BEGIN PRIVATE KEY-----\n${formatPEM(
       toBase64(arrayBufferToString(await crypto.exportKey('pkcs8', keyPair.privateKey)))
-      )}\n-----END PRIVATE KEY-----`,
+    )}\n-----END PRIVATE KEY-----`,
     csr: `-----BEGIN CERTIFICATE REQUEST-----\n${formatPEM(
-      toBase64(arrayBufferToString(await createCsr(keyPair, hashAlg, id, req.ns)))
+      toBase64(arrayBufferToString(csr))
     )}\n-----END CERTIFICATE REQUEST-----`
   };
 }
@@ -56,31 +77,9 @@ export async function createKeyAndCsr(req) {
  * const id = bifrostId(pubKey, 'ba64ca66-4f02-431d-8f31-e8ea8d0e8011')
  */
 function bifrostId(pubKey, ns) {
+  console.log(ns);
   const xyBytes = pubKey.slice(1, 65);
   return uuidv5(new Uint8Array(xyBytes), ns);
-}
-
-async function createCsr(keyPair, hashAlg, id, ns) {
-  const pkcs10 = new CertificationRequest();
-  pkcs10.version = 0;
-  pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({
-    type: '2.5.4.3', // commonName
-    value: new asn1js.Utf8String({ value: id })
-  }));
-  pkcs10.subject.typesAndValues.push(new AttributeTypeAndValue({
-    type: '2.5.4.10', // organizationName
-    value: new asn1js.Utf8String({ value: ns })
-  }));
-
-  // Add attributes to make CSR valid
-  // Attributes must be "a0:00" if empty
-  pkcs10.attributes = [];
-
-  await pkcs10.subjectPublicKeyInfo.importKey(keyPair.publicKey);
-  // Signing final PKCS#10 request
-  await pkcs10.sign(keyPair.privateKey, hashAlg);
-
-  return pkcs10.toSchema().toBER(false);
 }
 
 // PEM to ArrayBuffer courtesy of https://stackoverflow.com/q/41529138/1656503
@@ -125,6 +124,7 @@ function formatPEM(pemString) {
   return pemString.replace(/(.{64})/g, '$1\n');
 }
 
+
 function getWebCrypto() {
   const crypto = getCrypto();
   if (typeof crypto === 'undefined')
@@ -137,8 +137,4 @@ function getAlgorithm(signAlg, hashAlg) {
   if ('hash' in algorithm.algorithm)
     algorithm.algorithm.hash.name = hashAlg;
   return algorithm;
-}
-
-function generateKeyPair(crypto, algorithm) {
-  return crypto.generateKey(algorithm.algorithm, true, algorithm.usages);
 }
