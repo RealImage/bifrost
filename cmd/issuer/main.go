@@ -35,7 +35,7 @@ func main() {
 	)
 
 	crtKey, err := cafiles.GetCrtKey(ctx, config.Issuer.CrtUri, config.Issuer.KeyUri)
-	sundry.OnErrorExit(ctx, err, "error getting crts and keys")
+	sundry.OnErrorExit(ctx, err, "error getting crt and key")
 
 	mux := http.NewServeMux()
 
@@ -43,16 +43,15 @@ func main() {
 		mux.HandleFunc("/metrics", stats.MetricsHandler)
 	}
 
-	ca, err := tinyca.New(crtKey.Crt, crtKey.Key, config.Issuer.Validity)
-	sundry.OnErrorExit(ctx, err, "error creating ca")
-
-	mux.Handle("/issue", ca)
-
 	nss := crtKey.Ns.String()
 	mux.HandleFunc("/namespace", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = fmt.Fprintln(w, nss)
 	})
+
+	ca, err := tinyca.New(crtKey.Crt, crtKey.Key, config.Issuer.Validity)
+	sundry.OnErrorExit(ctx, err, "error creating ca")
+	mux.Handle("/issue", ca)
 
 	if w := config.Issuer.Web; w.Serve {
 		if w.LocalFiles {
@@ -65,10 +64,9 @@ func main() {
 	}
 
 	hdlr := sundry.RequestLogHandler(mux)
-
 	addr := fmt.Sprintf("%s:%d", config.Issuer.Host, config.Issuer.Port)
-
 	server := http.Server{Addr: addr, Handler: hdlr}
+
 	go func() {
 		<-ctx.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -79,10 +77,7 @@ func main() {
 		}
 	}()
 
-	slog.InfoCtx(ctx, "serving requests",
-		slog.String("address", addr),
-		slog.String("namespace", nss),
-	)
+	slog.InfoCtx(ctx, "serving requests", "address", addr, "namespace", nss)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		sundry.OnErrorExit(ctx, err, "error serving requests")

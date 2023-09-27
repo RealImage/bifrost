@@ -17,11 +17,9 @@ import (
 	"github.com/google/uuid"
 )
 
-var (
-	testPubKey = &ecdsa.PublicKey{
-		Curve: elliptic.P256(),
-	}
-)
+var testPubKey = &ecdsa.PublicKey{
+	Curve: elliptic.P256(),
+}
 
 func init() {
 	x := big.NewInt(0)

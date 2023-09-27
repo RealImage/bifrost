@@ -50,14 +50,11 @@ func main() {
 	backendUrl, err := url.Parse(config.Bouncer.BackendUrl)
 	sundry.OnErrorExit(ctx, err, "error parsing backend url")
 
-	ns, crt, err := cafiles.GetCertificate(ctx, config.Bouncer.CrtUri)
-	sundry.OnErrorExit(ctx, err, "error getting crt")
-
-	key, err := cafiles.GetPrivateKey(ctx, config.Bouncer.KeyUri)
-	sundry.OnErrorExit(ctx, err, "error getting key")
+	crtKey, err := cafiles.GetCrtKey(ctx, config.Bouncer.CrtUri, config.Bouncer.KeyUri)
+	sundry.OnErrorExit(ctx, err, "error getting crt and key")
 
 	clientCertPool := x509.NewCertPool()
-	clientCertPool.AddCert(crt)
+	clientCertPool.AddCert(crtKey.Crt)
 
 	reverseProxy := &httputil.ReverseProxy{
 		Rewrite: func(r *httputil.ProxyRequest) {
@@ -84,12 +81,13 @@ func main() {
 		Handler: hdlr,
 		Addr:    addr,
 		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{*bifrost.X509ToTLSCertificate(crt, key)},
+			Certificates: []tls.Certificate{*bifrost.X509ToTLSCertificate(crtKey.Crt, crtKey.Key)},
 			ClientAuth:   tls.RequireAndVerifyClientCert,
 			ClientCAs:    clientCertPool,
 			KeyLogWriter: ssllog,
 		},
 	}
+
 	go func() {
 		<-ctx.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -103,7 +101,7 @@ func main() {
 	slog.InfoCtx(ctx, "proxying requests",
 		"from", "https://"+addr,
 		"to", config.Bouncer.BackendUrl,
-		"ns", ns.String(),
+		"namespace", crtKey.Ns.String(),
 	)
 
 	if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
