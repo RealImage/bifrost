@@ -141,13 +141,19 @@ Build the CA container with the AWS Lambda Web Adapter extension.
 podman build -f ca.Containerfile -t bifrost-ca .
 ```
 
-## Run Issuer CA
+## Take Bifrost out for a spin
 
-0. Generate a new namespace UUID
+Here's what you need to get started.
 
-    `export BF_NS=$(uuidgen)`
+1. Install all bifrost binaries by running `go install ./...`.
+2. Generate a new namespace UUID using `export BF_NS=$(uuidgen)`.
+3. Ensure that python, curl, and openssl are available in your environment.
 
-1. Create ECDSA P256 Private Key in PEM format:
+### Start your engines
+
+Set up server key material and start the CA and TLS reverse-proxy.
+
+1. Create ECDSA P256 private key in PEM format:
 
     `openssl ecparam -out key.pem -name prime256v1 -genkey -noout`
 
@@ -161,15 +167,21 @@ podman build -f ca.Containerfile -t bifrost-ca .
     -out crt.pem
    ```
 
-3. Run the binary:
+3. Start issuer (CA), bouncer (TLS reverse-proxy), and a python web server (target).
 
-    `issuer`
+    ```console
+    issuer &
+    bouncer &
+    python -m http.server 8080 &
+    ```
 
-4. Generate a new client identity key:
+### Create a client identity
+
+1. Generate a new client identity key:
 
     `openssl ecparam -out clientkey.pem -name prime256v1 -genkey -noout`
 
-5. Create a Certificate Signing Request with the client private key:
+2. Create a Certificate Signing Request with the client private key:
 
    ```console
    openssl req -new -key clientkey.pem -sha256 \
@@ -177,14 +189,18 @@ podman build -f ca.Containerfile -t bifrost-ca .
      -out csr.pem
    ```
 
-6. Fetch signed certificate from the CA:
+3. Fetch signed certificate from the CA:
 
    ```console
    curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" \
-     "localhost:8888/$BF_NS/issue" >clientcrt.pem`
+     "localhost:8888/issue" >clientcrt.pem`
    ```
 
-7. Admire your shiny new client certificate (optional):
+4. Make a request through bouncer to the python web server:
+
+    `curl --cert clientcrt.pem --key clientkey.pem -k https://localhost:8443`
+
+5. Admire your shiny new client certificate (optional):
 
    ```console
    $ openssl x509 -in clientcrt.pem -noout -text

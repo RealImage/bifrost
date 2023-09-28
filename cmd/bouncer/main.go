@@ -77,11 +77,12 @@ func main() {
 	id := asgard.Hofund(asgard.DefaultRequestContextHeader)
 	hdlr := sundry.RequestLogHandler(id(reverseProxy))
 	addr := fmt.Sprintf("%s:%d", config.Bouncer.Host, config.Bouncer.Port)
+	crt := bifrost.X509ToTLSCertificate(crtKey.Crt, crtKey.Key)
 	server := http.Server{
 		Handler: hdlr,
 		Addr:    addr,
 		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{*bifrost.X509ToTLSCertificate(crtKey.Crt, crtKey.Key)},
+			Certificates: []tls.Certificate{*crt},
 			ClientAuth:   tls.RequireAndVerifyClientCert,
 			ClientCAs:    clientCertPool,
 			KeyLogWriter: ssllog,

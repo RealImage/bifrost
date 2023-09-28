@@ -125,24 +125,32 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accept, _, err := getMimeTypeHeader(r.Header.Get(acHeaderName), mimeTypeText)
+	accept, _, err := getMimeTypeHeader(r.Header.Get(acHeaderName), contentType)
 	if err != nil {
 		e := fmt.Sprintf("error parsing Accept header: %s", err)
 		http.Error(w, e, http.StatusBadRequest)
 		return
 	}
 
+	responseMimeType := contentType
 	switch accept {
-	case mimeTypeAll, "", mimeTypeText:
-		w.Header().Set(ctHeaderName, mimeTypeTextCharset)
-		err = pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt})
+	case mimeTypeAll, "":
+	case mimeTypeText:
+		responseMimeType = mimeTypeText
 	case mimeTypeBytes:
-		w.Header().Set(ctHeaderName, accept)
-		_, err = w.Write(crt)
+		responseMimeType = mimeTypeBytes
 	default:
 		http.Error(w, fmt.Sprintf("media type %s unacceptable", accept), http.StatusNotAcceptable)
 		return
 	}
+	if responseMimeType == mimeTypeBytes {
+		w.Header().Set(ctHeaderName, mimeTypeBytes)
+		_, err = w.Write(crt)
+	} else {
+		w.Header().Set(ctHeaderName, mimeTypeTextCharset)
+		err = pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt})
+	}
+
 	if err != nil {
 		slog.Error("error writing certificate response", "err", err)
 	}
