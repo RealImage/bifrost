@@ -13,7 +13,7 @@ import Dict exposing (Dict)
 import File exposing (File)
 import File.Select
 import Html exposing (Html, main_, text)
-import Html.Attributes exposing (alt, class, src)
+import Html.Attributes as Attr exposing (alt, class, src)
 import Html.Events exposing (onClick)
 import Http
 import Json.Decode as Decode
@@ -53,7 +53,7 @@ type Msg
     | FileRead String
     | IdAsked
     | GotCsr Decode.Value
-    | GotId String (WebData String)
+    | GotId Csr.Csr (WebData String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -76,7 +76,7 @@ update msg model =
         reqCrt : Csr.Csr -> Cmd Msg
         reqCrt c =
             Http.post
-                { expect = Http.expectString <| RemoteData.fromResult >> GotId (UUID.toString c.id)
+                { expect = Http.expectString <| RemoteData.fromResult >> GotId c
                 , url = "/issue"
                 , body = Http.stringBody "text/plain" c.csr
                 }
@@ -131,11 +131,20 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        GotId i c ->
+        GotId csr crt ->
             let
                 ids : Dict String Identity
                 ids =
-                    Dict.update i (Maybe.map (\v -> { v | crts = c :: v.crts })) model.ids
+                    Dict.update (UUID.toString csr.id)
+                        (\a ->
+                            case a of
+                                Just id ->
+                                    Just { id | crts = crt :: id.crts }
+
+                                Nothing ->
+                                    Just { key = csr.key, csr = csr.csr, crts = [ crt ] }
+                        )
+                        model.ids
             in
             ( { model | ids = ids }, Cmd.none )
 
@@ -189,7 +198,13 @@ viewIssuer ns ids =
             ]
         , Html.div
             [ class "nav-right" ]
-            [ Html.a [] [ Html.strong [] [ text cns ] ] ]
+            [ Html.a []
+                [ Html.p []
+                    [ Html.span [] [ text "Namespace " ]
+                    , Html.strong [ class "text-primary" ] [ text cns ]
+                    ]
+                ]
+            ]
         ]
     , Html.header [ class "container" ]
         [ Html.node "hgroup"
@@ -202,10 +217,10 @@ viewIssuer ns ids =
         [ Html.section []
             [ Html.h2 [] [ text "Keys" ]
             , Html.button
-                [ class "button", onClick IdAsked ]
+                [ class "button bg-primary text-white", onClick IdAsked ]
                 [ text "Generate" ]
             , Html.button
-                [ class "button", onClick OpenFilesClicked ]
+                [ class "button bg-dark text-white", onClick OpenFilesClicked ]
                 [ text "Upload" ]
             ]
         , Html.section []
@@ -218,10 +233,57 @@ viewIssuer ns ids =
 
 viewIds : String -> Identity -> List (Html a) -> List (Html a)
 viewIds id ident acc =
+    let
+        pcv : String -> String -> Html a
+        pcv name crt =
+            Html.node name
+                [ Attr.attribute "certificate" crt, Attr.attribute "download" "true" ]
+                []
+
+        viewCrt : WebData String -> Html a
+        viewCrt crt =
+            case crt of
+                NotAsked ->
+                    Html.p [] [ text "Not asked" ]
+
+                Loading ->
+                    Html.p [] [ text "Loading" ]
+
+                Failure e ->
+                    case e of
+                        Http.BadStatus _ ->
+                            Html.p [] [ text "Bad status" ]
+
+                        Http.Timeout ->
+                            Html.p [] [ text "Timeout" ]
+
+                        Http.NetworkError ->
+                            Html.p [] [ text "Network error" ]
+
+                        Http.BadBody _ ->
+                            Html.p [] [ text "Bad body" ]
+
+                        Http.BadUrl _ ->
+                            Html.p [] [ text "Bad URL" ]
+
+                Success c ->
+                    Html.details []
+                        [ Html.summary [] [ text "Certificate" ]
+                        , pcv "peculiar-certificate-viewer" c
+                        ]
+    in
     Html.article [ class "card" ]
-        [ Html.header [] [ Html.h3 [] [ text "Identity", text id ] ]
-        , Html.h4 [] [ text "Certificate Request" ]
-        , Html.p [] [ Html.pre [] [ text ident.csr ] ]
+        [ Html.header [] [ Html.strong [] [ text id ] ]
+        , Html.details []
+            [ Html.summary [] [ text "Certificate Request" ]
+            , pcv "peculiar-csr-viewer" ident.csr
+            ]
+        , Html.div [] <| List.map viewCrt ident.crts
+        , Html.footer []
+            [ Html.button
+                [ class "button" ]
+                [ text "Request Certificate" ]
+            ]
         ]
         :: acc
 

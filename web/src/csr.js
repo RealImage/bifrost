@@ -77,7 +77,6 @@ export async function createCsr(req) {
  * const id = bifrostId(pubKey, 'ba64ca66-4f02-431d-8f31-e8ea8d0e8011')
  */
 function bifrostId(pubKey, ns) {
-  console.log(ns);
   const xyBytes = pubKey.slice(1, 65);
   return uuidv5(new Uint8Array(xyBytes), ns);
 }

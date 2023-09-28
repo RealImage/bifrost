@@ -7,11 +7,13 @@
 import { Elm } from './src/Main.elm';
 import { createCsr } from './src/csr';
 import "@peculiar/certificates-viewer";
+import { defineCustomElements } from '@peculiar/certificates-viewer/loader';
+
+defineCustomElements();
 
 const app = Elm.Main.init();
 
 app.ports.generate.subscribe(async (req) => {
-  console.count('generate');
   let res;
   try {
     res = await createCsr(req);
