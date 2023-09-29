@@ -11,13 +11,26 @@ COPY web .
 RUN npm ci \
   && env NODE_ENV=production npm run build
 
-FROM docker.io/library/golang:${GO_VERSION} as builder
+FROM docker.io/library/golang:${GO_VERSION} as go
 WORKDIR /src
 COPY . .
 COPY --from=node /src/static/js/index.js /src/web/static/js/index.js
 RUN mkdir /build \
   && env CGO_ENABLED=0 go build -o /build ./...
 
+FROM gcr.io/distroless/base-debian11 as ca
+# uses lambda-web-adapter to run our standard HTTP app in a lambda
+# https://github.com/awslabs/aws-lambda-web-adapter
+# for configuration see https://github.com/awslabs/aws-lambda-web-adapter#configurations
+ARG AWS_LWA_VERSION=0.7.1
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:$AWS_LWA_VERSION \
+  /lambda-adapter /opt/extensions/lambda-adapter
+COPY --from=go /build/issuer /
+ENV PORT=8888
+ENV AWS_LWA_READINESS_CHECK_PATH="/namespace"
+ENV AWS_LWA_ENABLE_COMPRESSION="true"
+ENTRYPOINT [ "/issuer" ]
+
 FROM gcr.io/distroless/base-debian11
-COPY --from=builder /build/* /
+COPY --from=go /build/* /
 ENTRYPOINT [ "/bf" ]
