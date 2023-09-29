@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
@@ -69,7 +68,7 @@ func main() {
 
 	go func() {
 		<-ctx.Done()
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), config.Issuer.ShutdownTimeout)
 		defer cancel()
 		slog.InfoCtx(ctx, "shutting down server")
 		if err := server.Shutdown(ctx); err != nil {
