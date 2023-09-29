@@ -8,6 +8,7 @@ import { Elm } from './src/Main.elm';
 import { createCsr } from './src/csr';
 import "@peculiar/certificates-viewer";
 import { defineCustomElements } from '@peculiar/certificates-viewer/loader';
+import './css/main.css';
 
 defineCustomElements();
 

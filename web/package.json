@@ -20,6 +20,7 @@
   "homepage": "https://github.com/RealImage/bifrost#readme",
   "dependencies": {
     "@peculiar/certificates-viewer": "^3.10.1",
+    "chota": "^0.9.2",
     "elm": "^0.19.1-5",
     "elm-format": "^0.8.7",
     "elm-review": "^2.10.2",

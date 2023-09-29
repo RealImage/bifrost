@@ -1,3 +1,4 @@
 node_modules
 /elm-stuff
-/static/js/index.js
+/static/index.js
+/static/index.css

@@ -13,7 +13,7 @@ const isProd = process.env.NODE_ENV === 'production'
 const ctx = await esbuild.context({
   entryPoints: ['index.js'],
   bundle: true,
-  outfile: 'static/js/index.js',
+  outfile: 'static/index.js',
   minify: isProd,
   plugins: [
     ElmPlugin({
