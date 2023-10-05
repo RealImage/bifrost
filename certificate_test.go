@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type validateCertTestCase struct {
+type certVerifyTestCase struct {
 	crtPEM  []byte
 	wantNS  uuid.UUID
 	wantKey *ecdsa.PublicKey
@@ -30,7 +30,7 @@ var (
 		SetString("35068856771725771339387917164601956621562646129885199575367583771781073078262", 10)
 )
 
-var validateCertTestCases = []validateCertTestCase{
+var certVerifyTestCases = []certVerifyTestCase{
 	{
 		crtPEM: []byte(`-----BEGIN CERTIFICATE-----
 MIIB+TCCAaCgAwIBAgIIeythG8hQTGcwCgYIKoZIzj0EAwIwXjEtMCsGA1UEAwwk
@@ -102,15 +102,15 @@ m+cbVg9K0lG0SJlTp+qUz15lE6EGvZZOjaNR
 	},
 }
 
-func TestValidateCertificate(t *testing.T) {
-	for ti, tc := range validateCertTestCases {
+func TestCertificate_Verify(t *testing.T) {
+	for ti, tc := range certVerifyTestCases {
 		t.Run(fmt.Sprintf("#%d", ti), func(t *testing.T) {
-			testValidateCert(t, &tc)
+			testCertVerify(t, &tc)
 		})
 	}
 }
 
-func testValidateCert(t *testing.T, tc *validateCertTestCase) {
+func testCertVerify(t *testing.T, tc *certVerifyTestCase) {
 	var b []byte
 	if block, _ := pem.Decode(tc.crtPEM); block != nil {
 		b = block.Bytes
@@ -122,8 +122,10 @@ func testValidateCert(t *testing.T, tc *validateCertTestCase) {
 	if tc.err && err != nil {
 		return
 	}
-	ns, key, err := ValidateCertificate(crt)
-	if !tc.err && err != nil {
+	c := &Certificate{
+		Certificate: crt,
+	}
+	if err := c.Verify(); !tc.err && err != nil {
 		t.Fatalf("ValidateCertificate(%s)\nunexpected error = %v", tc.crtPEM, err)
 	}
 	if tc.err {
@@ -132,10 +134,10 @@ func testValidateCert(t *testing.T, tc *validateCertTestCase) {
 		}
 		t.Fatalf("ValidateCertificate(%s) err = nil\nwant = %v", tc.crtPEM, tc.err)
 	}
-	if ns != tc.wantNS {
+	if ns := c.Namespace; ns != tc.wantNS {
 		t.Fatalf("ValidateCertificate(%s) ns = %v\nwant %v", tc.crtPEM, ns, tc.wantNS)
 	}
-	if !key.Equal(tc.wantKey) {
+	if key := c.PublicKey; !key.Equal(tc.wantKey) {
 		t.Fatalf("ValidateCertificate(%s) key = %v\nwant %v", tc.crtPEM, key, tc.wantKey)
 	}
 }

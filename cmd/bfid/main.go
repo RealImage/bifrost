@@ -113,10 +113,10 @@ func main() {
 		}
 		pubkey = eckey
 	case "CERTIFICATE":
-		ns, _, key, err := bifrost.ParseCertificate(block.Bytes)
+		cert, err := bifrost.ParseCertificate(block.Bytes)
 		sundry.OnErrorExit(ctx, err, "error parsing certificate")
-		namespace = ns
-		pubkey = key
+		namespace = cert.Namespace
+		pubkey = cert.PublicKey
 	default:
 		sundry.OnErrorExit(ctx, fmt.Errorf("unexpected block type: %s", block.Type), "")
 	}

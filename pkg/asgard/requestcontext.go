@@ -6,15 +6,12 @@ package asgard
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"time"
 
 	"github.com/RealImage/bifrost"
-	"github.com/google/uuid"
 )
 
 type keyRequestContext struct{}
@@ -39,9 +36,7 @@ func MustFromContext(ctx context.Context) *RequestContext {
 }
 
 type RequestContext struct {
-	Namespace         uuid.UUID
-	ClientCertificate *x509.Certificate
-	ClientPublicKey   *ecdsa.PublicKey
+	ClientCertificate *bifrost.Certificate
 	SourceIP          string `json:"sourceIp"`
 	UserAgent         string `json:"userAgent"`
 }
@@ -68,13 +63,11 @@ func (r *RequestContext) UnmarshalJSON(data []byte) error {
 		if block == nil {
 			return fmt.Errorf("failed to decode client certificate PEM")
 		}
-		ns, crt, key, err := bifrost.ParseCertificate(block.Bytes)
+		cert, err := bifrost.ParseCertificate(block.Bytes)
 		if err != nil {
 			return err
 		}
-		r.Namespace = ns
-		r.ClientCertificate = crt
-		r.ClientPublicKey = key
+		r.ClientCertificate = cert
 		r.SourceIP = rc.Identity.SourceIP
 		r.UserAgent = rc.Identity.UserAgent
 	}

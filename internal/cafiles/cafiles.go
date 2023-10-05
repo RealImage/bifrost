@@ -23,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
-	"github.com/google/uuid"
 )
 
 const fetchTimeout = time.Minute
@@ -32,21 +31,21 @@ const fetchTimeout = time.Minute
 // uri can be a relative or absolute file path, file://... uri, s3://... uri,
 // or an AWS S3 or AWS Secrets Manager ARN.
 // The certificate is validated before returning.
-func GetCertificate(ctx context.Context, uri string) (uuid.UUID, *x509.Certificate, error) {
+func GetCertificate(ctx context.Context, uri string) (*bifrost.Certificate, error) {
 	ctx, cancel := context.WithTimeout(ctx, fetchTimeout)
 	defer cancel()
 
 	crtPem, err := getPemFile(ctx, uri)
 	if err != nil {
-		return uuid.Nil, nil, fmt.Errorf("error getting file %s: %w", uri, err)
+		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
 	}
 
-	ns, crt, _, err := bifrost.ParseCertificate(crtPem.Bytes)
+	cert, err := bifrost.ParseCertificate(crtPem.Bytes)
 	if err != nil {
-		return uuid.Nil, nil, fmt.Errorf("error validating certificate: %w", err)
+		return nil, fmt.Errorf("error validating certificate: %w", err)
 	}
 
-	return ns, crt, nil
+	return cert, nil
 }
 
 // GetPrivateKey retrieves a PEM encoded private key from uri.
@@ -161,32 +160,25 @@ func getSecret(ctx context.Context, secretARN string) ([]byte, error) {
 	return nil, fmt.Errorf("no secret data found")
 }
 
-type CrtKey struct {
-	Ns  uuid.UUID
-	Crt *x509.Certificate
-	Key *ecdsa.PrivateKey
-}
-
-// GetCrtKey returns a namespace, certificate and private key from crtUri and keyUri.
-func GetCrtKey(ctx context.Context, crtUri string, keyUri string) (*CrtKey, error) {
-	ns, crt, err := GetCertificate(ctx, crtUri)
+// GetCertKey returns a bifrost certificate and private key from crtUri and keyUri.
+func GetCertKey(
+	ctx context.Context,
+	crtUri string,
+	keyUri string,
+) (*bifrost.Certificate, *ecdsa.PrivateKey, error) {
+	crt, err := GetCertificate(ctx, crtUri)
 	if err != nil {
-		return nil, fmt.Errorf("error getting crt: %w", err)
+		return nil, nil, fmt.Errorf("error getting crt: %w", err)
 	}
 
 	key, err := GetPrivateKey(ctx, keyUri)
 	if err != nil {
-		return nil, fmt.Errorf("error getting key: %w", err)
+		return nil, nil, fmt.Errorf("error getting key: %w", err)
 	}
 
-	crtPubKey, ok := crt.PublicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return nil, fmt.Errorf("error getting public key from certificate")
+	if crt.PublicKey.X.Cmp(key.X) != 0 || crt.PublicKey.Y.Cmp(key.Y) != 0 {
+		return nil, nil, fmt.Errorf("certificate and key do not match")
 	}
 
-	if crtPubKey.X.Cmp(key.X) != 0 || crtPubKey.Y.Cmp(key.Y) != 0 {
-		return nil, fmt.Errorf("certificate and key do not match")
-	}
-
-	return &CrtKey{Ns: ns, Crt: crt, Key: key}, nil
+	return crt, key, nil
 }

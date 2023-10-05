@@ -12,7 +12,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -27,7 +26,6 @@ const (
 var (
 	ErrCertificateFormat        = errors.New("invalid certificate format")
 	ErrCertificateRequestFormat = errors.New("invalid certificate request format")
-	ErrWrongNamespace           = errors.New("wrong namespace")
 )
 
 // NewIdentity generates a new ECDSA private key.
@@ -56,137 +54,4 @@ func UUID(ns uuid.UUID, pubkey *ecdsa.PublicKey) uuid.UUID {
 	pubkey.X.FillBytes(buf[:32])
 	pubkey.Y.FillBytes(buf[32:])
 	return uuid.NewSHA1(ns, buf[:])
-}
-
-// ParseCertificate parses a DER encoded certificate and validates it.
-// On success, it returns the bifrost namespace, certificate public key,
-// and the parsed certificate.
-func ParseCertificate(der []byte) (uuid.UUID, *x509.Certificate, *ecdsa.PublicKey, error) {
-	cert, err := x509.ParseCertificate(der)
-	if err != nil {
-		return uuid.Nil, nil, nil, err
-	}
-	ns, key, err := ValidateCertificate(cert)
-	if err != nil {
-		return uuid.Nil, nil, nil, err
-	}
-	return ns, cert, key, nil
-}
-
-// ValidateCertificate validates a bifrost certificate.
-// On success, it returns the bifrost namespace and certificate public key.
-func ValidateCertificate(cert *x509.Certificate) (uuid.UUID, *ecdsa.PublicKey, error) {
-	// Check for bifrost signature algorithm
-	if cert.SignatureAlgorithm != SignatureAlgorithm {
-		return uuid.Nil, nil, fmt.Errorf(
-			"%w: unsupported signature algorithm '%s'",
-			ErrCertificateRequestFormat,
-			cert.SignatureAlgorithm,
-		)
-	}
-
-	// Parse identity namespace
-	if len(cert.Subject.Organization) != 1 {
-		return uuid.Nil, nil, fmt.Errorf("%w: missing identity namespace", ErrCertificateFormat)
-	}
-	rawNS := cert.Subject.Organization[0]
-	ns, err := uuid.Parse(rawNS)
-	if err != nil {
-		return uuid.Nil, nil, fmt.Errorf(
-			"%w: invalid identity namespace %s: %w",
-			ErrCertificateFormat,
-			rawNS,
-			err,
-		)
-	}
-	if ns == uuid.Nil {
-		return uuid.Nil, nil, fmt.Errorf("%w: nil identity namespace", ErrCertificateFormat)
-	}
-
-	pubkey, ok := cert.PublicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return uuid.Nil, nil, fmt.Errorf(
-			"%w: invalid public key type: '%T'",
-			ErrCertificateFormat,
-			cert.PublicKey,
-		)
-	}
-
-	// Check if calculated UUID matches the UUID in the certificate
-	id := UUID(ns, pubkey)
-	cid, err := uuid.Parse(cert.Subject.CommonName)
-	if err != nil {
-		return uuid.Nil, nil, fmt.Errorf("%w: invalid subj CN '%s', %v",
-			ErrCertificateFormat, cert.Subject.CommonName, err)
-	}
-	if cid != id {
-		return uuid.Nil, nil, fmt.Errorf("%w: incorrect identity", ErrCertificateFormat)
-	}
-
-	return ns, pubkey, nil
-}
-
-func ParseCertificateRequest(
-	der []byte,
-) (uuid.UUID, *x509.CertificateRequest, *ecdsa.PublicKey, error) {
-	csr, err := x509.ParseCertificateRequest(der)
-	if err != nil {
-		return uuid.Nil, nil, nil, err
-	}
-	ns, key, err := ValidateCertificateRequest(csr)
-	if err != nil {
-		return uuid.Nil, nil, nil, err
-	}
-	return ns, csr, key, nil
-}
-
-func ValidateCertificateRequest(csr *x509.CertificateRequest) (uuid.UUID, *ecdsa.PublicKey, error) {
-	// Check for bifrost signature algorithm
-	if csr.SignatureAlgorithm != SignatureAlgorithm {
-		return uuid.Nil, nil, fmt.Errorf(
-			"%w: unsupported signature algorithm '%s'",
-			ErrCertificateRequestFormat,
-			csr.SignatureAlgorithm,
-		)
-	}
-
-	// Parse identity namespace
-	if len(csr.Subject.Organization) != 1 {
-		return uuid.Nil, nil, fmt.Errorf(
-			"%w: missing identity namespace",
-			ErrCertificateRequestFormat,
-		)
-	}
-	rawNS := csr.Subject.Organization[0]
-	ns, err := uuid.Parse(rawNS)
-	if err != nil {
-		return uuid.Nil, nil, fmt.Errorf(
-			"%w: invalid identity namespace %s: %w",
-			ErrCertificateRequestFormat,
-			rawNS,
-			err,
-		)
-	}
-
-	pubkey, ok := csr.PublicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return uuid.Nil, nil, fmt.Errorf(
-			"%w: invalid public key type: '%T'",
-			ErrCertificateRequestFormat,
-			csr.PublicKey,
-		)
-	}
-
-	// Check if calculated UUID matches the UUID in the certificate
-	id := UUID(ns, pubkey)
-	cid, err := uuid.Parse(csr.Subject.CommonName)
-	if err != nil {
-		return uuid.Nil, nil, fmt.Errorf("%w: invalid identity '%s', %v",
-			ErrCertificateRequestFormat, csr.Subject.CommonName, err)
-	}
-	if cid != id {
-		return uuid.Nil, nil, fmt.Errorf("%w: incorrect identity", ErrCertificateRequestFormat)
-	}
-
-	return ns, pubkey, nil
 }

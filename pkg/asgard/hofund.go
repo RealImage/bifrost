@@ -23,18 +23,17 @@ func Hofund(headerName string) func(http.Handler) http.Handler {
 				panic("bouncer works only on TLS servers with clients connecting with certificates")
 			}
 			ctx := r.Context()
-			peerCert := r.TLS.PeerCertificates[0]
-			ns, key, err := bifrost.ValidateCertificate(peerCert)
-			if err != nil {
+			cert := &bifrost.Certificate{
+				Certificate: r.TLS.PeerCertificates[0],
+			}
+			if err := cert.Verify(); err != nil {
 				slog.ErrorCtx(ctx, "error validating client certificate", "error", err)
 				http.Error(w, "invalid client certificate", http.StatusUnauthorized)
 				return
 			}
 
 			rctx := RequestContext{
-				ClientCertificate: peerCert,
-				ClientPublicKey:   key,
-				Namespace:         ns,
+				ClientCertificate: cert,
 				SourceIP:          r.RemoteAddr,
 				UserAgent:         r.UserAgent(),
 			}

@@ -221,16 +221,19 @@ func TestCA_ServeHTTP(t *testing.T) {
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 	}
-	crtDer, err := x509.CreateCertificate(randReader, &template, &template, &key.PublicKey, key)
+	certDer, err := x509.CreateCertificate(randReader, &template, &template, &key.PublicKey, key)
 	if err != nil {
 		t.Fatal(err)
 	}
-	crt, err := x509.ParseCertificate(crtDer)
+	cert, err := x509.ParseCertificate(certDer)
 	if err != nil {
 		t.Fatal(err)
+	}
+	bfCert := &bifrost.Certificate{
+		Certificate: cert,
 	}
 
-	ca, err := New(crt, key, time.Hour)
+	ca, err := New(bfCert, key, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,20 +286,20 @@ func TestCA_ServeHTTP(t *testing.T) {
 						t.Fatal("response body is not a valid PEM block")
 						return
 					}
-					ns, _, _, err := bifrost.ParseCertificate(b.Bytes)
+					cert, err := bifrost.ParseCertificate(b.Bytes)
 					if err != nil {
 						t.Fatal("response body is not a valid bifrost certificate: ", err)
 					}
-					if ns != testns {
-						t.Fatalf("expected namespace: %s, actual: %s\n", testns, ns)
+					if cert.Namespace != testns {
+						t.Fatalf("expected namespace: %s, actual: %s\n", testns, cert.Namespace)
 					}
 				case mimeTypeBytes:
-					ns, _, _, err := bifrost.ParseCertificate(respBody)
+					cert, err := bifrost.ParseCertificate(respBody)
 					if err != nil {
 						t.Fatal("response body is not a valid bifrost certificate: ", err)
 					}
-					if ns != testns {
-						t.Fatalf("expected namespace: %s, actual: %s\n", testns, ns)
+					if cert.Namespace != testns {
+						t.Fatalf("expected namespace: %s, actual: %s\n", testns, cert.Namespace)
 					}
 				default:
 					t.Fatalf("unexpected Content-Type: %s\n", resp.Header.Get(ctHeaderName))

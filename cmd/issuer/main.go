@@ -33,7 +33,7 @@ func main() {
 		slog.Time("timestamp", config.BuildTime),
 	)
 
-	crtKey, err := cafiles.GetCrtKey(ctx, config.Issuer.CrtUri, config.Issuer.KeyUri)
+	cert, key, err := cafiles.GetCertKey(ctx, config.Issuer.CrtUri, config.Issuer.KeyUri)
 	sundry.OnErrorExit(ctx, err, "error getting crt and key")
 
 	mux := http.NewServeMux()
@@ -42,13 +42,13 @@ func main() {
 		mux.HandleFunc("/metrics", stats.MetricsHandler)
 	}
 
-	nss := crtKey.Ns.String()
+	nss := cert.Namespace.String()
 	mux.HandleFunc("/namespace", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = fmt.Fprintln(w, nss)
 	})
 
-	ca, err := tinyca.New(crtKey.Crt, crtKey.Key, config.Issuer.Validity)
+	ca, err := tinyca.New(cert, key, config.Issuer.Validity)
 	sundry.OnErrorExit(ctx, err, "error creating ca")
 	mux.Handle("/issue", ca)
 

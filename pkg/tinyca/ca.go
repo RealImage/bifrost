@@ -12,7 +12,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -46,16 +45,14 @@ var (
 
 // New returns a new CA.
 // The CA issues certificates for the given namespace.
-func New(crt *x509.Certificate, key *ecdsa.PrivateKey, dur time.Duration) (*CA, error) {
-	ns, _, err := bifrost.ValidateCertificate(crt)
-	if err != nil {
+func New(cert *bifrost.Certificate, key *ecdsa.PrivateKey, dur time.Duration) (*CA, error) {
+	if err := cert.Verify(); err != nil {
 		return nil, fmt.Errorf("ca certificate is not a bifrost certificate: %w", err)
 	}
 	return &CA{
-		ns:  ns,
-		crt: crt,
-		key: key,
-		dur: dur,
+		cert: cert,
+		key:  key,
+		dur:  dur,
 	}, nil
 }
 
@@ -63,10 +60,8 @@ func New(crt *x509.Certificate, key *ecdsa.PrivateKey, dur time.Duration) (*CA, 
 // The only supported operation is to issue client certificates.
 // Client certificates are signed by the configured root certificate and private key.
 type CA struct {
-	// ns is the namespace for which the CA issues certificates.
-	ns  uuid.UUID
-	crt *x509.Certificate
-	key *ecdsa.PrivateKey
+	cert *bifrost.Certificate
+	key  *ecdsa.PrivateKey
 	// dur is the duration for which the issued certificate is valid.
 	dur time.Duration
 }
@@ -115,13 +110,16 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	crt, err := ca.IssueCertificate(ns, csr, pubkey)
+
+	if ns != ca.cert.Namespace {
+		err := fmt.Sprintf("wrong namespace: '%s', use '%s' instead", ns, ca.cert.Namespace)
+		http.Error(w, err, http.StatusForbidden)
+		return
+	}
+
+	crt, err := ca.IssueCertificate(csr, pubkey)
 	if err != nil {
-		status := http.StatusInternalServerError
-		if errors.Is(err, bifrost.ErrWrongNamespace) {
-			status = http.StatusForbidden
-		}
-		http.Error(w, err.Error(), status)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -182,19 +180,15 @@ func readCSR(
 // The certificate is issued with the Subject Common Name set to the client ID
 // and the Subject Organization set to the identity namespace.
 func (ca CA) IssueCertificate(
-	ns uuid.UUID,
 	csr *x509.CertificateRequest,
 	pubkey *ecdsa.PublicKey,
 ) ([]byte, error) {
-	if ns != ca.ns {
-		return nil, fmt.Errorf("%w: '%s', use '%s' instead",
-			bifrost.ErrWrongNamespace, ns, ca.ns)
-	}
-
 	serialNumber, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error generating certificate serial: %w", err)
 	}
+
+	ns := ca.cert.Namespace
 
 	// Client certificate template.
 	notBefore := time.Now()
@@ -203,11 +197,10 @@ func (ca CA) IssueCertificate(
 		PublicKeyAlgorithm: bifrost.PublicKeyAlgorithm,
 		KeyUsage:           x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-
-		Issuer: ca.crt.Issuer,
+		Issuer:             ca.cert.Issuer,
 		Subject: pkix.Name{
-			Organization: []string{ca.ns.String()},
-			CommonName:   bifrost.UUID(ca.ns, pubkey).String(),
+			Organization: []string{ns.String()},
+			CommonName:   bifrost.UUID(ns, pubkey).String(),
 		},
 		PublicKey:    csr.PublicKey,
 		Signature:    csr.Signature,
@@ -219,7 +212,7 @@ func (ca CA) IssueCertificate(
 	crtBytes, err := x509.CreateCertificate(
 		rand.Reader,
 		&template,
-		ca.crt,
+		ca.cert.Certificate,
 		csr.PublicKey,
 		ca.key,
 	)

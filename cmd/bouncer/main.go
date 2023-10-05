@@ -49,11 +49,11 @@ func main() {
 	backendUrl, err := url.Parse(config.Bouncer.BackendUrl)
 	sundry.OnErrorExit(ctx, err, "error parsing backend url")
 
-	crtKey, err := cafiles.GetCrtKey(ctx, config.Bouncer.CrtUri, config.Bouncer.KeyUri)
+	cert, key, err := cafiles.GetCertKey(ctx, config.Bouncer.CrtUri, config.Bouncer.KeyUri)
 	sundry.OnErrorExit(ctx, err, "error getting crt and key")
 
 	clientCertPool := x509.NewCertPool()
-	clientCertPool.AddCert(crtKey.Crt)
+	clientCertPool.AddCert(cert.Certificate)
 
 	reverseProxy := &httputil.ReverseProxy{
 		Rewrite: func(r *httputil.ProxyRequest) {
@@ -76,12 +76,12 @@ func main() {
 	id := asgard.Hofund(asgard.DefaultRequestContextHeader)
 	hdlr := sundry.RequestLogHandler(id(reverseProxy))
 	addr := fmt.Sprintf("%s:%d", config.Bouncer.Host, config.Bouncer.Port)
-	crt := bifrost.X509ToTLSCertificate(crtKey.Crt, crtKey.Key)
+	tlsCert := bifrost.X509ToTLSCertificate(cert.Certificate, key)
 	server := http.Server{
 		Handler: hdlr,
 		Addr:    addr,
 		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{*crt},
+			Certificates: []tls.Certificate{*tlsCert},
 			ClientAuth:   tls.RequireAndVerifyClientCert,
 			ClientCAs:    clientCertPool,
 			KeyLogWriter: ssllog,
@@ -101,7 +101,7 @@ func main() {
 	slog.InfoCtx(ctx, "proxying requests",
 		"from", "https://"+addr,
 		"to", config.Bouncer.BackendUrl,
-		"namespace", crtKey.Ns.String(),
+		"namespace", cert.Namespace.String(),
 	)
 
 	if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
