@@ -117,7 +117,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	crt, err := ca.IssueCertificate(csr, pubkey)
+	cert, err := ca.IssueCertificate(csr, pubkey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -143,10 +143,10 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if responseMimeType == mimeTypeBytes {
 		w.Header().Set(ctHeaderName, mimeTypeBytes)
-		_, err = w.Write(crt)
+		_, err = w.Write(cert)
 	} else {
 		w.Header().Set(ctHeaderName, mimeTypeTextCharset)
-		err = pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: crt})
+		err = pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: cert})
 	}
 
 	if err != nil {
@@ -209,7 +209,7 @@ func (ca CA) IssueCertificate(
 		NotAfter:     notBefore.Add(ca.dur),
 	}
 
-	crtBytes, err := x509.CreateCertificate(
+	certBytes, err := x509.CreateCertificate(
 		rand.Reader,
 		&template,
 		ca.cert.Certificate,
@@ -220,7 +220,7 @@ func (ca CA) IssueCertificate(
 		return nil, err
 	}
 	issuedCertsTotal.Inc()
-	return crtBytes, nil
+	return certBytes, nil
 }
 
 func getMimeTypeHeader(value, defaultValue string) (string, map[string]string, error) {

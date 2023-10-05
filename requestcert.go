@@ -60,12 +60,12 @@ func RequestCertificate(
 }
 
 // X509ToTLSCertificate puts an x509.Certificate inside a tls.Certificate.
-func X509ToTLSCertificate(crt *x509.Certificate, key *ecdsa.PrivateKey) *tls.Certificate {
+func X509ToTLSCertificate(cert *x509.Certificate, key *ecdsa.PrivateKey) *tls.Certificate {
 	return &tls.Certificate{
 		Certificate: [][]byte{
-			crt.Raw,
+			cert.Raw,
 		},
 		PrivateKey: key,
-		Leaf:       crt,
+		Leaf:       cert,
 	}
 }

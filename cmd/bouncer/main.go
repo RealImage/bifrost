@@ -50,7 +50,7 @@ func main() {
 	sundry.OnErrorExit(ctx, err, "error parsing backend url")
 
 	cert, key, err := cafiles.GetCertKey(ctx, config.Bouncer.CrtUri, config.Bouncer.KeyUri)
-	sundry.OnErrorExit(ctx, err, "error getting crt and key")
+	sundry.OnErrorExit(ctx, err, "error getting cert and key")
 
 	clientCertPool := x509.NewCertPool()
 	clientCertPool.AddCert(cert.Certificate)

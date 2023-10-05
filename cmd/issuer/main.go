@@ -34,7 +34,7 @@ func main() {
 	)
 
 	cert, key, err := cafiles.GetCertKey(ctx, config.Issuer.CrtUri, config.Issuer.KeyUri)
-	sundry.OnErrorExit(ctx, err, "error getting crt and key")
+	sundry.OnErrorExit(ctx, err, "error getting cert and key")
 
 	mux := http.NewServeMux()
 

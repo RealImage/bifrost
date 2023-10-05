@@ -32,7 +32,7 @@ type alias Model =
 type alias Identity =
     { key : String
     , csr : String
-    , crts : List (WebData String)
+    , certs : List (WebData String)
     }
 
 
@@ -73,8 +73,8 @@ update msg model =
                 Err _ ->
                     Failure "Error fetching namespace"
 
-        reqCrt : Csr.Csr -> Cmd Msg
-        reqCrt c =
+        reqCert : Csr.Csr -> Cmd Msg
+        reqCert c =
             Http.post
                 { expect = Http.expectString <| RemoteData.fromResult >> GotId c
                 , url = "/issue"
@@ -115,7 +115,7 @@ update msg model =
                 Ok r ->
                     case r of
                         Ok c ->
-                            ( model, reqCrt c )
+                            ( model, reqCert c )
 
                         _ ->
                             ( model, Cmd.none )
@@ -131,7 +131,7 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        GotId csr crt ->
+        GotId csr cert ->
             let
                 ids : Dict String Identity
                 ids =
@@ -139,10 +139,10 @@ update msg model =
                         (\a ->
                             case a of
                                 Just id ->
-                                    Just { id | crts = crt :: id.crts }
+                                    Just { id | certs = cert :: id.certs }
 
                                 Nothing ->
-                                    Just { key = csr.key, csr = csr.csr, crts = [ crt ] }
+                                    Just { key = csr.key, csr = csr.csr, certs = [ cert ] }
                         )
                         model.ids
             in
@@ -235,14 +235,14 @@ viewIds : String -> Identity -> List (Html a) -> List (Html a)
 viewIds id ident acc =
     let
         pcv : String -> String -> Html a
-        pcv name crt =
+        pcv name cert =
             Html.node name
-                [ Attr.attribute "certificate" crt, Attr.attribute "download" "true" ]
+                [ Attr.attribute "certificate" cert, Attr.attribute "download" "true" ]
                 []
 
-        viewCrt : WebData String -> Html a
-        viewCrt crt =
-            case crt of
+        viewcert : WebData String -> Html a
+        viewcert cert =
+            case cert of
                 NotAsked ->
                     Html.p [] [ text "Not asked" ]
 
@@ -278,7 +278,7 @@ viewIds id ident acc =
             [ Html.summary [] [ text "Certificate Request" ]
             , pcv "peculiar-csr-viewer" ident.csr
             ]
-        , Html.div [] <| List.map viewCrt ident.crts
+        , Html.div [] <| List.map viewcert ident.certs
         , Html.footer []
             [ Html.button
                 [ class "button" ]

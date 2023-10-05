@@ -17,7 +17,7 @@ import (
 )
 
 type certVerifyTestCase struct {
-	crtPEM  []byte
+	certPem []byte
 	wantNS  uuid.UUID
 	wantKey *ecdsa.PublicKey
 	err     bool
@@ -32,7 +32,7 @@ var (
 
 var certVerifyTestCases = []certVerifyTestCase{
 	{
-		crtPEM: []byte(`-----BEGIN CERTIFICATE-----
+		certPem: []byte(`-----BEGIN CERTIFICATE-----
 MIIB+TCCAaCgAwIBAgIIeythG8hQTGcwCgYIKoZIzj0EAwIwXjEtMCsGA1UEAwwk
 ZTk4OWEwOGMtYTBmOS01ZjZhLTk3NGUtMjA0YmMwOTBjMGI5MS0wKwYDVQQKDCQx
 NTEyZGFhNC1kZGMxLTQxZDEtODY3My0zZmQxOWQyZjMzOGQwHhcNMjMwNzA5MTAz
@@ -53,7 +53,7 @@ krCRDqY7/t+yGnvnBBIcam3xNWXnM9dk5v3DJss=
 		},
 	},
 	{
-		crtPEM: []byte(`-----BEGIN CERTIFICATE-----
+		certPem: []byte(`-----BEGIN CERTIFICATE-----
 MIIByjCCAW+gAwIBAgIUfkd7D26JbJ9Mp/VFcf3TU08FLs8wCgYIKoZIzj0EAwIw
 LzEtMCsGA1UEAwwkZTk4OWEwOGMtYTBmOS01ZjZhLTk3NGUtMjA0YmMwOTBjMGI5
 MB4XDTIzMDcwOTEyMDY0M1oXDTMzMDcwNjEyMDY0M1owLzEtMCsGA1UEAwwkZTk4
@@ -68,7 +68,7 @@ ckSRr7kHaUL9xoMuU4i+nTB82BU2bMbPfYlmQVbP
 		err: true,
 	},
 	{
-		crtPEM: []byte(`-----BEGIN CERTIFICATE-----
+		certPem: []byte(`-----BEGIN CERTIFICATE-----
 MIIB9zCCAZ2gAwIBAgIUFfA3Knmo4xH/PeaD2pq5QMq1MIgwCgYIKoZIzj0EAwIw
 RjEtMCsGA1UEAwwkZTk4OWEwOGMtYTBmOS01ZjZhLTk3NGUtMjA0YmMwOTBjMGI5
 MRUwEwYDVQQKDAxpbnZhbGlkIHV1aWQwHhcNMjMwNzA5MTIwNzQ2WhcNMzMwNzA2
@@ -84,7 +84,7 @@ BDwMT+LWnFoz19w+DW0Xzb0w1fCED8x7uRfO
 		err: true,
 	},
 	{
-		crtPEM: []byte(`-----BEGIN CERTIFICATE-----
+		certPem: []byte(`-----BEGIN CERTIFICATE-----
 MIICJzCCAc2gAwIBAgIUAZc+cEgo0f1cqlhlz4OFVNFTm9UwCgYIKoZIzj0EAwIw
 XjEtMCsGA1UEAwwkZTk4OWEwOGMtYTBmOS01ZjZhLTk3NGUtMjA0YmMwOTBjMGI5
 MS0wKwYDVQQKDCQ2RUY1NzdDNC0wNEFCLTQyQTktQTE0OS0xQjk3NkNFM0U2REIw
@@ -112,32 +112,33 @@ func TestCertificate_Verify(t *testing.T) {
 
 func testCertVerify(t *testing.T, tc *certVerifyTestCase) {
 	var b []byte
-	if block, _ := pem.Decode(tc.crtPEM); block != nil {
+	if block, _ := pem.Decode(tc.certPem); block != nil {
 		b = block.Bytes
 	}
-	crt, err := x509.ParseCertificate(b)
+	cert, err := x509.ParseCertificate(b)
 	if !tc.err && err != nil {
-		t.Fatalf("x509.ParseCertificate(%s)\nunexpected error = %v", tc.crtPEM, err)
+		t.Fatalf("x509.ParseCertificate(%s)\nunexpected error = %v", tc.certPem, err)
 	}
 	if tc.err && err != nil {
 		return
 	}
 	c := &Certificate{
-		Certificate: crt,
+		Certificate: cert,
 	}
-	if err := c.Verify(); !tc.err && err != nil {
-		t.Fatalf("ValidateCertificate(%s)\nunexpected error = %v", tc.crtPEM, err)
+	err = c.Verify()
+	if !tc.err && err != nil {
+		t.Fatalf("Certificate.Verify(%s)\n\nunexpected error = %v", tc.certPem, err)
 	}
 	if tc.err {
 		if err != nil {
 			return
 		}
-		t.Fatalf("ValidateCertificate(%s) err = nil\nwant = %v", tc.crtPEM, tc.err)
+		t.Fatalf("ValidateCertificate(%s) err = nil, want error", tc.certPem)
 	}
 	if ns := c.Namespace; ns != tc.wantNS {
-		t.Fatalf("ValidateCertificate(%s) ns = %v\nwant %v", tc.crtPEM, ns, tc.wantNS)
+		t.Fatalf("ValidateCertificate(%s) ns = %v\nwant %v", tc.certPem, ns, tc.wantNS)
 	}
 	if key := c.PublicKey; !key.Equal(tc.wantKey) {
-		t.Fatalf("ValidateCertificate(%s) key = %v\nwant %v", tc.crtPEM, key, tc.wantKey)
+		t.Fatalf("ValidateCertificate(%s) key = %v\nwant %v", tc.certPem, key, tc.wantKey)
 	}
 }

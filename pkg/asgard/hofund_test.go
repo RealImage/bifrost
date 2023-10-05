@@ -71,13 +71,13 @@ func TestHofund(t *testing.T) {
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 	}
-	crtBytes, err := x509.CreateCertificate(randReader, &template, &template, priv.Public(), priv)
+	certBytes, err := x509.CreateCertificate(randReader, &template, &template, priv.Public(), priv)
 	if err != nil {
 		t.Errorf("error creating certificate %s", err)
 	}
-	crtPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: crtBytes})
+	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
 	keyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes})
-	crt, err := tls.X509KeyPair(crtPem, keyPem)
+	cert, err := tls.X509KeyPair(certPem, keyPem)
 	if err != nil {
 		t.Errorf("error loading certificate %s", err)
 	}
@@ -93,7 +93,7 @@ func TestHofund(t *testing.T) {
 			if err := json.Unmarshal([]byte(rctx), &requestContext); err != nil {
 				t.Errorf("error unmarshaling request context %s", err)
 			}
-			if requestContext.ClientCertificate.Equal(crt.Leaf) {
+			if requestContext.ClientCertificate.Equal(cert.Leaf) {
 				t.Errorf("unexpected certificate in request context header")
 			}
 		}),
@@ -118,7 +118,7 @@ func TestHofund(t *testing.T) {
 	client := http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				Certificates:       []tls.Certificate{crt},
+				Certificates:       []tls.Certificate{cert},
 				InsecureSkipVerify: true,
 			},
 		},

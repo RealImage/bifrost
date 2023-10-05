@@ -11,7 +11,6 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
@@ -72,11 +71,11 @@ func TestHeimdallr(t *testing.T) {
 			w := httptest.NewRecorder()
 			Heimdallr(testHeader)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				rctx := MustFromContext(r.Context())
-				if !reflect.DeepEqual(rctx.ClientPublicKey, tc.expectedKey) {
-					t.Errorf("expected key %v, got %v", tc.expectedKey, rctx.ClientPublicKey)
+				if key := rctx.ClientCertificate.PublicKey; !key.Equal(tc.expectedKey) {
+					t.Errorf("expected key %v, got %v", tc.expectedKey, key)
 				}
-				if !reflect.DeepEqual(rctx.Namespace, tc.expectedNs) {
-					t.Errorf("expected namespace %v, got %v", tc.expectedNs, rctx.Namespace)
+				if ns := rctx.ClientCertificate.Namespace; ns != tc.expectedNs {
+					t.Errorf("expected namespace %v, got %v", tc.expectedNs, ns)
 				}
 			})).ServeHTTP(w, req)
 			if w.Code != tc.expectedCode {

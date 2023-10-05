@@ -35,12 +35,12 @@ func GetCertificate(ctx context.Context, uri string) (*bifrost.Certificate, erro
 	ctx, cancel := context.WithTimeout(ctx, fetchTimeout)
 	defer cancel()
 
-	crtPem, err := getPemFile(ctx, uri)
+	certPem, err := getPemFile(ctx, uri)
 	if err != nil {
 		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
 	}
 
-	cert, err := bifrost.ParseCertificate(crtPem.Bytes)
+	cert, err := bifrost.ParseCertificate(certPem.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("error validating certificate: %w", err)
 	}
@@ -160,15 +160,15 @@ func getSecret(ctx context.Context, secretARN string) ([]byte, error) {
 	return nil, fmt.Errorf("no secret data found")
 }
 
-// GetCertKey returns a bifrost certificate and private key from crtUri and keyUri.
+// GetCertKey returns a bifrost certificate and private key from certUri and keyUri.
 func GetCertKey(
 	ctx context.Context,
-	crtUri string,
+	certUri string,
 	keyUri string,
 ) (*bifrost.Certificate, *ecdsa.PrivateKey, error) {
-	crt, err := GetCertificate(ctx, crtUri)
+	cert, err := GetCertificate(ctx, certUri)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error getting crt: %w", err)
+		return nil, nil, fmt.Errorf("error getting cert: %w", err)
 	}
 
 	key, err := GetPrivateKey(ctx, keyUri)
@@ -176,9 +176,9 @@ func GetCertKey(
 		return nil, nil, fmt.Errorf("error getting key: %w", err)
 	}
 
-	if crt.PublicKey.X.Cmp(key.X) != 0 || crt.PublicKey.Y.Cmp(key.Y) != 0 {
+	if cert.PublicKey.X.Cmp(key.X) != 0 || cert.PublicKey.Y.Cmp(key.Y) != 0 {
 		return nil, nil, fmt.Errorf("certificate and key do not match")
 	}
 
-	return crt, key, nil
+	return cert, key, nil
 }

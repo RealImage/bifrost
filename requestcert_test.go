@@ -21,6 +21,6 @@ func ExampleRequestCertificate() {
 	defer cancel()
 	// TODO: handle errors
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	crt, _ := RequestCertificate(ctx, "https://bifrost-ca", exampleNS, key)
-	fmt.Println(crt.Subject)
+	cert, _ := RequestCertificate(ctx, "https://bifrost-ca", exampleNS, key)
+	fmt.Println(cert.Subject)
 }
