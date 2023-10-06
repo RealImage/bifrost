@@ -133,12 +133,14 @@ l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 	},
 	{
 		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte("error decoding csr pem"),
+		expectedBody: []byte("error decoding certificate request PEM block"),
 	},
 	{
 		contentType:  mimeTypeBytes,
 		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte("asn1: syntax error: sequence truncated"),
+		expectedBody: []byte(
+			"certificate request invalid: asn1: syntax error: sequence truncated",
+		),
 	},
 	{
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
@@ -151,7 +153,7 @@ mgv/AEzrEMftJgIgJMVY2zEn/qS9M/yJb7IeSSWv9IbiHfP325aZsynerNg=
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusBadRequest,
 		expectedBody: []byte(
-			"invalid certificate request format: unsupported signature algorithm 'ECDSA-SHA512'",
+			"certificate request invalid: unsupported signature algorithm 'ECDSA-SHA512'",
 		),
 	},
 	{
@@ -165,7 +167,7 @@ h3/5fgf2oAAwCgYIKoZIzj0EAwIDSAAwRQIgeb1ei3tJ4OPnX3UXUs3zT9vXfX+1
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusBadRequest,
 		expectedBody: []byte(
-			"invalid certificate request format: invalid identity namespace 00000000-0000-0000-0000-0000000000000: invalid UUID length: 37",
+			"certificate request invalid: invalid identity namespace 00000000-0000-0000-0000-0000000000000: invalid UUID length: 37",
 		),
 	},
 	{
@@ -179,7 +181,7 @@ f/l+B/agADAKBggqhkjOPQQDAgNGADBDAh8n+tbz1NmD1YPuCVSpXv6F5+FGSC8n
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusBadRequest,
 		expectedBody: []byte(
-			"invalid certificate request format: incorrect identity",
+			"certificate request invalid: incorrect identity",
 		),
 	},
 	{
@@ -191,7 +193,7 @@ f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAil27xQI3XQqqoNXgPUMNpJUukVDD
 FOioc6+qkAh+Sv8CIQDxi4eJOHAg3+eSnryb3zgsDIoGWcw3NRWI12Kwwr9Upw==
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte("invalid certificate request format: missing identity namespace"),
+		expectedBody: []byte("certificate request invalid: missing identity namespace"),
 	},
 	{contentType: "text/vindaloo", expectedCode: http.StatusUnsupportedMediaType},
 }

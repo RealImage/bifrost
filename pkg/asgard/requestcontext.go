@@ -58,19 +58,20 @@ func (r *RequestContext) UnmarshalJSON(data []byte) error {
 	}
 	r.SourceIP = rc.Identity.SourceIP
 	r.UserAgent = rc.Identity.UserAgent
-	if rc.Identity.ClientCert.ClientCertPem != nil {
-		block, _ := pem.Decode(rc.Identity.ClientCert.ClientCertPem)
-		if block == nil {
-			return fmt.Errorf("failed to decode client certificate PEM")
-		}
-		cert, err := bifrost.ParseCertificate(block.Bytes)
-		if err != nil {
-			return err
-		}
-		r.ClientCertificate = cert
-		r.SourceIP = rc.Identity.SourceIP
-		r.UserAgent = rc.Identity.UserAgent
+	if rc.Identity.ClientCert.ClientCertPem == nil {
+		return fmt.Errorf("client certificate PEM is nil")
 	}
+	block, _ := pem.Decode(rc.Identity.ClientCert.ClientCertPem)
+	if block == nil {
+		return fmt.Errorf("failed to decode client certificate PEM")
+	}
+	cert, err := bifrost.ParseCertificate(block.Bytes)
+	if err != nil {
+		return err
+	}
+	r.ClientCertificate = cert
+	r.SourceIP = rc.Identity.SourceIP
+	r.UserAgent = rc.Identity.UserAgent
 	return nil
 }
 

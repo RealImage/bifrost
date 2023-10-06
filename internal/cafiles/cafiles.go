@@ -123,11 +123,10 @@ func getPemFile(ctx context.Context, uri string) (*pem.Block, error) {
 	return block, nil
 }
 
-var sess = session.Must(session.NewSessionWithOptions(session.Options{
-	SharedConfigState: session.SharedConfigEnable,
-}))
-
 func getS3Key(ctx context.Context, bucket, key string) ([]byte, error) {
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
 	rawObject, err := s3.New(sess).GetObjectWithContext(
 		ctx,
 		&s3.GetObjectInput{
@@ -146,6 +145,9 @@ func getS3Key(ctx context.Context, bucket, key string) ([]byte, error) {
 }
 
 func getSecret(ctx context.Context, secretARN string) ([]byte, error) {
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
 	input := secretsmanager.GetSecretValueInput{SecretId: aws.String(secretARN)}
 	val, err := secretsmanager.New(sess).GetSecretValueWithContext(ctx, &input)
 	if err != nil {

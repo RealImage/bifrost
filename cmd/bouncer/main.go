@@ -15,7 +15,6 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
 	"github.com/RealImage/bifrost/internal/stats"
@@ -76,7 +75,11 @@ func main() {
 	id := asgard.Hofund(asgard.DefaultRequestContextHeader)
 	hdlr := sundry.RequestLogHandler(id(reverseProxy))
 	addr := fmt.Sprintf("%s:%d", config.Bouncer.Host, config.Bouncer.Port)
-	tlsCert := bifrost.X509ToTLSCertificate(cert.Certificate, key)
+	serverCert, serverKey, err := cafiles.CreateServerCertificate(cert, key)
+	sundry.OnErrorExit(ctx, err, "error creating server certificate")
+	tlsCert, err := serverCert.ToTLSCertificate(serverKey)
+	sundry.OnErrorExit(ctx, err, "error creating tls certificate")
+
 	server := http.Server{
 		Handler: hdlr,
 		Addr:    addr,

@@ -12,6 +12,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -22,7 +23,6 @@ import (
 
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/stats"
-	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
 )
 
@@ -105,21 +105,24 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	ns, csr, pubkey, err := readCSR(contentType, body)
+	csr, err := readCsr(contentType, body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if ns != ca.cert.Namespace {
-		err := fmt.Sprintf("wrong namespace: '%s', use '%s' instead", ns, ca.cert.Namespace)
-		http.Error(w, err, http.StatusForbidden)
-		return
-	}
-
-	cert, err := ca.IssueCertificate(csr, pubkey)
+	keyUsage := x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment
+	extKeyUsage := []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+	cert, err := ca.IssueCertificate(csr, keyUsage, extKeyUsage)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		statusCode := http.StatusInternalServerError
+		if errors.Is(err, bifrost.ErrCertificateRequestInvalid) {
+			statusCode = http.StatusBadRequest
+		}
+		if errors.Is(err, bifrost.ErrIncorrectMismatch) {
+			statusCode = http.StatusForbidden
+		}
+		http.Error(w, err.Error(), statusCode)
 		return
 	}
 
@@ -155,11 +158,8 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	requestsDuration.Update(time.Since(startTime).Seconds())
 }
 
-func readCSR(
-	contentType string,
-	body []byte,
-) (uuid.UUID, *x509.CertificateRequest, *ecdsa.PublicKey, error) {
-	csr := body
+func readCsr(contentType string, body []byte) ([]byte, error) {
+	asn1Data := body
 	switch contentType {
 	case mimeTypeBytes:
 		// DER encoded
@@ -167,22 +167,31 @@ func readCSR(
 		// PEM
 		block, _ := pem.Decode(body)
 		if block == nil {
-			return uuid.Nil, nil, nil, fmt.Errorf("error decoding csr pem")
+			return nil, fmt.Errorf("error decoding certificate request PEM block")
 		}
-		csr = block.Bytes
+		asn1Data = block.Bytes
 	}
-	return bifrost.ParseCertificateRequest(csr)
+	return asn1Data, nil
 }
 
-// IssueCertificate issues a client certificate for the given CSR.
-// The client ID is the UUID of the client public key.
-// The CSR Subject Common Name must be set to the client ID.
-// The certificate is issued with the Subject Common Name set to the client ID
-// and the Subject Organization set to the identity namespace.
+// IssueCertificate issues a client certificate for a certificate request.
+// The certificate is issued with the Subject Common Name set to the
+// UUID of the client public key and the Subject Organization
+// set to the identity namespace UUID.
 func (ca CA) IssueCertificate(
-	csr *x509.CertificateRequest,
-	pubkey *ecdsa.PublicKey,
+	asn1Data []byte,
+	keyUsage x509.KeyUsage,
+	extKeyUsage []x509.ExtKeyUsage,
 ) ([]byte, error) {
+	csr, err := bifrost.ParseCertificateRequest(asn1Data)
+	if err != nil {
+		return nil, err
+	}
+
+	if csr.Namespace != ca.cert.Namespace {
+		return nil, bifrost.ErrIncorrectMismatch
+	}
+
 	serialNumber, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error generating certificate serial: %w", err)
@@ -195,18 +204,19 @@ func (ca CA) IssueCertificate(
 	template := x509.Certificate{
 		SignatureAlgorithm: bifrost.SignatureAlgorithm,
 		PublicKeyAlgorithm: bifrost.PublicKeyAlgorithm,
-		KeyUsage:           x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		KeyUsage:           keyUsage,
+		ExtKeyUsage:        extKeyUsage,
 		Issuer:             ca.cert.Issuer,
 		Subject: pkix.Name{
 			Organization: []string{ns.String()},
-			CommonName:   bifrost.UUID(ns, pubkey).String(),
+			CommonName:   bifrost.UUID(ns, csr.PublicKey).String(),
 		},
-		PublicKey:    csr.PublicKey,
-		Signature:    csr.Signature,
-		SerialNumber: serialNumber,
-		NotBefore:    notBefore,
-		NotAfter:     notBefore.Add(ca.dur),
+		PublicKey:             csr.PublicKey,
+		Signature:             csr.Signature,
+		SerialNumber:          serialNumber,
+		NotBefore:             notBefore,
+		NotAfter:              notBefore.Add(ca.dur),
+		BasicConstraintsValid: true,
 	}
 
 	certBytes, err := x509.CreateCertificate(

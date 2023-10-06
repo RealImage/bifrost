@@ -9,7 +9,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
-	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
@@ -25,7 +24,7 @@ func RequestCertificate(
 	url string,
 	ns uuid.UUID,
 	key *ecdsa.PrivateKey,
-) (*x509.Certificate, error) {
+) (*Certificate, error) {
 	template := x509.CertificateRequest{
 		Subject: pkix.Name{
 			CommonName:   UUID(ns, &key.PublicKey).String(),
@@ -56,16 +55,11 @@ func RequestCertificate(
 	if err != nil {
 		return nil, err
 	}
-	return cert, nil
-}
-
-// X509ToTLSCertificate puts an x509.Certificate inside a tls.Certificate.
-func X509ToTLSCertificate(cert *x509.Certificate, key *ecdsa.PrivateKey) *tls.Certificate {
-	return &tls.Certificate{
-		Certificate: [][]byte{
-			cert.Raw,
-		},
-		PrivateKey: key,
-		Leaf:       cert,
+	c := &Certificate{
+		Certificate: cert,
 	}
+	if err := c.Verify(); err != nil {
+		return nil, err
+	}
+	return c, nil
 }

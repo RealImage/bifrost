@@ -21,17 +21,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.QW_AWS_ACCESS_KEY_ID_PROD }}
-          aws-secret-access-key: ${{ secrets.QW_AWS_SECRET_ACCESS_KEY_PROD }}
-          aws-region: us-east-1
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-        with:
-          mask-password: true
       - name: Build bifrost image
         uses: redhat-actions/buildah-build@v2
         id: build_bf
@@ -60,7 +49,7 @@ jobs:
           build-args: |
             GO_VERSION=${{ env.GO_VERSION }}
             NODE_VERSION=${{ env.NODE_VERSION }}
-          image: bifrost-ca
+          image: ${{ github.repository }}-ca
           tags: >
             ${{ github.ref_name }}
             ${{ github.sha }}
@@ -68,9 +57,11 @@ jobs:
           containerfiles: Containerfile
           extra-args: |
             --target=ca
-      - name: Push bifrost-ca to Amazon ECR
+      - name: Push bifrost-ca image to ghcr.io
         uses: redhat-actions/push-to-registry@v2
         with:
-          registry: ${{ steps.login-ecr.outputs.registry }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
           image: ${{ steps.build_ca.outputs.image }}
           tags: ${{ steps.build_ca.outputs.tags }}

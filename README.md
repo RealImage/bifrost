@@ -24,7 +24,12 @@ Client identity namespaces allow Bifrost to be natively multi-tenant.
 Bifrost binaries are available on the [releases](https://github.com/RealImage/bifrost/releases)
 page.
 
-[bifrost](ghcr.io/realimage/bifrost) container image on ghcr.io contains all binaries.
+[ghcr.io/realimage/bifrost](ghcr.io/realimage/bifrost) container image on ghcr.io
+contains all binaries.
+
+[ghcr.io/realimage/bifrost-ca](ghcr.io/realimage/bifrost-ca) containst the issuer
+binary along with the AWS Lambda Web Adapter extension, making it suitable
+for AWS Lambda deployments.
 
 ```console
 podman pull ghcr.io/realimage/bifrost
@@ -157,13 +162,12 @@ Set up server key material and start the CA and TLS reverse-proxy.
 
     `openssl ecparam -out key.pem -name prime256v1 -genkey -noout`
 
-2. Create 10 year self-signed "CA" certificate:
+2. Create self-signed CA certificate:
 
    ```console
-   openssl req -new -key key.pem -x509 -nodes \
-     -days 3650 \
+   openssl req -new -key key.pem -x509 -nodes -days 3650 \
      -subj "/CN=$(bfid -ns "$BF_NS" key.pem)/O=$BF_NS" \
-    -addext "subjectAltName = DNS:localhost" \
+     -addext basicConstraints=critical,CA:TRUE,pathlen:0 \
     -out crt.pem
    ```
 

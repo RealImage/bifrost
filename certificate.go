@@ -2,7 +2,9 @@ package bifrost
 
 import (
 	"crypto/ecdsa"
+	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -12,15 +14,15 @@ import (
 // It embeds the x509 certificate and adds the bifrost ID, namespace, and public key.
 type Certificate struct {
 	*x509.Certificate
-	ID        uuid.UUID
+	Id        uuid.UUID
 	Namespace uuid.UUID
 	PublicKey *ecdsa.PublicKey
 }
 
 // ParseCertificate parses a DER encoded certificate and validates it.
 // On success, it returns the bifrost certificate.
-func ParseCertificate(der []byte) (*Certificate, error) {
-	cert, err := x509.ParseCertificate(der)
+func ParseCertificate(asn1Data []byte) (*Certificate, error) {
+	cert, err := x509.ParseCertificate(asn1Data)
 	if err != nil {
 		return nil, err
 	}
@@ -40,29 +42,34 @@ func (c *Certificate) Verify() error {
 	if c.SignatureAlgorithm != SignatureAlgorithm {
 		return fmt.Errorf(
 			"%w: unsupported signature algorithm '%s'",
-			ErrCertificateRequestFormat,
+			ErrCertificateRequestInvalid,
 			c.SignatureAlgorithm,
 		)
 	}
 
 	// Parse identity namespace
 	if len(c.Subject.Organization) != 1 {
-		return fmt.Errorf("%w: missing identity namespace", ErrCertificateFormat)
+		return fmt.Errorf("%w: missing identity namespace", ErrCertificateInvalid)
 	}
 	rawNS := c.Subject.Organization[0]
 	ns, err := uuid.Parse(rawNS)
 	if err != nil {
-		return fmt.Errorf("%w: invalid identity namespace %s: %w", ErrCertificateFormat, rawNS, err)
+		return fmt.Errorf(
+			"%w: invalid identity namespace %s: %w",
+			ErrCertificateInvalid,
+			rawNS,
+			err,
+		)
 	}
 	if ns == uuid.Nil {
-		return fmt.Errorf("%w: nil identity namespace", ErrCertificateFormat)
+		return fmt.Errorf("%w: nil identity namespace", ErrCertificateInvalid)
 	}
 
 	pubkey, ok := c.Certificate.PublicKey.(*ecdsa.PublicKey)
 	if !ok {
 		return fmt.Errorf(
 			"%w: invalid public key type: '%T'",
-			ErrCertificateFormat,
+			ErrCertificateInvalid,
 			c.Certificate.PublicKey,
 		)
 	}
@@ -73,87 +80,123 @@ func (c *Certificate) Verify() error {
 	if err != nil {
 		return fmt.Errorf(
 			"%w: invalid subj CN '%s', %v",
-			ErrCertificateFormat,
+			ErrCertificateInvalid,
 			c.Subject.CommonName,
 			err,
 		)
 	}
 	if cid != id {
-		return fmt.Errorf("%w: incorrect identity", ErrCertificateFormat)
+		return fmt.Errorf("%w: incorrect identity", ErrCertificateInvalid)
 	}
 
-	c.ID = id
+	c.Id = id
 	c.Namespace = ns
 	c.PublicKey = pubkey
 
 	return nil
 }
 
-// ParseCertificateRequest parses a DER encoded certificate request and validates it.
-// On success, it returns the bifrost namespace, certificate request, and certificate public key.
-func ParseCertificateRequest(
-	der []byte,
-) (uuid.UUID, *x509.CertificateRequest, *ecdsa.PublicKey, error) {
-	csr, err := x509.ParseCertificateRequest(der)
-	if err != nil {
-		return uuid.Nil, nil, nil, err
+// ToTLSCertificate puts a bifrost certificate inside a tls.Certificate.
+func (c Certificate) ToTLSCertificate(key *ecdsa.PrivateKey) (*tls.Certificate, error) {
+	if c.PublicKey.X.Cmp(key.X) != 0 || c.PublicKey.Y.Cmp(key.Y) != 0 {
+		return nil, errors.New("private key does not match certificate public key")
 	}
-	ns, key, err := ValidateCertificateRequest(csr)
-	if err != nil {
-		return uuid.Nil, nil, nil, err
-	}
-	return ns, csr, key, nil
+
+	return &tls.Certificate{
+		Certificate: [][]byte{
+			c.Raw,
+		},
+		PrivateKey: key,
+		Leaf:       c.Certificate,
+	}, nil
 }
 
-// ValidateCertificateRequest validates a bifrost certificate request.
-// On success, it returns the bifrost namespace and certificate public key.
-func ValidateCertificateRequest(csr *x509.CertificateRequest) (uuid.UUID, *ecdsa.PublicKey, error) {
+type CertificateRequest struct {
+	*x509.CertificateRequest
+	Id        uuid.UUID
+	Namespace uuid.UUID
+	PublicKey *ecdsa.PublicKey
+}
+
+// ParseCertificateRequest parses a DER encoded certificate request and validates it.
+// On success, it returns the bifrost namespace, certificate request, and certificate public key.
+func ParseCertificateRequest(asn1Data []byte) (*CertificateRequest, error) {
+	csr, err := x509.ParseCertificateRequest(asn1Data)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrCertificateRequestInvalid, err)
+	}
+	c := &CertificateRequest{
+		CertificateRequest: csr,
+	}
+	if err := c.Verify(); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+// Verify validates a bifrost certificate request.
+func (c *CertificateRequest) Verify() error {
 	// Check for bifrost signature algorithm
-	if csr.SignatureAlgorithm != SignatureAlgorithm {
-		return uuid.Nil, nil, fmt.Errorf(
+	if c.SignatureAlgorithm != SignatureAlgorithm {
+		return fmt.Errorf(
 			"%w: unsupported signature algorithm '%s'",
-			ErrCertificateRequestFormat,
-			csr.SignatureAlgorithm,
+			ErrCertificateRequestInvalid,
+			c.SignatureAlgorithm,
 		)
 	}
 
 	// Parse identity namespace
-	if len(csr.Subject.Organization) != 1 {
-		return uuid.Nil, nil, fmt.Errorf(
+	if len(c.Subject.Organization) != 1 {
+		return fmt.Errorf(
 			"%w: missing identity namespace",
-			ErrCertificateRequestFormat,
+			ErrCertificateRequestInvalid,
 		)
 	}
-	rawNS := csr.Subject.Organization[0]
+	rawNS := c.Subject.Organization[0]
 	ns, err := uuid.Parse(rawNS)
 	if err != nil {
-		return uuid.Nil, nil, fmt.Errorf(
+		return fmt.Errorf(
 			"%w: invalid identity namespace %s: %w",
-			ErrCertificateRequestFormat,
+			ErrCertificateRequestInvalid,
 			rawNS,
 			err,
 		)
 	}
 
-	pubkey, ok := csr.PublicKey.(*ecdsa.PublicKey)
+	pubkey, ok := c.CertificateRequest.PublicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return uuid.Nil, nil, fmt.Errorf(
+		return fmt.Errorf(
 			"%w: invalid public key type: '%T'",
-			ErrCertificateRequestFormat,
-			csr.PublicKey,
+			ErrCertificateRequestInvalid,
+			c.PublicKey,
 		)
 	}
 
 	// Check if calculated UUID matches the UUID in the certificate
 	id := UUID(ns, pubkey)
-	cid, err := uuid.Parse(csr.Subject.CommonName)
+	cid, err := uuid.Parse(c.Subject.CommonName)
 	if err != nil {
-		return uuid.Nil, nil, fmt.Errorf("%w: invalid identity '%s', %v",
-			ErrCertificateRequestFormat, csr.Subject.CommonName, err)
+		return fmt.Errorf("%w: invalid identity '%s', %v",
+			ErrCertificateRequestInvalid, c.Subject.CommonName, err)
 	}
 	if cid != id {
-		return uuid.Nil, nil, fmt.Errorf("%w: incorrect identity", ErrCertificateRequestFormat)
+		return fmt.Errorf("%w: incorrect identity", ErrCertificateRequestInvalid)
 	}
 
-	return ns, pubkey, nil
+	c.Id = id
+	c.Namespace = ns
+	c.PublicKey = pubkey
+
+	return nil
+}
+
+// X509ToTLSCertificate puts an x509.Certificate inside a tls.Certificate.
+func X509ToTLSCertificate(cert *x509.Certificate, key *ecdsa.PrivateKey) *tls.Certificate {
+	return &tls.Certificate{
+		Certificate: [][]byte{
+			cert.Raw,
+		},
+		PrivateKey: key,
+		Leaf:       cert,
+	}
 }
