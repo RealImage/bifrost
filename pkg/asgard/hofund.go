@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/RealImage/bifrost"
+	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
 )
 
@@ -16,11 +17,11 @@ import (
 // by their TLS client certificates.
 // It parses the client certficiate into a RequestContext which is
 // JSON-serialised into the headerName header.
-func Hofund(headerName string) func(http.Handler) http.Handler {
+func Hofund(headerName string, namespace uuid.UUID) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
-				panic("bouncer works only on TLS servers with clients connecting with certificates")
+				panic("no TLS connection or no client certificate")
 			}
 			ctx := r.Context()
 			cert := &bifrost.Certificate{
@@ -29,6 +30,19 @@ func Hofund(headerName string) func(http.Handler) http.Handler {
 			if err := cert.Verify(); err != nil {
 				slog.ErrorCtx(ctx, "error validating client certificate", "error", err)
 				http.Error(w, "invalid client certificate", http.StatusUnauthorized)
+				return
+			}
+
+			if cert.Namespace != namespace {
+				slog.ErrorCtx(
+					ctx,
+					"client certificate namespace mismatch",
+					"expected",
+					namespace,
+					"actual",
+					cert.Namespace,
+				)
+				http.Error(w, "incorrect namespace", http.StatusForbidden)
 				return
 			}
 

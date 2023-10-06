@@ -72,8 +72,9 @@ func main() {
 		defer ssllog.Close()
 	}
 
-	id := asgard.Hofund(asgard.DefaultRequestContextHeader)
-	hdlr := sundry.RequestLogHandler(id(reverseProxy))
+	hf := asgard.Hofund(asgard.DefaultRequestContextHeader, cert.Namespace)
+	hdlr := sundry.RequestLogHandler(hf(reverseProxy))
+
 	addr := fmt.Sprintf("%s:%d", config.Bouncer.Host, config.Bouncer.Port)
 	serverCert, serverKey, err := cafiles.CreateServerCertificate(cert, key)
 	sundry.OnErrorExit(ctx, err, "error creating server certificate")

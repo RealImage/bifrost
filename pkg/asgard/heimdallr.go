@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
 )
 
@@ -22,7 +23,7 @@ import (
 // as JSON into the RequestContext struct.
 // If the header is missing or malformed, the middleware responds with
 // a 401 Unauthorized error.
-func Heimdallr(headerName string) func(http.Handler) http.Handler {
+func Heimdallr(headerName string, namespace uuid.UUID) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		const newPhoneWhoDis = "new phone who dis?"
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -36,6 +37,18 @@ func Heimdallr(headerName string) func(http.Handler) http.Handler {
 			if err := json.Unmarshal([]byte(hdr), &rctx); err != nil {
 				slog.ErrorCtx(ctx, "error unmarshaling request context", "error", err)
 				http.Error(w, newPhoneWhoDis, http.StatusUnauthorized)
+				return
+			}
+			if rctx.ClientCert != nil && rctx.ClientCert.Namespace != namespace {
+				slog.ErrorCtx(
+					ctx,
+					"client certificate namespace mismatch",
+					"expected",
+					namespace,
+					"actual",
+					rctx.ClientCert.Namespace,
+				)
+				http.Error(w, "incorrect namespace", http.StatusForbidden)
 				return
 			}
 			ctx = context.WithValue(ctx, keyRequestContext{}, &rctx)

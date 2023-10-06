@@ -38,7 +38,7 @@ func TestHofundNoTLS(t *testing.T) {
 	defer backendServer.Close()
 	backendUrl, _ := url.Parse(backendServer.URL)
 
-	hf := Hofund(testHeader)(httputil.NewSingleHostReverseProxy(backendUrl))
+	hf := Hofund(testHeader, uuid.Nil)(httputil.NewSingleHostReverseProxy(backendUrl))
 	rr := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	hf.ServeHTTP(rr, request)
@@ -104,7 +104,7 @@ func TestHofund(t *testing.T) {
 		t.Errorf("error parsing backedn url %s", err)
 	}
 
-	hf := Hofund(testHeader)(httputil.NewSingleHostReverseProxy(backendUrl))
+	hf := Hofund(testHeader, ns)(httputil.NewSingleHostReverseProxy(backendUrl))
 
 	// TLS server accepts client requests requiring TLS client cert auth
 	server := httptest.NewUnstartedServer(hf)

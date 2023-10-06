@@ -48,6 +48,11 @@ var heimdallrTestCases = []struct {
 		expectedCode: http.StatusOK,
 	},
 	{
+		headerValue:  `{"identity":{"sourceIp":"::1","userAgent":"curl/7.64.1","clientCert":{"clientCertPem":"-----BEGIN CERTIFICATE-----\nMIIB4DCCAYagAwIBAgIBATAKBggqhkjOPQQDAjBeMS0wKwYDVQQKEyQ4MDQ4NTMx\nNC02YzczLTQwZmYtODZjNS1hNTk0MmEwZjUxNGYxLTArBgNVBAMTJGI5Mjg5ZGE3\nLTg4MTMtNTFlZC05NTdiLWI2YmM1YTRkNjQxNjAeFw0yMzA5MjAxODQyMDhaFw0y\nMzA5MjAxOTQyMDhaMF4xLTArBgNVBAoTJDgwNDg1MzE0LTZjNzMtNDBmZi04NmM1\nLWE1OTQyYTBmNTE0ZjEtMCsGA1UEAxMkYjkyODlkYTctODgxMy01MWVkLTk1N2It\nYjZiYzVhNGQ2NDE2MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7pyPlY0DYYm7\n8D+BugKXrNDxXn2NfOibB+wV3IMGBRiL8D6rhJuTWcgMUmhuPI6Ssy9yKexpxNYV\nrxsvwF84u6M1MDMwDgYDVR0PAQH/BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMB\nMAwGA1UdEwEB/wQCMAAwCgYIKoZIzj0EAwIDSAAwRQIhAPXeYIqFROWKpYrBwN9M\n96rmqQJcC9+x+N0n6PzVfB96AiA5d/3q16GG219mdSpc05CtFpYp4CW/oVzlwUQt\nc+gqcQ==\n-----END CERTIFICATE-----","issuerDN":"CN=b9289da7-8813-51ed-957b-b6bc5a4d6416,O=80485314-6c73-40ff-86c5-a5942a0f514f","serialNumber":"","subjectDN":"CN=b9289da7-8813-51ed-957b-b6bc5a4d6416,O=80485314-6c73-40ff-86c5-a5942a0f514f","validity":{"notAfter":"2023-09-20T19:42:08Z","notBefore":"2023-09-20T18:42:08Z"}}}}`,
+		expectedNs:   uuid.MustParse("b9289da7-8813-51ed-957b-b6bc5a4d6416"),
+		expectedCode: http.StatusForbidden,
+	},
+	{
 		headerName:   "foo",
 		expectedCode: http.StatusUnauthorized,
 	},
@@ -69,7 +74,8 @@ func TestHeimdallr(t *testing.T) {
 			}
 			req.Header.Set(tc.headerName, tc.headerValue)
 			w := httptest.NewRecorder()
-			Heimdallr(testHeader)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := Heimdallr(testHeader, tc.expectedNs)
+			h(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				rctx := MustFromContext(r.Context())
 				if key := rctx.ClientCert.PublicKey; !key.Equal(tc.expectedKey) {
 					t.Errorf("expected key %v, got %v", tc.expectedKey, key)
@@ -77,7 +83,8 @@ func TestHeimdallr(t *testing.T) {
 				if ns := rctx.ClientCert.Namespace; ns != tc.expectedNs {
 					t.Errorf("expected namespace %v, got %v", tc.expectedNs, ns)
 				}
-			})).ServeHTTP(w, req)
+			}),
+			).ServeHTTP(w, req)
 			if w.Code != tc.expectedCode {
 				t.Errorf("expected status %d, got %d", tc.expectedCode, w.Code)
 			}
