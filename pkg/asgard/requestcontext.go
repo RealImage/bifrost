@@ -107,7 +107,7 @@ type identity struct {
 
 // clientCert contains fields related to TLS Client Certificates.
 type clientCert struct {
-	ClientCertPem []byte   `json:"clientCertPEM"`
+	ClientCertPem []byte   `json:"clientCertPem"`
 	IssuerDN      string   `json:"issuerDN"`
 	SerialNumber  string   `json:"serialNumber"`
 	SubjectDN     string   `json:"subjectDN"`
