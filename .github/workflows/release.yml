@@ -36,7 +36,7 @@ jobs:
             ${{ github.sha }}
             latest
           containerfiles: Containerfile
-          archs: amd64, arm64
+          archs: amd64  # , arm64
       - name: Push bifrost image to ghcr.io
         uses: redhat-actions/push-to-registry@v2
         with:
@@ -58,6 +58,7 @@ jobs:
             ${{ github.sha }}
             latest
           containerfiles: Containerfile
+          archs: amd64  # , arm64
           extra-args: |
             --target=ca
       - name: Push bifrost-ca image to ghcr.io
