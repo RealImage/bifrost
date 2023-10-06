@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
       - name: Build bifrost image
         uses: redhat-actions/buildah-build@v2
         id: build_bf
@@ -34,6 +36,7 @@ jobs:
             ${{ github.sha }}
             latest
           containerfiles: Containerfile
+          archs: amd64, arm64
       - name: Push bifrost image to ghcr.io
         uses: redhat-actions/push-to-registry@v2
         with:
