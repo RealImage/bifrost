@@ -24,11 +24,11 @@ Client identity namespaces allow Bifrost to be natively multi-tenant.
 Bifrost binaries are available on the [releases](https://github.com/RealImage/bifrost/releases)
 page.
 
-[ghcr.io/realimage/bifrost](ghcr.io/realimage/bifrost) container image on ghcr.io
-contains all binaries.
+[ghcr.io/realimage/bifrost](https://ghcr.io/realimage/bifrost) container image
+on ghcr.io contains all binaries.
 
-[ghcr.io/realimage/bifrost-ca](ghcr.io/realimage/bifrost-ca) containst the issuer
-binary along with the AWS Lambda Web Adapter extension, making it suitable
+[ghcr.io/realimage/bifrost-ca](https://ghcr.io/realimage/bifrost-ca) containst
+the issuer binary along with the AWS Lambda Web Adapter extension, making it suitable
 for AWS Lambda deployments.
 
 ```console

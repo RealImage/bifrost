@@ -14,7 +14,7 @@ RUN npm ci \
 FROM docker.io/library/golang:${GO_VERSION} as go
 WORKDIR /src
 COPY . .
-COPY --from=node /src/static/js/index.js /src/web/static/js/index.js
+COPY --from=node /src/static/ /src/web/static/
 RUN mkdir /build \
   && env CGO_ENABLED=0 go build -o /build ./...
 
