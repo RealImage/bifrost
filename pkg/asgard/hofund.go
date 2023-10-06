@@ -33,9 +33,9 @@ func Hofund(headerName string) func(http.Handler) http.Handler {
 			}
 
 			rctx := RequestContext{
-				ClientCertificate: cert,
-				SourceIP:          r.RemoteAddr,
-				UserAgent:         r.UserAgent(),
+				ClientCert: cert,
+				SourceIP:   r.RemoteAddr,
+				UserAgent:  r.UserAgent(),
 			}
 
 			rctxHeader, err := json.Marshal(&rctx)

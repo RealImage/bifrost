@@ -42,7 +42,7 @@ var heimdallrTestCases = []struct {
 	expectedNs   uuid.UUID
 }{
 	{
-		headerValue:  `{"identity":{"sourceIp":"::1","userAgent":"curl/7.64.1","clientCert":{"clientCertPem":"LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUI0RENDQVlhZ0F3SUJBZ0lCQVRBS0JnZ3Foa2pPUFFRREFqQmVNUzB3S3dZRFZRUUtFeVE0TURRNE5UTXgKTkMwMll6Y3pMVFF3Wm1ZdE9EWmpOUzFoTlRrME1tRXdaalV4TkdZeExUQXJCZ05WQkFNVEpHSTVNamc1WkdFMwpMVGc0TVRNdE5URmxaQzA1TlRkaUxXSTJZbU0xWVRSa05qUXhOakFlRncweU16QTVNakF4T0RReU1EaGFGdzB5Ck16QTVNakF4T1RReU1EaGFNRjR4TFRBckJnTlZCQW9USkRnd05EZzFNekUwTFRaak56TXROREJtWmkwNE5tTTEKTFdFMU9UUXlZVEJtTlRFMFpqRXRNQ3NHQTFVRUF4TWtZamt5T0Rsa1lUY3RPRGd4TXkwMU1XVmtMVGsxTjJJdApZalppWXpWaE5HUTJOREUyTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFN3B5UGxZMERZWW03CjhEK0J1Z0tYck5EeFhuMk5mT2liQit3VjNJTUdCUmlMOEQ2cmhKdVRXY2dNVW1odVBJNlNzeTl5S2V4cHhOWVYKcnhzdndGODR1Nk0xTURNd0RnWURWUjBQQVFIL0JBUURBZ2VBTUJNR0ExVWRKUVFNTUFvR0NDc0dBUVVGQndNQgpNQXdHQTFVZEV3RUIvd1FDTUFBd0NnWUlLb1pJemowRUF3SURTQUF3UlFJaEFQWGVZSXFGUk9XS3BZckJ3TjlNCjk2cm1xUUpjQzkreCtOMG42UHpWZkI5NkFpQTVkLzNxMTZHRzIxOW1kU3BjMDVDdEZwWXA0Q1cvb1Z6bHdVUXQKYytncWNRPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=","issuerDN":"CN=b9289da7-8813-51ed-957b-b6bc5a4d6416,O=80485314-6c73-40ff-86c5-a5942a0f514f","serialNumber":"","subjectDN":"CN=b9289da7-8813-51ed-957b-b6bc5a4d6416,O=80485314-6c73-40ff-86c5-a5942a0f514f","validity":{"notAfter":"2023-09-20T19:42:08Z","notBefore":"2023-09-20T18:42:08Z"}}}}`,
+		headerValue:  `{"identity":{"sourceIp":"::1","userAgent":"curl/7.64.1","clientCert":{"clientCertPem":"-----BEGIN CERTIFICATE-----\nMIIB4DCCAYagAwIBAgIBATAKBggqhkjOPQQDAjBeMS0wKwYDVQQKEyQ4MDQ4NTMx\nNC02YzczLTQwZmYtODZjNS1hNTk0MmEwZjUxNGYxLTArBgNVBAMTJGI5Mjg5ZGE3\nLTg4MTMtNTFlZC05NTdiLWI2YmM1YTRkNjQxNjAeFw0yMzA5MjAxODQyMDhaFw0y\nMzA5MjAxOTQyMDhaMF4xLTArBgNVBAoTJDgwNDg1MzE0LTZjNzMtNDBmZi04NmM1\nLWE1OTQyYTBmNTE0ZjEtMCsGA1UEAxMkYjkyODlkYTctODgxMy01MWVkLTk1N2It\nYjZiYzVhNGQ2NDE2MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7pyPlY0DYYm7\n8D+BugKXrNDxXn2NfOibB+wV3IMGBRiL8D6rhJuTWcgMUmhuPI6Ssy9yKexpxNYV\nrxsvwF84u6M1MDMwDgYDVR0PAQH/BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMB\nMAwGA1UdEwEB/wQCMAAwCgYIKoZIzj0EAwIDSAAwRQIhAPXeYIqFROWKpYrBwN9M\n96rmqQJcC9+x+N0n6PzVfB96AiA5d/3q16GG219mdSpc05CtFpYp4CW/oVzlwUQt\nc+gqcQ==\n-----END CERTIFICATE-----","issuerDN":"CN=b9289da7-8813-51ed-957b-b6bc5a4d6416,O=80485314-6c73-40ff-86c5-a5942a0f514f","serialNumber":"","subjectDN":"CN=b9289da7-8813-51ed-957b-b6bc5a4d6416,O=80485314-6c73-40ff-86c5-a5942a0f514f","validity":{"notAfter":"2023-09-20T19:42:08Z","notBefore":"2023-09-20T18:42:08Z"}}}}`,
 		expectedKey:  testPubKey,
 		expectedNs:   uuid.MustParse("80485314-6c73-40ff-86c5-a5942a0f514f"),
 		expectedCode: http.StatusOK,
@@ -71,10 +71,10 @@ func TestHeimdallr(t *testing.T) {
 			w := httptest.NewRecorder()
 			Heimdallr(testHeader)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				rctx := MustFromContext(r.Context())
-				if key := rctx.ClientCertificate.PublicKey; !key.Equal(tc.expectedKey) {
+				if key := rctx.ClientCert.PublicKey; !key.Equal(tc.expectedKey) {
 					t.Errorf("expected key %v, got %v", tc.expectedKey, key)
 				}
-				if ns := rctx.ClientCertificate.Namespace; ns != tc.expectedNs {
+				if ns := rctx.ClientCert.Namespace; ns != tc.expectedNs {
 					t.Errorf("expected namespace %v, got %v", tc.expectedNs, ns)
 				}
 			})).ServeHTTP(w, req)

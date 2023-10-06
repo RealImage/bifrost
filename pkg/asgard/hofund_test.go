@@ -93,7 +93,7 @@ func TestHofund(t *testing.T) {
 			if err := json.Unmarshal([]byte(rctx), &requestContext); err != nil {
 				t.Errorf("error unmarshaling request context %s", err)
 			}
-			if requestContext.ClientCertificate.Equal(cert.Leaf) {
+			if requestContext.ClientCert.Equal(cert.Leaf) {
 				t.Errorf("unexpected certificate in request context header")
 			}
 		}),

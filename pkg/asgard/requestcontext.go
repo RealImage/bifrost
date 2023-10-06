@@ -36,9 +36,9 @@ func MustFromContext(ctx context.Context) *RequestContext {
 }
 
 type RequestContext struct {
-	ClientCertificate *bifrost.Certificate
-	SourceIP          string `json:"sourceIp"`
-	UserAgent         string `json:"userAgent"`
+	ClientCert *bifrost.Certificate
+	SourceIP   string `json:"sourceIp"`
+	UserAgent  string `json:"userAgent"`
 }
 
 func (r RequestContext) MarshalJSON() ([]byte, error) {
@@ -56,12 +56,12 @@ func (r *RequestContext) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &rc); err != nil {
 		return err
 	}
-	r.SourceIP = rc.Identity.SourceIP
-	r.UserAgent = rc.Identity.UserAgent
-	if rc.Identity.ClientCert.ClientCertPem == nil {
-		return fmt.Errorf("client certificate PEM is nil")
+
+	certPem := rc.Identity.ClientCert.ClientCertPem
+	if certPem == "" {
+		return fmt.Errorf("missing client certificate PEM")
 	}
-	block, _ := pem.Decode(rc.Identity.ClientCert.ClientCertPem)
+	block, _ := pem.Decode([]byte(certPem))
 	if block == nil {
 		return fmt.Errorf("failed to decode client certificate PEM")
 	}
@@ -69,27 +69,28 @@ func (r *RequestContext) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	r.ClientCertificate = cert
+
+	r.ClientCert = cert
 	r.SourceIP = rc.Identity.SourceIP
 	r.UserAgent = rc.Identity.UserAgent
 	return nil
 }
 
 func (r RequestContext) getClientCert() clientCert {
-	if r.ClientCertificate == nil {
+	if r.ClientCert == nil {
 		return clientCert{}
 	}
 	return clientCert{
-		ClientCertPem: pem.EncodeToMemory(&pem.Block{
+		ClientCertPem: string(pem.EncodeToMemory(&pem.Block{
 			Type:  "CERTIFICATE",
-			Bytes: r.ClientCertificate.Raw,
-		}),
-		IssuerDN:     r.ClientCertificate.Issuer.ToRDNSequence().String(),
-		SerialNumber: r.ClientCertificate.Issuer.SerialNumber,
-		SubjectDN:    r.ClientCertificate.Subject.ToRDNSequence().String(),
+			Bytes: r.ClientCert.Raw,
+		})),
+		IssuerDN:     r.ClientCert.Issuer.ToRDNSequence().String(),
+		SerialNumber: r.ClientCert.Issuer.SerialNumber,
+		SubjectDN:    r.ClientCert.Subject.ToRDNSequence().String(),
 		Validity: validity{
-			NotAfter:  r.ClientCertificate.NotAfter,
-			NotBefore: r.ClientCertificate.NotBefore,
+			NotAfter:  r.ClientCert.NotAfter,
+			NotBefore: r.ClientCert.NotBefore,
 		},
 	}
 }
@@ -107,14 +108,14 @@ type identity struct {
 
 // clientCert contains fields related to TLS Client Certificates.
 type clientCert struct {
-	ClientCertPem []byte   `json:"clientCertPem"`
+	ClientCertPem string   `json:"clientCertPem"`
+	SubjectDN     string   `json:"subjectDN"`
 	IssuerDN      string   `json:"issuerDN"`
 	SerialNumber  string   `json:"serialNumber"`
-	SubjectDN     string   `json:"subjectDN"`
 	Validity      validity `json:"validity"`
 }
 
 type validity struct {
-	NotAfter  time.Time `json:"notAfter"`
 	NotBefore time.Time `json:"notBefore"`
+	NotAfter  time.Time `json:"notAfter"`
 }
