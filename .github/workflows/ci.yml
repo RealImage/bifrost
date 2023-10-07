@@ -84,7 +84,7 @@ jobs:
           name: bifrost
           path: |
             build/*
-            docs/issuer/openapi.yaml
+            docs/issuer-openapi.yml
       - name: Update Github release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1

@@ -59,11 +59,40 @@ in the cloud.
 
 ### [`bouncer`](cmd/bouncer)
 
-`bouncer` is a simple mTLS reverse proxy suitable for local development.
-If client authentication succeeds, bouncer proxies the request to the backend url.
+`bouncer` is an AWS Lambda Authorizer Function meant for use with an
+AWS API Gateway instance in mTLS mode.
+
+### [`issuer`](cmd/issuer)
+
+[OpenAPI schema](docs/issuer-openapi.yml)
+
+`issuer` accepts certificate requests and returns signed certificates.
+It reads a CA certificate and key from the `CRT` and `KEY` environment
+variables respectively. Each variable must be a URI to a PEM-encoded
+certificate or key. Issuer understands file, S3, and AWS Secrets Manager ARN URIs.
+The CA certificate must be a valid Bifrost certificate.
+If unconfigured, it looks for `crt.pem` and `key.pem` in the current working directory.
+
+`issuer` returns its issuing namespace at `/namespace`.
+If enabled, `issuer` exposes prometheus format metrics at `/metrics`.
+
+#### [Web Application](web) (alpha)
+
+`issuer` includes an embedded web application that can generate private keys
+and request certificates from the API. Enable it by setting `WEB=true`
+in the issuer process's environment.
+
+Setting `web=dev` instead causes `issuer` to serve the application from the local
+filesystem instead of from the `embed.FS` instance. This is useful for development,
+when combined with `npm run build -- --watch` ran in the [web](web) directory.
+
+### [`hallpass`](cmd/hallpass)
+
+`hallpass` is a simple mTLS reverse proxy ("gateway") suitable for local development.
+If client authentication succeeds, it proxies the request to the backend url.
 The client's TLS certificate is available in the `x-amzn-request-context` header.
 
-Bouncer will log TLS Pre-Master secrets to a file if the `SSLKEYLOGFILE`
+Hallpass will log TLS Pre-Master secrets to a file if the `SSLKEYLOGFILE`
 environment variable is present. [Wireshark](https://www.wireshark.org)
 can use this file to decrypt traffic.
 
@@ -86,34 +115,11 @@ Sample Request Context containing Client Certificate:
 }
 ```
 
-Run `bouncer` in front of a HTTP server listening on localhost port 5000:
+Run `hallpass` in front of a HTTP server which is listening on localhost port 5000:
 
 ```bash
-env BACKEND_URL=http://127.0.0.1:5000 ./bouncer
+env BACKEND_URL=http://127.0.0.1:5000 ./hallpass
 ```
-
-### [`issuer`](cmd/issuer)
-
-[OpenAPI schema](docs/issuer-openapi.yml)
-
-`issuer` accepts certificate requests and returns signed certificates.
-It reads a CA certificate and key from the `CRT` and `KEY` environment
-variables respectively. Each variable must be a URI to a PEM-encoded
-certificate or key. File, S3, and AWS ARN URIs are supported.
-The CA certificate must be a valid Bifrost certificate.
-If unconfigured, it looks for `crt.pem` and `key.pem` in the current working directory.
-
-`issuer` returns its issuing namespace at `/namespace`.
-If enabled, `issuer` exposes prometheus format metrics at `/metrics`.
-
-#### [Web Application](web) (alpha)
-
-`issuer` includes an embedded web application that can generate private keys and request
-certificates from the API. Enable it by setting `WEB=true` in the issuer process's environment.
-
-Setting `web=dev` instead causes `issuer` to serve the application from the local filesystem
-instead of from the `embed.FS` instance. This is useful for development, when combined
-with `npm run build -- --watch` ran in the [web](web) directory.
 
 ## Build
 
@@ -171,11 +177,11 @@ Set up server key material and start the CA and TLS reverse-proxy.
     -out crt.pem
    ```
 
-3. Start issuer (CA), bouncer (TLS reverse-proxy), and a python web server (target).
+3. Start issuer (CA), hallpass (TLS reverse-proxy), and a python web server (target).
 
     ```console
     issuer &
-    bouncer &
+    hallpass &
     python -m http.server 8080 &
     ```
 
@@ -200,7 +206,7 @@ Set up server key material and start the CA and TLS reverse-proxy.
      "localhost:8888/issue" >clientcrt.pem`
    ```
 
-4. Make a request through bouncer to the python web server:
+4. Make a request through hallpass to the python web server:
 
     `curl --cert clientcrt.pem --key clientkey.pem -k https://localhost:8443`
 
@@ -257,6 +263,6 @@ Statisticians hate this one weird trick.
 
 ## [LICENSE](LICENSE)
 
-Bifrost is distributed under the terms of the Mozilla Public License 2.0.
+Bifrost is available under the terms of the Mozilla Public License 2.0.
 
 Qube Cinema © 2023

@@ -28,8 +28,8 @@ var (
 		LogSource bool       `envconfig:"LOG_SOURCE" default:"false"`
 	}{}
 
-	Bouncer bouncer
-	Issuer  issuer
+	HallPass hallpass
+	Issuer   issuer
 )
 
 func init() {
@@ -69,7 +69,7 @@ type Server struct {
 	ShutdownTimeout time.Duration `envconfig:"SHUTDOWN_TIMEOUT" default:"2s"`
 }
 
-type bouncer struct {
+type hallpass struct {
 	Server
 	Port          int    `envconfig:"PORT"          default:"8443"`
 	BackendUrl    string `envconfig:"BACKEND"       default:"http://localhost:8080"`
