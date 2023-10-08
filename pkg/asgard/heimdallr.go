@@ -65,15 +65,15 @@ func MustFromContext(ctx context.Context) *Identity {
 }
 
 // Heimdallr returns a HTTP Handler middleware function that parses an AuthorizedRequestContext
-// from headerName. If namespace does not match the parsed one, the request is forbidden.
-// The AuthorizedRequestContext is stored in the request context.
+// from the request context header. If namespace does not match the parsed one, the
+// request is forbidden. The AuthorizedRequestContext is stored in the request context.
 //
 // If Heimdallr is used in an AWS Lambda Web Adapter powered API server, Bouncer Lambda Authorizer
 // must be configured as an authorizer for the API Gateway method.
-func Heimdallr(headerName string, namespace uuid.UUID) func(http.Handler) http.Handler {
+func Heimdallr(namespace uuid.UUID) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			hdr := r.Header.Get(headerName)
+			hdr := r.Header.Get(middleware.RequestContextHeaderName)
 			if hdr == "" {
 				http.Error(w, middleware.ServiceUnavailableMsg, http.StatusServiceUnavailable)
 				return

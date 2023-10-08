@@ -72,7 +72,7 @@ func main() {
 		defer ssllog.Close()
 	}
 
-	ti := middleware.TLSIdentifier(middleware.RequestContextHeaderName, cert.Namespace)
+	ti := middleware.TLSIdentifier(cert.Namespace)
 	hdlr := sundry.RequestLogHandler(ti(reverseProxy))
 
 	addr := fmt.Sprintf("%s:%d", config.HallPass.Host, config.HallPass.Port)

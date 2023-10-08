@@ -16,8 +16,8 @@ import (
 // TLSIdentifier returns a HTTP Handler middleware function that identifies clients using
 // TLS client certificates.
 // It parses the client certficiate into a RequestContext which is
-// JSON-serialised into the headerName header.
-func TLSIdentifier(headerName string, namespace uuid.UUID) func(http.Handler) http.Handler {
+// JSON-serialised into the request context header.
+func TLSIdentifier(namespace uuid.UUID) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
@@ -61,7 +61,7 @@ func TLSIdentifier(headerName string, namespace uuid.UUID) func(http.Handler) ht
 				http.Error(w, "unexpected error", http.StatusInternalServerError)
 				return
 			}
-			r.Header.Set(headerName, string(rctxHeader))
+			r.Header.Set(RequestContextHeaderName, string(rctxHeader))
 			next.ServeHTTP(w, r)
 		})
 	}

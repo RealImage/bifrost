@@ -13,10 +13,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/RealImage/bifrost/internal/middleware"
 	"github.com/google/uuid"
 )
-
-const testHeader = "X-Test-Header"
 
 var testPubKey = &ecdsa.PublicKey{
 	Curve: elliptic.P256(),
@@ -72,11 +71,11 @@ func TestHeimdallr(t *testing.T) {
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			if tc.headerName == "" {
-				tc.headerName = testHeader
+				tc.headerName = middleware.RequestContextHeaderName
 			}
 			req.Header.Set(tc.headerName, tc.headerValue)
 			w := httptest.NewRecorder()
-			h := Heimdallr(testHeader, tc.expectedNs)
+			h := Heimdallr(tc.expectedNs)
 			h(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				id := MustFromContext(r.Context())
 				if ns := id.Namespace; ns != tc.expectedNs {

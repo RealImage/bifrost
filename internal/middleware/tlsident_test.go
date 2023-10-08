@@ -25,8 +25,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const testHeader = "rctx-test"
-
 func TestCertAuthorizerNoTLS(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
@@ -38,7 +36,7 @@ func TestCertAuthorizerNoTLS(t *testing.T) {
 	defer backendServer.Close()
 	backendUrl, _ := url.Parse(backendServer.URL)
 
-	ti := TLSIdentifier(testHeader, uuid.Nil)(httputil.NewSingleHostReverseProxy(backendUrl))
+	ti := TLSIdentifier(uuid.Nil)(httputil.NewSingleHostReverseProxy(backendUrl))
 	rr := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	ti.ServeHTTP(rr, request)
@@ -85,9 +83,9 @@ func TestHofund(t *testing.T) {
 	// backend server handler checks if request has expected header
 	backendServer := httptest.NewServer(
 		http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-			rctxVal := r.Header.Get(testHeader)
+			rctxVal := r.Header.Get(RequestContextHeaderName)
 			if rctxVal == "" {
-				t.Errorf("expected %s header in request", testHeader)
+				t.Errorf("expected %s header in request", RequestContextHeaderName)
 			}
 			var rctx AuthorizedRequestContext
 			if err := json.Unmarshal([]byte(rctxVal), &rctx); err != nil {
@@ -111,7 +109,7 @@ func TestHofund(t *testing.T) {
 		t.Errorf("error parsing backedn url %s", err)
 	}
 
-	ti := TLSIdentifier(testHeader, ns)(httputil.NewSingleHostReverseProxy(backendUrl))
+	ti := TLSIdentifier(ns)(httputil.NewSingleHostReverseProxy(backendUrl))
 
 	// TLS server accepts client requests requiring TLS client cert auth
 	server := httptest.NewUnstartedServer(ti)
