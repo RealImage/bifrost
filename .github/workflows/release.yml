@@ -15,8 +15,8 @@ env:
   NODE_VERSION: "20.7.0"
 
 jobs:
-  ca_image:
-    name: Deploy bifrost-ca image
+  container_images:
+    name: Push contaimer images
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -45,6 +45,30 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
           image: ${{ steps.build_bf.outputs.image }}
           tags: ${{ steps.build_bf.outputs.tags }}
+      - name: Build bifrost-authz image
+        uses: redhat-actions/buildah-build@v2
+        id: build_authz
+        with:
+          build-args: |
+            GO_VERSION=${{ env.GO_VERSION }}
+            NODE_VERSION=${{ env.NODE_VERSION }}
+          image: ${{ github.repository }}-authz
+          tags: >
+            ${{ github.ref_name }}
+            ${{ github.sha }}
+            latest
+          containerfiles: Containerfile
+          archs: amd64  # , arm64
+          extra-args: |
+            --target=authz
+      - name: Push bifrost-authz image to ghcr.io
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          image: ${{ steps.build_authz.outputs.image }}
+          tags: ${{ steps.build_authz.outputs.tags }}
       - name: Build bifrost-ca image
         uses: redhat-actions/buildah-build@v2
         id: build_ca

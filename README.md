@@ -27,8 +27,12 @@ page.
 [ghcr.io/realimage/bifrost](https://ghcr.io/realimage/bifrost) container image
 on ghcr.io contains all binaries.
 
-[ghcr.io/realimage/bifrost-ca](https://ghcr.io/realimage/bifrost-ca) containst
-the issuer binary along with the AWS Lambda Web Adapter extension, making it suitable
+[ghcr.io/realimage/bifrost-authz](https://ghcr.io/realimage/bifrost-auths) contains
+the `bouncer` binary. This ia an AWS Lambda Function meant to used as a Lambda Authorizer
+in AWS API Gateway instances.
+
+[ghcr.io/realimage/bifrost-ca](https://ghcr.io/realimage/bifrost-ca) contains the
+`issuer` binary along with the AWS Lambda Web Adapter extension, making it suitable
 for AWS Lambda deployments.
 
 ```console

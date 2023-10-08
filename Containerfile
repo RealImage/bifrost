@@ -21,6 +21,10 @@ COPY --from=node /src/static/ /src/web/static/
 RUN mkdir /build \
   && env CGO_ENABLED=0 go build -o /build ./...
 
+FROM gcr.io/distroless/${DISTROLESS_VERSION} as authz
+COPY --from=go /build/bouncer /
+ENTRYPOINT [ "/bouncer" ]
+
 FROM gcr.io/distroless/${DISTROLESS_VERSION} as ca
 # uses lambda-web-adapter to run our standard HTTP app in a lambda
 # https://github.com/awslabs/aws-lambda-web-adapter
