@@ -60,7 +60,29 @@ in the cloud.
 ### [`bouncer`](cmd/bouncer)
 
 `bouncer` is an AWS Lambda Authorizer Function meant for use with an
-AWS API Gateway instance in mTLS mode.
+AWS API Gateway instance in mTLS mode. Deploy it to AWS Lambda
+and use it as a Lambda Authorizer in an AWS API Gateway instance using mTLS.
+
+Bouncer either returns an access policy that authorizes the request or fails.
+
+This sample JSON represents what Bifrost expects in the Lambda request context object.
+
+```json
+"requestContext": {
+    "authentication": {
+        "clientCert": {
+            "clientCertPem": "-----BEGIN CERTIFICATE-----\nMIIEZTCCAk0CAQEwDQ...",
+            "issuerDN": "C=012d325d-6a4e-4076-b49a-a3e84e52bf79,O=765e4c02-b41a-4226-8522-2a52f4fbeebe",
+            "serialNumber": "1",
+            "subjectDN": "C=2ef463c4-cca9-4885-a8e2-d041c90d61fa,O=765e4c02-b41a-4226-8522-2a52f4fbeebe",
+            "validity": {
+                "notAfter": "Aug  5 00:28:21 2120 GMT",
+                "notBefore": "Aug 29 00:28:21 2020 GMT"
+            }
+        }
+    },
+}
+```
 
 ### [`issuer`](cmd/issuer)
 
@@ -90,28 +112,26 @@ when combined with `npm run build -- --watch` ran in the [web](web) directory.
 
 `hallpass` is a simple mTLS reverse proxy ("gateway") suitable for local development.
 If client authentication succeeds, it proxies the request to the backend url.
-The client's TLS certificate is available in the `x-amzn-request-context` header.
+It also stores the namespace and public key from the certificate into the
+AWS Lambda Web Adapter request context header.
 
 Hallpass will log TLS Pre-Master secrets to a file if the `SSLKEYLOGFILE`
 environment variable is present. [Wireshark](https://www.wireshark.org)
 can use this file to decrypt traffic.
 
-Sample Request Context containing Client Certificate:
+JSON sample representing output added as an encoded string to the
+request context header.
 
 ```json
 "requestContext": {
-    "authentication": {
-        "clientCert": {
-            "clientCertPem": "-----BEGIN CERTIFICATE-----\nMIIEZTCCAk0CAQEwDQ...",
-            "issuerDN": "C=012d325d-6a4e-4076-b49a-a3e84e52bf79,O=765e4c02-b41a-4226-8522-2a52f4fbeebe",
-            "serialNumber": "1",
-            "subjectDN": "C=2ef463c4-cca9-4885-a8e2-d041c90d61fa,O=765e4c02-b41a-4226-8522-2a52f4fbeebe",
-            "validity": {
-                "notAfter": "Aug  5 00:28:21 2120 GMT",
-                "notBefore": "Aug 29 00:28:21 2020 GMT"
-            }
-        }
+    "identity": {
+        "sourceIp": "197.23.1.43",
+        "userAgent": "curl"
     },
+    "authorizer": {
+        "namespace": "80485314-6c73-40ff-86c5-a5942a0f514f",
+        "publicKey": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"10138...\",\"y\":\"63295...\"}",
+    }
 }
 ```
 
