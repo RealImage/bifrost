@@ -17,9 +17,9 @@ import (
 
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
+	"github.com/RealImage/bifrost/internal/middleware"
 	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/RealImage/bifrost/internal/sundry"
-	"github.com/RealImage/bifrost/pkg/asgard"
 	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/exp/slog"
 )
@@ -72,8 +72,8 @@ func main() {
 		defer ssllog.Close()
 	}
 
-	hf := asgard.Hofund(asgard.DefaultRequestContextHeader, cert.Namespace)
-	hdlr := sundry.RequestLogHandler(hf(reverseProxy))
+	ti := middleware.TLSIdentifier(middleware.RequestContextHeaderName, cert.Namespace)
+	hdlr := sundry.RequestLogHandler(ti(reverseProxy))
 
 	addr := fmt.Sprintf("%s:%d", config.HallPass.Host, config.HallPass.Port)
 	serverCert, serverKey, err := cafiles.CreateServerCertificate(cert, key)

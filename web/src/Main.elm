@@ -166,7 +166,7 @@ view model =
                     ( "Bifrost", [ Html.text "Loading" ] )
 
                 Failure e ->
-                    ( "zen meditation error"
+                    ( "guru meditation error"
                     , [ Html.h1 [] [ text e ] ]
                     )
 

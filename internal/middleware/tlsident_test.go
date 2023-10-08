@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package asgard
+package middleware
 
 import (
 	"crypto/ecdsa"
@@ -27,7 +27,7 @@ import (
 
 const testHeader = "rctx-test"
 
-func TestHofundNoTLS(t *testing.T) {
+func TestCertAuthorizerNoTLS(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
 			t.Errorf("this should panic but did not")
@@ -38,10 +38,10 @@ func TestHofundNoTLS(t *testing.T) {
 	defer backendServer.Close()
 	backendUrl, _ := url.Parse(backendServer.URL)
 
-	hf := Hofund(testHeader, uuid.Nil)(httputil.NewSingleHostReverseProxy(backendUrl))
+	ti := TLSIdentifier(testHeader, uuid.Nil)(httputil.NewSingleHostReverseProxy(backendUrl))
 	rr := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	hf.ServeHTTP(rr, request)
+	ti.ServeHTTP(rr, request)
 }
 
 func TestHofund(t *testing.T) {
@@ -85,16 +85,23 @@ func TestHofund(t *testing.T) {
 	// backend server handler checks if request has expected header
 	backendServer := httptest.NewServer(
 		http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-			rctx := r.Header.Get(testHeader)
-			if rctx == "" {
+			rctxVal := r.Header.Get(testHeader)
+			if rctxVal == "" {
 				t.Errorf("expected %s header in request", testHeader)
 			}
-			requestContext := RequestContext{}
-			if err := json.Unmarshal([]byte(rctx), &requestContext); err != nil {
+			var rctx AuthorizedRequestContext
+			if err := json.Unmarshal([]byte(rctxVal), &rctx); err != nil {
 				t.Errorf("error unmarshaling request context %s", err)
 			}
-			if requestContext.ClientCert.Equal(cert.Leaf) {
-				t.Errorf("unexpected certificate in request context header")
+			gotKey, ok := rctx.Authorizer.PublicKey.ToECDSA()
+			if !ok {
+				t.Errorf("error parsing public key")
+			}
+			if gotKey.X.Cmp(priv.PublicKey.X) != 0 {
+				t.Errorf("expected public key X coordinate %s, got %s", priv.PublicKey.X, gotKey.X)
+			}
+			if gotKey.Y.Cmp(priv.PublicKey.Y) != 0 {
+				t.Errorf("expected public key Y coordinate %s, got %s", priv.PublicKey.Y, gotKey.Y)
 			}
 		}),
 	)
@@ -104,10 +111,10 @@ func TestHofund(t *testing.T) {
 		t.Errorf("error parsing backedn url %s", err)
 	}
 
-	hf := Hofund(testHeader, ns)(httputil.NewSingleHostReverseProxy(backendUrl))
+	ti := TLSIdentifier(testHeader, ns)(httputil.NewSingleHostReverseProxy(backendUrl))
 
 	// TLS server accepts client requests requiring TLS client cert auth
-	server := httptest.NewUnstartedServer(hf)
+	server := httptest.NewUnstartedServer(ti)
 	server.TLS = &tls.Config{
 		ClientAuth: tls.RequireAnyClientCert,
 	}

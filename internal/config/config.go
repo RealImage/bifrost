@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/exp/slog"
 )
@@ -28,6 +29,7 @@ var (
 		LogSource bool       `envconfig:"LOG_SOURCE" default:"false"`
 	}{}
 
+	Bouncer  bouncer
 	HallPass hallpass
 	Issuer   issuer
 )
@@ -60,6 +62,10 @@ func buildInfo() (rev string, t time.Time) {
 		}
 	}
 	return
+}
+
+type bouncer struct {
+	Namespace uuid.UUID `envconfig:"NAMESPACE" required:"true"`
 }
 
 type Server struct {

@@ -12,46 +12,90 @@ package asgard
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/json"
 	"net/http"
 
+	"github.com/RealImage/bifrost/internal/middleware"
 	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
 )
 
-// Heimdallr returns a HTTP handler middleware function that parses headerName
-// as JSON into the RequestContext struct.
-// If the header is missing or malformed, the middleware responds with
-// a 401 Unauthorized error.
+type Identity struct {
+	Namespace uuid.UUID
+	PublicKey *ecdsa.PublicKey
+	SourceIp  string
+	UserAgent string
+}
+
+type keyAuthz struct{}
+
+// FromContext returns an Identity from the request context.
+// If the request context does not contain an AuthorizedRequestContext,
+// the second return value is false.
+func FromContext(ctx context.Context) (*Identity, bool) {
+	authz := ctx.Value(keyAuthz{})
+	if authz == nil {
+		return nil, false
+	}
+	a, ok := authz.(middleware.AuthorizedRequestContext)
+	if !ok {
+		return nil, false
+	}
+	key, ok := a.Authorizer.PublicKey.ToECDSA()
+	if !ok {
+		return nil, false
+	}
+	id := &Identity{
+		Namespace: a.Authorizer.Namespace,
+		PublicKey: key,
+		SourceIp:  a.Identity.SourceIp,
+		UserAgent: a.Identity.UserAgent,
+	}
+	return id, true
+}
+
+// MustFromContext is like FromContext but panics if the request context
+// does not contain an AuthorizedRequestContext.
+func MustFromContext(ctx context.Context) *Identity {
+	id, ok := FromContext(ctx)
+	if !ok {
+		panic("no public key in context")
+	}
+	return id
+}
+
+// Heimdallr returns a HTTP Handler middleware function that parses an AuthorizedRequestContext
+// from headerName. If namespace does not match the parsed one, the request is forbidden.
+// The AuthorizedRequestContext is stored in the request context.
+//
+// If Heimdallr is used in an AWS Lambda Web Adapter powered API server, Bouncer Lambda Authorizer
+// must be configured as an authorizer for the API Gateway method.
 func Heimdallr(headerName string, namespace uuid.UUID) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		const newPhoneWhoDis = "new phone who dis?"
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			hdr := r.Header.Get(headerName)
 			if hdr == "" {
-				http.Error(w, newPhoneWhoDis, http.StatusUnauthorized)
+				http.Error(w, middleware.ServiceUnavailableMsg, http.StatusServiceUnavailable)
 				return
 			}
 			ctx := r.Context()
-			var rctx RequestContext
+			var rctx middleware.AuthorizedRequestContext
 			if err := json.Unmarshal([]byte(hdr), &rctx); err != nil {
 				slog.ErrorCtx(ctx, "error unmarshaling request context", "error", err)
-				http.Error(w, newPhoneWhoDis, http.StatusUnauthorized)
+				http.Error(w, middleware.ServiceUnavailableMsg, http.StatusServiceUnavailable)
 				return
 			}
-			if rctx.ClientCert != nil && rctx.ClientCert.Namespace != namespace {
-				slog.ErrorCtx(
-					ctx,
-					"client certificate namespace mismatch",
-					"expected",
-					namespace,
-					"actual",
-					rctx.ClientCert.Namespace,
+			if rctx.Authorizer.Namespace != namespace {
+				slog.ErrorCtx(ctx,
+					"namespace mismatch",
+					"want", namespace,
+					"got", rctx.Authorizer.Namespace,
 				)
-				http.Error(w, "incorrect namespace", http.StatusForbidden)
+				http.Error(w, "Forbidden", http.StatusForbidden)
 				return
 			}
-			ctx = context.WithValue(ctx, keyRequestContext{}, &rctx)
+			ctx = context.WithValue(ctx, keyAuthz{}, rctx)
 			r = r.WithContext(ctx)
 			next.ServeHTTP(w, r)
 		})
