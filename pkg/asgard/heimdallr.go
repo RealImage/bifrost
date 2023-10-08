@@ -2,12 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Package asgard provides middleware for use in HTTP API servers and reverse-proxies.
-// In Norse mythology, Heimdallr is the gatekeeper of Bifröst and Hofund is his sword.
+// Package asgard provides middleware for use in HTTP API servers.
+// In Norse mythology, Heimdallr is the gatekeeper of Bifröst.
 //
-// Heimdallr returna a HTTP Handler middleware function that parses a header into a RequestContext.
-// Hofund returns a HTTP Handler middleware function that writes a RequestContext into a header
-// from a client's TLS certificate.
+// Heimdallr returna a HTTP Handler middleware function that parses a header for
+// authentication information. On success, it stores an Identity in the request context.
 package asgard
 
 import (
