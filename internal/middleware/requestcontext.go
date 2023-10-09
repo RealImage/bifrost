@@ -73,13 +73,6 @@ func (j *JWK) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (j *JWK) FromECDSA(key *ecdsa.PublicKey) {
-	j.KeyType = keyTypeEC
-	j.Curve = curveP256
-	j.X = key.X.String()
-	j.Y = key.Y.String()
-}
-
 func (j JWK) ToECDSA() (*ecdsa.PublicKey, bool) {
 	var x, y big.Int
 	if _, ok := x.SetString(j.X, 10); !ok {
@@ -93,6 +86,19 @@ func (j JWK) ToECDSA() (*ecdsa.PublicKey, bool) {
 		X:     &x,
 		Y:     &y,
 	}, true
+}
+
+func (j *JWK) FromECDSA(key *ecdsa.PublicKey) {
+	j.KeyType = keyTypeEC
+	j.Curve = curveP256
+	j.X = key.X.String()
+	j.Y = key.Y.String()
+}
+
+func JWKFromECDSA(key *ecdsa.PublicKey) JWK {
+	var j JWK
+	j.FromECDSA(key)
+	return j
 }
 
 type AuthenticatedRequestContext struct {

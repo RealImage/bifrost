@@ -46,8 +46,7 @@ func TLSIdentifier(namespace uuid.UUID) func(http.Handler) http.Handler {
 				return
 			}
 
-			var j JWK
-			j.FromECDSA(cert.PublicKey)
+			j := JWKFromECDSA(cert.PublicKey)
 
 			rctx := AuthorizedRequestContext{
 				Authorizer: Authorizer{

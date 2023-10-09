@@ -18,11 +18,14 @@ import (
 
 const ServiceUnavailableMsg = "guru meditation error"
 
+type authzFn func(context.Context, AuthenticatedRequestContext) (events.APIGatewayCustomAuthorizerResponse, error)
+
 // CertAuthorizer returns a Lambda Authorizer function that authorizes requests
-// based on the client certificate.
-func CertAuthorizer(
-	namespace uuid.UUID,
-) func(context.Context, AuthenticatedRequestContext) (events.APIGatewayCustomAuthorizerResponse, error) {
+// based on the client certificate in the request context.
+// If the certificate is valid, the Authorizer returns an Allow policy.
+// The the certificate namespace does not match the configured namespace,
+// the Authorizer returns a Deny policy.
+func CertAuthorizer(namespace uuid.UUID) authzFn {
 	return func(ctx context.Context, rctx AuthenticatedRequestContext) (events.APIGatewayCustomAuthorizerResponse, error) {
 		block, _ := pem.Decode([]byte(rctx.Authentication.ClientCert.ClientCertPem))
 		if block == nil {
@@ -37,8 +40,7 @@ func CertAuthorizer(
 			return events.APIGatewayCustomAuthorizerResponse{}, errors.New(ServiceUnavailableMsg)
 		}
 
-		var pubKey JWK
-		pubKey.FromECDSA(cert.PublicKey)
+		pubKey := JWKFromECDSA(cert.PublicKey)
 		pubKeyStr, err := json.Marshal(pubKey)
 		if err != nil {
 			slog.ErrorCtx(ctx, "failed to marshal public key", "error", err)
