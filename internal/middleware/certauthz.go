@@ -18,7 +18,7 @@ import (
 
 const ServiceUnavailableMsg = "guru meditation error"
 
-type authzFn func(context.Context, AuthenticatedRequestContext) (events.APIGatewayCustomAuthorizerResponse, error)
+type authzFn func(context.Context, AuthorizerContext) (events.APIGatewayCustomAuthorizerResponse, error)
 
 // CertAuthorizer returns a Lambda Authorizer function that authorizes requests
 // based on the client certificate in the request context.
@@ -26,11 +26,12 @@ type authzFn func(context.Context, AuthenticatedRequestContext) (events.APIGatew
 // The the certificate namespace does not match the configured namespace,
 // the Authorizer returns a Deny policy.
 func CertAuthorizer(namespace uuid.UUID) authzFn {
-	return func(ctx context.Context, rctx AuthenticatedRequestContext) (events.APIGatewayCustomAuthorizerResponse, error) {
-		block, _ := pem.Decode([]byte(rctx.Identity.ClientCert.ClientCertPem))
+	return func(ctx context.Context, authzCtx AuthorizerContext) (events.APIGatewayCustomAuthorizerResponse, error) {
+		certPem := authzCtx.RequestContext.Identity.ClientCert.ClientCertPem
+		block, _ := pem.Decode([]byte(certPem))
 		if block == nil {
 			const noPem = "no PEM data found"
-			slog.ErrorCtx(ctx, noPem, "len", len(rctx.Identity.ClientCert.ClientCertPem))
+			slog.ErrorCtx(ctx, noPem, "certPem", certPem)
 			return events.APIGatewayCustomAuthorizerResponse{}, errors.New(noPem)
 		}
 		cert, err := bifrost.ParseCertificate(block.Bytes)
@@ -54,7 +55,7 @@ func CertAuthorizer(namespace uuid.UUID) authzFn {
 					{
 						Action:   []string{"execute-api:Invoke"},
 						Effect:   "Deny",
-						Resource: []string{rctx.MethodArn},
+						Resource: []string{authzCtx.MethodArn},
 					},
 				},
 			},
