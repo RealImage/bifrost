@@ -23,27 +23,23 @@ type JWK struct {
 	Y       string `json:"y"`
 }
 
-type jwkAlias JWK
-
-func (j JWK) MarshalJSON() ([]byte, error) {
-	return json.Marshal(jwkAlias(j))
+func (j JWK) MarshalText() ([]byte, error) {
+	return json.Marshal(j)
 }
 
-func (j *JWK) UnmarshalJSON(data []byte) error {
-	var jwk jwkAlias
-	if err := json.Unmarshal(data, &jwk); err != nil {
+func (j *JWK) UnmarshalText(text []byte) error {
+	type jwkAlias JWK
+	var alias jwkAlias
+	if err := json.Unmarshal(text, &alias); err != nil {
 		return err
 	}
-	if jwk.KeyType != keyTypeEC {
-		return fmt.Errorf("unsupported key type: %s", jwk.KeyType)
+	if alias.KeyType != keyTypeEC {
+		return fmt.Errorf("unsupported key type: %s", alias.KeyType)
 	}
-	if jwk.Curve != curveP256 {
-		return fmt.Errorf("unsupported curve: %s", jwk.Curve)
+	if alias.Curve != curveP256 {
+		return fmt.Errorf("unsupported curve: %s", alias.Curve)
 	}
-	if jwk.X == "" || jwk.Y == "" {
-		return fmt.Errorf("missing coordinates")
-	}
-	*j = JWK(jwk)
+	*j = JWK(alias)
 	return nil
 }
 
