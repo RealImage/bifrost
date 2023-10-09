@@ -27,7 +27,7 @@ type authzFn func(context.Context, AuthenticatedRequestContext) (events.APIGatew
 // the Authorizer returns a Deny policy.
 func CertAuthorizer(namespace uuid.UUID) authzFn {
 	return func(ctx context.Context, rctx AuthenticatedRequestContext) (events.APIGatewayCustomAuthorizerResponse, error) {
-		block, _ := pem.Decode([]byte(rctx.Authentication.ClientCert.ClientCertPem))
+		block, _ := pem.Decode([]byte(rctx.Identity.ClientCert.ClientCertPem))
 		if block == nil {
 			slog.ErrorCtx(ctx, "failed to parse certificate PEM")
 			return events.APIGatewayCustomAuthorizerResponse{}, errors.New(

@@ -24,13 +24,11 @@ const (
 )
 
 type AuthorizedRequestContext struct {
-	Identity   Identity   `json:"identity"`
+	Identity struct {
+		SourceIp  string `json:"sourceIp"`
+		UserAgent string `json:"userAgent"`
+	} `json:"identity"`
 	Authorizer Authorizer `json:"authorizer"`
-}
-
-type Identity struct {
-	SourceIp  string `json:"sourceIp"`
-	UserAgent string `json:"userAgent"`
 }
 
 type Authorizer struct {
@@ -103,10 +101,10 @@ func JWKFromECDSA(key *ecdsa.PublicKey) JWK {
 
 type AuthenticatedRequestContext struct {
 	events.APIGatewayCustomAuthorizerRequest
-	Authentication Authentication `json:"authentication"`
+	Identity CertIdentity `json:"identity"`
 }
 
-type Authentication struct {
+type CertIdentity struct {
 	ClientCert ClientCert `json:"clientCert"`
 }
 
