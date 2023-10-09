@@ -29,10 +29,9 @@ func CertAuthorizer(namespace uuid.UUID) authzFn {
 	return func(ctx context.Context, rctx AuthenticatedRequestContext) (events.APIGatewayCustomAuthorizerResponse, error) {
 		block, _ := pem.Decode([]byte(rctx.Identity.ClientCert.ClientCertPem))
 		if block == nil {
-			slog.ErrorCtx(ctx, "failed to parse certificate PEM")
-			return events.APIGatewayCustomAuthorizerResponse{}, errors.New(
-				"failed to parse certificate PEM",
-			)
+			const noPem = "no PEM data found"
+			slog.ErrorCtx(ctx, noPem, "len", len(rctx.Identity.ClientCert.ClientCertPem))
+			return events.APIGatewayCustomAuthorizerResponse{}, errors.New(noPem)
 		}
 		cert, err := bifrost.ParseCertificate(block.Bytes)
 		if err != nil {

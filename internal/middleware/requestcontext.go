@@ -14,6 +14,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/google/uuid"
+	"golang.org/x/exp/slog"
 )
 
 const (
@@ -102,6 +103,17 @@ func JWKFromECDSA(key *ecdsa.PublicKey) JWK {
 type AuthenticatedRequestContext struct {
 	events.APIGatewayCustomAuthorizerRequest
 	Identity CertIdentity `json:"identity"`
+}
+
+func (a *AuthenticatedRequestContext) UnmarshalJSON(data []byte) error {
+	slog.Info("unmarshaling request context", "data", string(data))
+	type alias AuthenticatedRequestContext
+	var ctx alias
+	if err := json.Unmarshal(data, &ctx); err != nil {
+		return err
+	}
+	*a = AuthenticatedRequestContext(ctx)
+	return nil
 }
 
 type CertIdentity struct {
