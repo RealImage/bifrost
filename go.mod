@@ -12,7 +12,6 @@ require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/caarlos0/env/v6 v6.10.1 // indirect
-	github.com/caarlos0/sshmarshal v0.1.0 // indirect
 	github.com/calmh/randomart v1.1.0 // indirect
 	github.com/charmbracelet/keygen v0.5.0 // indirect
 	github.com/charmbracelet/log v0.2.5 // indirect
