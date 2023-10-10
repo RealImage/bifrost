@@ -69,7 +69,7 @@ func CertAuthorizer(namespace uuid.UUID) authzFn {
 			return authResponse, nil
 		}
 
-		slog.DebugCtx(ctx, "certificate passes the vibe check", "id", cert.Id.String())
+		slog.InfoCtx(ctx, "certificate passes the vibe check", "id", cert.Id.String())
 		statement.Effect = "Allow"
 		authResponse.PolicyDocument.Statement = []events.IAMPolicyStatement{statement}
 		authResponse.Context = map[string]interface{}{
