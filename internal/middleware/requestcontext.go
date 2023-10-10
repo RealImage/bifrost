@@ -28,7 +28,7 @@ type AuthzIdentity struct {
 
 type Authorizer struct {
 	Namespace uuid.UUID `json:"namespace"`
-	PublicKey JWK       `json:"publicKey"`
+	PublicKey string    `json:"publicKey"`
 }
 
 type AuthorizerContext struct {

@@ -23,10 +23,10 @@ type JWK struct {
 	Y       string `json:"y"`
 }
 
-func (j *JWK) UnmarshalJSON(text []byte) error {
+func (j *JWK) UnmarshalJSON(data []byte) error {
 	type jwkAlias JWK
 	jwk := (*jwkAlias)(j)
-	if err := json.Unmarshal(text, jwk); err != nil {
+	if err := json.Unmarshal(data, jwk); err != nil {
 		return err
 	}
 	if j.KeyType != keyTypeEC {

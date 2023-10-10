@@ -41,7 +41,11 @@ func FromContext(ctx context.Context) (*Identity, bool) {
 	if !ok {
 		return nil, false
 	}
-	key, ok := a.Authorizer.PublicKey.ToECDSA()
+	var jwk middleware.JWK
+	if err := json.Unmarshal([]byte(a.Authorizer.PublicKey), &jwk); err != nil {
+		return nil, false
+	}
+	key, ok := jwk.ToECDSA()
 	if !ok {
 		return nil, false
 	}

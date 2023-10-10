@@ -47,10 +47,16 @@ func TLSIdentifier(namespace uuid.UUID) func(http.Handler) http.Handler {
 			}
 
 			j := JWKFromECDSA(cert.PublicKey)
+			val, err := json.Marshal(j)
+			if err != nil {
+				slog.ErrorCtx(ctx, "error marshaling public key", "error", err)
+				http.Error(w, "unexpected error", http.StatusInternalServerError)
+				return
+			}
 
 			rctx := AuthorizedRequestContext{
 				Authorizer: Authorizer{
-					PublicKey: j,
+					PublicKey: string(val),
 				},
 			}
 

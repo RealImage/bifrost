@@ -91,14 +91,15 @@ func TestTLSIdentifier(t *testing.T) {
 			if err := json.Unmarshal([]byte(rctxVal), &rctx); err != nil {
 				t.Errorf("error unmarshaling request context %s", err)
 			}
-			gotKey, ok := rctx.Authorizer.PublicKey.ToECDSA()
-			if !ok {
-				t.Errorf("error parsing public key")
+			var gotKey JWK
+			if err := json.Unmarshal([]byte(rctx.Authorizer.PublicKey), &gotKey); err != nil {
+				t.Errorf("error unmarshaling public key %s", err)
 			}
-			if gotKey.X.Cmp(priv.PublicKey.X) != 0 {
+			ecKey, _ := gotKey.ToECDSA()
+			if ecKey.X.Cmp(priv.PublicKey.X) != 0 {
 				t.Errorf("expected public key X coordinate %s, got %s", priv.PublicKey.X, gotKey.X)
 			}
-			if gotKey.Y.Cmp(priv.PublicKey.Y) != 0 {
+			if ecKey.Y.Cmp(priv.PublicKey.Y) != 0 {
 				t.Errorf("expected public key Y coordinate %s, got %s", priv.PublicKey.Y, gotKey.Y)
 			}
 		}),
