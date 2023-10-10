@@ -42,7 +42,7 @@ func TestCertAuthorizerNoTLS(t *testing.T) {
 	ti.ServeHTTP(rr, request)
 }
 
-func TestHofund(t *testing.T) {
+func TestTLSIdentifier(t *testing.T) {
 	randReader := rand.New(rand.NewSource(42))
 	// generate key pair and certificate
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), randReader)

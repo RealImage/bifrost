@@ -23,23 +23,18 @@ type JWK struct {
 	Y       string `json:"y"`
 }
 
-func (j JWK) MarshalText() ([]byte, error) {
-	return json.Marshal(j)
-}
-
-func (j *JWK) UnmarshalText(text []byte) error {
+func (j *JWK) UnmarshalJSON(text []byte) error {
 	type jwkAlias JWK
-	var alias jwkAlias
-	if err := json.Unmarshal(text, &alias); err != nil {
+	jwk := (*jwkAlias)(j)
+	if err := json.Unmarshal(text, jwk); err != nil {
 		return err
 	}
-	if alias.KeyType != keyTypeEC {
-		return fmt.Errorf("unsupported key type: %s", alias.KeyType)
+	if j.KeyType != keyTypeEC {
+		return fmt.Errorf("unsupported key type: %s", j.KeyType)
 	}
-	if alias.Curve != curveP256 {
-		return fmt.Errorf("unsupported curve: %s", alias.Curve)
+	if j.Curve != curveP256 {
+		return fmt.Errorf("unsupported curve: %s", j.Curve)
 	}
-	*j = JWK(alias)
 	return nil
 }
 

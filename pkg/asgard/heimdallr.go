@@ -73,12 +73,13 @@ func MustFromContext(ctx context.Context) *Identity {
 func Heimdallr(namespace uuid.UUID) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
 			hdr := r.Header.Get(middleware.RequestContextHeaderName)
 			if hdr == "" {
+				slog.ErrorCtx(ctx, "missing request context header")
 				http.Error(w, middleware.ServiceUnavailableMsg, http.StatusServiceUnavailable)
 				return
 			}
-			ctx := r.Context()
 			var rctx middleware.AuthorizedRequestContext
 			if err := json.Unmarshal([]byte(hdr), &rctx); err != nil {
 				slog.ErrorCtx(ctx, "error unmarshaling request context", "error", err)

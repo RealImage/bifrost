@@ -51,14 +51,11 @@ func CertAuthorizer(namespace uuid.UUID) authzFn {
 			PrincipalID: cert.Id.String(),
 			PolicyDocument: events.APIGatewayCustomAuthorizerPolicy{
 				Version: "2012-10-17",
-				Statement: []events.IAMPolicyStatement{
-					{
-						Action:   []string{"execute-api:Invoke"},
-						Effect:   "Deny",
-						Resource: []string{authzCtx.MethodArn},
-					},
-				},
 			},
+		}
+		statement := events.IAMPolicyStatement{
+			Action:   []string{"execute-api:Invoke"},
+			Resource: []string{authzCtx.MethodArn},
 		}
 
 		if cert.Namespace != namespace {
@@ -67,10 +64,14 @@ func CertAuthorizer(namespace uuid.UUID) authzFn {
 				"want", namespace,
 				"got", cert.Namespace,
 			)
+			statement.Effect = "Deny"
+			authResponse.PolicyDocument.Statement = []events.IAMPolicyStatement{statement}
 			return authResponse, nil
 		}
 
-		authResponse.PolicyDocument.Statement[0].Effect = "Allow"
+		slog.DebugCtx(ctx, "certificate passes the vibe check", "id", cert.Id.String())
+		statement.Effect = "Allow"
+		authResponse.PolicyDocument.Statement = []events.IAMPolicyStatement{statement}
 		authResponse.Context = map[string]interface{}{
 			"namespace": cert.Namespace.String(),
 			"publicKey": string(pubKeyStr),
