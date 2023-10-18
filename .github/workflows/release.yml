@@ -36,6 +36,7 @@ jobs:
             ${{ github.sha }}
             latest
           containerfiles: Containerfile
+          oci: true
           archs: amd64  # , arm64
       - name: Push bifrost image to ghcr.io
         uses: redhat-actions/push-to-registry@v2
@@ -58,6 +59,7 @@ jobs:
             ${{ github.sha }}
             latest
           containerfiles: Containerfile
+          oci: true
           archs: amd64  # , arm64
           extra-args: |
             --target=authz
@@ -82,6 +84,7 @@ jobs:
             ${{ github.sha }}
             latest
           containerfiles: Containerfile
+          oci: true
           archs: amd64  # , arm64
           extra-args: |
             --target=ca

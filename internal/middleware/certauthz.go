@@ -72,7 +72,7 @@ func CertAuthorizer(namespace uuid.UUID) authzFn {
 		slog.InfoCtx(ctx, "certificate passes the vibe check", "id", cert.Id.String())
 		statement.Effect = "Allow"
 		authResponse.PolicyDocument.Statement = []events.IAMPolicyStatement{statement}
-		authResponse.Context = map[string]interface{}{
+		authResponse.Context = map[string]any{
 			"namespace": cert.Namespace.String(),
 			"publicKey": string(pubKeyStr),
 		}
