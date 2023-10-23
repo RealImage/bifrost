@@ -72,11 +72,9 @@ jobs:
             web/package-lock.json
       - name: Build
         run: |
-          pushd web
-          npm ci
-          popd
-          mkdir bin
+          pushd web; npm ci; popd
           go generate -x ./...
+          mkdir bin
           env CGO_ENABLED=0 go build -o bin ./...
       - name: Upload binary
         uses: actions/upload-artifact@v3

@@ -108,10 +108,6 @@ If enabled, `issuer` exposes prometheus format metrics at `/metrics`.
 and request certificates from the API. Enable it by setting `WEB=true`
 in the issuer process's environment.
 
-Setting `web=dev` instead causes `issuer` to serve the application from the local
-filesystem instead of from the `embed.FS` instance. This is useful for development,
-when combined with `npm run build -- --watch` ran in the [web](web) directory.
-
 ### [`hallpass`](cmd/hallpass)
 
 `hallpass` is a simple mTLS reverse proxy ("gateway") suitable for local development.
@@ -153,13 +149,11 @@ Install Node.js & Go.
 Build static binaries on your machine.
 
 ```console
-pushd web
-npm ci
-popd
-
-mkdir build
+pushd web; npm ci; popd
 go generate -x ./...
-env CGO_ENABLED=0 go build -o build ./...
+
+mkdir bin
+env CGO_ENABLED=0 go build -o bin ./...
 ```
 
 ### Container
