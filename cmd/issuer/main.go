@@ -47,9 +47,9 @@ func main() {
 	sundry.OnErrorExit(ctx, err, "error creating ca")
 	mux.Handle("/issue", ca)
 
-	if config.Issuer.Web {
+	if w := config.Issuer.Web; w.Enabled {
 		slog.DebugCtx(ctx, "web enabled")
-		webapp.AddRoutes(mux, cert.Namespace)
+		webapp.AddRoutes(mux, w.Debug, cert.Namespace)
 	}
 
 	hdlr := sundry.RequestLogHandler(mux)

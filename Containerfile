@@ -11,8 +11,7 @@ ARG DISTROLESS_VERSION="base-debian12:latest-${TARGETARCH}"
 FROM docker.io/library/node:${NODE_VERSION} as node
 WORKDIR /src
 COPY web .
-RUN npm ci \
-  && env NODE_ENV=production npm run build
+RUN npm ci && npm run build
 
 FROM docker.io/library/golang:${GO_VERSION} as go
 WORKDIR /src

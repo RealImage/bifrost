@@ -5,7 +5,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "build": "esbuild --bundle --minify --outfile=static/index.js index.js"
+    "bundle": "esbuild index.js index.css --bundle --outdir=static",
+    "build": "npm run bundle -- --minify",
+    "dev": "npm run bundle -- --watch"
   },
   "repository": {
     "type": "git",
@@ -21,6 +23,7 @@
     "@peculiar/certificates-viewer": "^3.10.1",
     "chota": "^0.9.2",
     "htmx.org": "^1.9.6",
+    "hyperscript.org": "^0.9.12",
     "mustache": "^4.2.0",
     "pkijs": "^3.0.15",
     "pvutils": "^1.1.3",

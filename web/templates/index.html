@@ -20,7 +20,7 @@
   <meta name="theme-color" content="#ffffff">
 
   <link rel="stylesheet" href="/index.css">
-  <script type="module" src="/index.js"></script>
+  <script defer src="/index.js"></script>
 </head>
 
 <body>
@@ -44,7 +44,9 @@
   <main class="container">
     <section>
       <h2>Keys</h2>
-      <button class="button bg-primary text-white" id="generate-key">Generate Key</button>
+      <button class="button bg-primary text-white" _="on click call alert('hello')">
+        Generate Key
+      </button>
       <button class="button bg-dark text-white">Forget Keys</button>
     </section>
     <section>

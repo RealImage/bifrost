@@ -7,13 +7,8 @@
 import "@peculiar/certificates-viewer";
 import { defineCustomElements } from "@peculiar/certificates-viewer/loader";
 import "htmx.org";
+import "hyperscript.org";
 
-import { generateKey } from "./csr";
-import "./css/main.css";
+import "./csr";
 
 defineCustomElements();
-
-document.getElementById("generate-key").addEventListener("click", async () => {
-  let { keyPair, keyPem } = await generateKey();
-  console.log(keyPem);
-});

@@ -12,13 +12,21 @@ import (
 )
 
 // AddRoutes adds web routes to the given mux.
-func AddRoutes(mux *http.ServeMux, ns uuid.UUID) {
+// If localStaticFiles is true, the webapp will serve static files from the
+// local filesystem. Otherwise, it will serve them from the embedded filesystem.
+func AddRoutes(mux *http.ServeMux, localStaticFiles bool, ns uuid.UUID) {
+	var static http.Handler
+	if localStaticFiles {
+		static = http.FileServer(http.Dir("web/static"))
+	} else {
+		static = http.FileServer(http.FS(web.Static))
+	}
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			Index(ns)(w, r)
 			return
 		}
-		http.FileServer(http.FS(web.Static)).ServeHTTP(w, r)
+		static.ServeHTTP(w, r)
 	})
 }
 

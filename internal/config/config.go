@@ -5,8 +5,10 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -86,6 +88,28 @@ type issuer struct {
 	Server
 	Port     int           `envconfig:"PORT"     default:"8888"`
 	Validity time.Duration `envconfig:"VALIDITY" default:"1h"`
-	Web      bool          `envconfig:"WEB"      default:"false"`
+	Web      web           `envconfig:"WEB"      default:"false"`
 	Metrics  bool          `envconfig:"METRICS"  default:"false"`
+}
+
+type web struct {
+	Enabled bool
+	Debug   bool
+}
+
+// Decode implements envconfig.Decoder.
+// It allows the web config to be set to "dev" to enable debug mode.
+// Otherwise, it must be a boolean value.
+func (w *web) Decode(value string) error {
+	if value == "dev" {
+		w.Enabled = true
+		w.Debug = true
+		return nil
+	}
+	en, err := strconv.ParseBool(value)
+	if err != nil {
+		return fmt.Errorf("invalid value %q for web: %w", value, err)
+	}
+	w.Enabled = en
+	return nil
 }
