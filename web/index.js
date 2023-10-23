@@ -4,23 +4,10 @@
   file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import { Elm } from './src/Main.elm';
 import { createCsr } from './src/csr';
 import "@peculiar/certificates-viewer";
 import { defineCustomElements } from '@peculiar/certificates-viewer/loader';
 import './css/main.css';
+import 'htmx.org';
 
 defineCustomElements();
-
-const app = Elm.Main.init();
-
-app.ports.generate.subscribe(async (req) => {
-  let res;
-  try {
-    res = await createCsr(req);
-  } catch (e) {
-    console.error(e);
-    res = { error: e.message };
-  }
-  app.ports.receive.send(res);
-});

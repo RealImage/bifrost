@@ -7,7 +7,6 @@ package config
 import (
 	"os"
 	"runtime/debug"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -87,25 +86,6 @@ type issuer struct {
 	Server
 	Port     int           `envconfig:"PORT"     default:"8888"`
 	Validity time.Duration `envconfig:"VALIDITY" default:"1h"`
-	Web      web           `envconfig:"WEB"      default:"false"`
+	Web      bool          `envconfig:"WEB"      default:"false"`
 	Metrics  bool          `envconfig:"METRICS"  default:"false"`
-}
-
-type web struct {
-	Serve      bool
-	LocalFiles bool
-}
-
-func (w *web) Decode(value string) error {
-	if value == "dev" {
-		w.Serve = true
-		w.LocalFiles = true
-		return nil
-	}
-	if enable, err := strconv.ParseBool(value); err != nil {
-		return err
-	} else {
-		w.Serve = enable
-	}
-	return nil
 }

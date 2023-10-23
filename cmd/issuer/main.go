@@ -15,8 +15,8 @@ import (
 	"github.com/RealImage/bifrost/internal/config"
 	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/RealImage/bifrost/internal/sundry"
+	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/RealImage/bifrost/pkg/tinyca"
-	"github.com/RealImage/bifrost/web"
 	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/exp/slog"
 )
@@ -52,14 +52,8 @@ func main() {
 	sundry.OnErrorExit(ctx, err, "error creating ca")
 	mux.Handle("/issue", ca)
 
-	if w := config.Issuer.Web; w.Serve {
-		if w.LocalFiles {
-			slog.DebugCtx(ctx, "serving web from local filesystem")
-			mux.Handle("/", http.FileServer(http.Dir("web/static")))
-		} else {
-			slog.DebugCtx(ctx, "serving web from embedded filesystem")
-			mux.Handle("/", http.FileServer(http.FS(web.Static)))
-		}
+	if config.Issuer.Web {
+		webapp.AddRoutes(mux)
 	}
 
 	hdlr := sundry.RequestLogHandler(mux)

@@ -75,15 +75,15 @@ jobs:
           pushd web
           npm ci
           popd
-          mkdir build
+          mkdir bin
           go generate -x ./...
-          env CGO_ENABLED=0 go build -o build ./...
+          env CGO_ENABLED=0 go build -o bin ./...
       - name: Upload binary
         uses: actions/upload-artifact@v3
         with:
           name: bifrost
           path: |
-            build/*
+            bin/*
             docs/issuer-openapi.yml
       - name: Update Github release
         if: startsWith(github.ref, 'refs/tags/')
@@ -92,5 +92,5 @@ jobs:
           append_body: true
           generate_release_notes: true
           files: |
-            build/*
+            bin/*
             docs/issuer-openapi.yml
