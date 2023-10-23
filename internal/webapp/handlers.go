@@ -4,19 +4,27 @@ import (
 	"net/http"
 
 	"github.com/RealImage/bifrost/web"
+	"github.com/google/uuid"
 )
 
-func AddRoutes(mux *http.ServeMux) {
+// AddRoutes adds web routes to the given mux.
+func AddRoutes(mux *http.ServeMux, ns uuid.UUID) {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
-			Index(w, r)
+			Index(ns)(w, r)
 			return
 		}
 		http.FileServer(http.FS(web.Static)).ServeHTTP(w, r)
 	})
 }
 
-func Index(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = web.Templates.ExecuteTemplate(w, "index.html", nil)
+// Index returns a handler for the index page.
+func Index(ns uuid.UUID) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(HeaderNameContentType, MimeTypeHtmlCharset)
+		data := map[string]any{"ns": ns.String()}
+		if err := web.Templates.ExecuteTemplate(w, "index.html", data); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
 }

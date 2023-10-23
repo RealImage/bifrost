@@ -39,21 +39,17 @@ func main() {
 	mux := http.NewServeMux()
 
 	if config.Issuer.Metrics {
+		slog.DebugCtx(ctx, "metrics enabled")
 		mux.HandleFunc("/metrics", stats.MetricsHandler)
 	}
-
-	nss := cert.Namespace.String()
-	mux.HandleFunc("/namespace", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = fmt.Fprintln(w, nss)
-	})
 
 	ca, err := tinyca.New(cert, key, config.Issuer.Validity)
 	sundry.OnErrorExit(ctx, err, "error creating ca")
 	mux.Handle("/issue", ca)
 
 	if config.Issuer.Web {
-		webapp.AddRoutes(mux)
+		slog.DebugCtx(ctx, "web enabled")
+		webapp.AddRoutes(mux, cert.Namespace)
 	}
 
 	hdlr := sundry.RequestLogHandler(mux)
@@ -70,7 +66,7 @@ func main() {
 		}
 	}()
 
-	slog.InfoCtx(ctx, "serving requests", "address", addr, "namespace", nss)
+	slog.InfoCtx(ctx, "serving requests", "address", addr, "namespace", cert.Namespace)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		sundry.OnErrorExit(ctx, err, "error serving requests")

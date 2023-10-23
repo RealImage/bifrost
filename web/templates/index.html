@@ -3,12 +3,13 @@
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at https://mozilla.org/MPL/2.0/.
 -->
+
 <!doctype html>
 <html>
 
 <head>
   <meta charset="utf-8">
-  <title>Bifrost - Issue Certificates</title>
+  <title>Bifrost Certificate Issuer</title>
 
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -23,6 +24,55 @@
 </head>
 
 <body>
+  <nav class="nav">
+    <div class="nav-left"><a class="brand"><img src="/bifrost.webp" alt="Bifrost">Bifrost</a></div>
+    <div class="nav-right">
+      <a>
+        <p>
+          <span>Namespace </span>
+          <strong class="text-primary">{{ .ns }}</strong>
+        </p>
+      </a>
+    </div>
+  </nav>
+  <header class="container">
+    <hgroup>
+      <h1>Certificate Issuer</h1>
+      <p>Hot off the presses!</p>
+    </hgroup>
+  </header>
+  <main class="container">
+    <section>
+      <h2>Keys</h2>
+      <button class="button bg-primary text-white" id="generate-key">Generate Key</button>
+      <button class="button bg-dark text-white">Forget Keys</button>
+    </section>
+    <section>
+      <h2>Identities</h2>
+      <div class="row" id="identities">
+      </div>
+    </section>
+  </main>
 </body>
+
+<template id="id-card">
+  <article class="card" id="id-{{ `{{ uuid }}` }}">
+    <header>
+      <strong>{{ `{{ uuid }}` }}</strong>
+      <button class="button">Download Private key</button>
+    </header>
+    <details>
+      <summary>Certificate Request</summary>
+      <peculiar-csr-viewer certificate="{{ `{{ csrPem }}` }}" download="true"></peculiar-csr-viewer>
+    </details>
+    <section class="certificates">
+      <h4>Certificates</h4>
+    </section>
+    <footer>
+      <button class="button" hx-post="/issue" hx-target="#id-{{ `{{ uuid }}` }}>.certificates"
+        hx-swap="beforeend">Request Certificate</button>
+    </footer>
+  </article>
+</template>
 
 </html>
