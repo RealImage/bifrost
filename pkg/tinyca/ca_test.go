@@ -68,7 +68,7 @@ l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 		expectedCode: http.StatusOK,
 	},
 	{
-		contentType: "text/plain; charset=urf-8",
+		contentType: "text/plain; charset=utf-8",
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
 OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1

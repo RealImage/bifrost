@@ -84,11 +84,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contentType, _, err := webapp.GetMimeTypeHeader(
-		r.Header,
-		webapp.HeaderNameContentType,
-		webapp.MimeTypeText,
-	)
+	contentType, _, err := webapp.GetContentType(r.Header, webapp.MimeTypeText)
 	if err != nil {
 		e := fmt.Sprintf("error parsing Content-Type header: %s", err)
 		http.Error(w, e, http.StatusBadRequest)
@@ -132,11 +128,13 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		contentType,
 		webapp.MimeTypeText,
 		webapp.MimeTypeBytes,
+		webapp.MimeTypeHtml,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	fmt.Println(r.Header)
 
 	switch responseType {
 	case webapp.MimeTypeAll, webapp.MimeTypeText:

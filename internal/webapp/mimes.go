@@ -5,7 +5,6 @@
 package webapp
 
 import (
-	"fmt"
 	"mime"
 	"net/http"
 
@@ -25,27 +24,25 @@ const (
 	HeaderNameHXRequest   = "hx-request"
 )
 
-// GetMimeTypeHeader returns the mime type and the parameters from the given content type.
-// The first parameter is the value of the "Content-Type" header.
-// The second parameter is the default mime type to be used if the "Content-Type" header is empty.
-func GetMimeTypeHeader(
-	h http.Header,
-	headerName, defaultValue string,
-) (string, map[string]string, error) {
-	ct := h.Get(headerName)
-	if ct == "" {
-		return defaultValue, nil, nil
+// GetContentType returns the mime type and the parameters from the given content type.
+func GetContentType(h http.Header, defaultType string) (string, map[string]string, error) {
+	contentType := h.Get(HeaderNameContentType)
+	if contentType == "" {
+		return defaultType, nil, nil
 	}
-	fmt.Println(headerName, ct)
-	return mime.ParseMediaType(ct)
+	return mime.ParseMediaType(contentType)
 }
 
 // GetResponseMimeType returns the mime type to be used for the response.
-func GetResponseMimeType(h http.Header, mimeTypes ...string) (string, error) {
-	if h.Get(HeaderNameHXRequest) == "true" && h.Get(HeaderNameAccept) == MimeTypeAll {
+func GetResponseMimeType(h http.Header, defaultType string, mimeTypes ...string) (string, error) {
+	if h.Get(HeaderNameHXRequest) == "true" {
 		return MimeTypeHtmlCharset, nil
 	}
-	respType, err := accept.Negotiate(h.Get(HeaderNameAccept), mimeTypes...)
+	a := h.Get(HeaderNameAccept)
+	if a == "" {
+		return defaultType, nil
+	}
+	respType, err := accept.Negotiate(a, mimeTypes...)
 	if err != nil {
 		return "", err
 	}
