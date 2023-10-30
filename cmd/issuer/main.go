@@ -15,8 +15,8 @@ import (
 	"github.com/RealImage/bifrost/internal/config"
 	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/RealImage/bifrost/internal/sundry"
+	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/RealImage/bifrost/pkg/tinyca"
-	"github.com/RealImage/bifrost/web"
 	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/exp/slog"
 )
@@ -39,27 +39,17 @@ func main() {
 	mux := http.NewServeMux()
 
 	if config.Issuer.Metrics {
+		slog.DebugCtx(ctx, "metrics enabled")
 		mux.HandleFunc("/metrics", stats.MetricsHandler)
 	}
-
-	nss := cert.Namespace.String()
-	mux.HandleFunc("/namespace", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = fmt.Fprintln(w, nss)
-	})
 
 	ca, err := tinyca.New(cert, key, config.Issuer.Validity)
 	sundry.OnErrorExit(ctx, err, "error creating ca")
 	mux.Handle("/issue", ca)
 
-	if w := config.Issuer.Web; w.Serve {
-		if w.LocalFiles {
-			slog.DebugCtx(ctx, "serving web from local filesystem")
-			mux.Handle("/", http.FileServer(http.Dir("web/static")))
-		} else {
-			slog.DebugCtx(ctx, "serving web from embedded filesystem")
-			mux.Handle("/", http.FileServer(http.FS(web.Static)))
-		}
+	if w := config.Issuer.Web; w.Enabled {
+		slog.DebugCtx(ctx, "web enabled", "staticFiles", w.StaticFilesPath)
+		webapp.AddRoutes(mux, w.StaticFilesPath, cert.Namespace)
 	}
 
 	hdlr := sundry.RequestLogHandler(mux)
@@ -76,7 +66,7 @@ func main() {
 		}
 	}()
 
-	slog.InfoCtx(ctx, "serving requests", "address", addr, "namespace", nss)
+	slog.InfoCtx(ctx, "serving requests", "address", addr, "namespace", cert.Namespace)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		sundry.OnErrorExit(ctx, err, "error serving requests")

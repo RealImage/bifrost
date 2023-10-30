@@ -36,10 +36,11 @@ func main() {
 		slog.Time("timestamp", config.BuildTime),
 	)
 
-	if config.HallPass.MetricsUrl != "" {
+	if u := config.HallPass.MetricsUrl; u != "" {
+		slog.DebugCtx(ctx, "metrics enabled", slog.String("url", u))
 		http.HandleFunc("/", stats.MetricsHandler)
 		go func() {
-			if err := http.ListenAndServe(config.HallPass.MetricsUrl, nil); err != nil {
+			if err := http.ListenAndServe(u, nil); err != nil {
 				panic(err)
 			}
 		}()

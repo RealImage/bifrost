@@ -17,44 +17,17 @@ import (
 	"io"
 	"math"
 	"math/big"
-	"mime"
 	"net/http"
 	"time"
 
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/stats"
+	"github.com/RealImage/bifrost/internal/webapp"
+	"github.com/RealImage/bifrost/web"
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
 )
-
-const (
-	acHeaderName  = "accept"
-	ctHeaderName  = "content-type"
-	mimeTypeText  = "text/plain"
-	mimeTypeBytes = "application/octet-stream"
-	mimeTypeAll   = "*/*"
-
-	mimeTypeTextCharset = "text/plain; charset=utf-8"
-)
-
-// Metrics.
-var (
-	issuedCertsTotal = stats.ForNerds.NewCounter("bifrost_ca_issued_certs_total")
-	requestsTotal    = stats.ForNerds.NewCounter("bifrost_ca_requests_total")
-	requestsDuration = stats.ForNerds.NewHistogram("bifrost_ca_requests_duration_seconds")
-)
-
-// New returns a new CA.
-// The CA issues certificates for the given namespace.
-func New(cert *bifrost.Certificate, key *ecdsa.PrivateKey, dur time.Duration) (*CA, error) {
-	if err := cert.Verify(); err != nil {
-		return nil, fmt.Errorf("ca certificate is not a bifrost certificate: %w", err)
-	}
-	return &CA{
-		cert: cert,
-		key:  key,
-		dur:  dur,
-	}, nil
-}
 
 // CA is a simple Certificate Authority.
 // The only supported operation is to issue client certificates.
@@ -64,6 +37,37 @@ type CA struct {
 	key  *ecdsa.PrivateKey
 	// dur is the duration for which the issued certificate is valid.
 	dur time.Duration
+
+	// metrics
+	issuedTotal      *metrics.Counter
+	requestsTotal    *metrics.Counter
+	requestsDuration *metrics.Histogram
+}
+
+// New returns a new CA.
+// The CA issues certificates for the given namespace.
+func New(cert *bifrost.Certificate, key *ecdsa.PrivateKey, dur time.Duration) (*CA, error) {
+	if err := cert.Verify(); err != nil {
+		return nil, fmt.Errorf("ca certificate is not a bifrost certificate: %w", err)
+	}
+
+	iss := bfMetricName("issued_certs_total", cert.Namespace)
+	rt := bfMetricName("requests_total", cert.Namespace)
+	rd := bfMetricName("requests_duration_seconds", cert.Namespace)
+
+	return &CA{
+		cert: cert,
+		key:  key,
+		dur:  dur,
+
+		issuedTotal:      stats.ForNerds.NewCounter(iss),
+		requestsTotal:    stats.ForNerds.NewCounter(rt),
+		requestsDuration: stats.ForNerds.NewHistogram(rd),
+	}, nil
+}
+
+func bfMetricName(name string, ns uuid.UUID) string {
+	return fmt.Sprintf(`bifrost_ca_%s{ns="%s"}`, name, ns)
 }
 
 // ServeHTTP issues a certificate if a valid certificate request is read from the request.
@@ -72,7 +76,7 @@ type CA struct {
 // Requests carrying a content-type of "application/octet-stream" should submit the ASN.1 DER
 // encoded form instead.
 func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	requestsTotal.Inc()
+	ca.requestsTotal.Inc()
 	startTime := time.Now()
 
 	if r.Method != http.MethodPost {
@@ -80,23 +84,16 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contentType, _, err := getMimeTypeHeader(r.Header.Get(ctHeaderName), mimeTypeText)
+	contentType, _, err := webapp.GetContentType(r.Header, webapp.MimeTypeText)
 	if err != nil {
 		e := fmt.Sprintf("error parsing Content-Type header: %s", err)
 		http.Error(w, e, http.StatusBadRequest)
 		return
 	}
 
-	switch contentType {
-	case "":
-		contentType = mimeTypeText
-	case mimeTypeText, mimeTypeBytes:
-	default:
-		http.Error(
-			w,
-			fmt.Sprintf("unsupported Content-Type %s", contentType),
-			http.StatusUnsupportedMediaType,
-		)
+	if ct := contentType; ct != webapp.MimeTypeText && ct != webapp.MimeTypeBytes {
+		msg := fmt.Sprintf("unsupported Content-Type %s", ct)
+		http.Error(w, msg, http.StatusUnsupportedMediaType)
 		return
 	}
 
@@ -126,44 +123,49 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accept, _, err := getMimeTypeHeader(r.Header.Get(acHeaderName), contentType)
+	responseType, err := webapp.GetResponseMimeType(
+		r.Header,
+		contentType,
+		webapp.MimeTypeText,
+		webapp.MimeTypeBytes,
+		webapp.MimeTypeHtml,
+	)
 	if err != nil {
-		e := fmt.Sprintf("error parsing Accept header: %s", err)
-		http.Error(w, e, http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	fmt.Println(r.Header)
 
-	responseMimeType := contentType
-	switch accept {
-	case mimeTypeAll, "":
-	case mimeTypeText:
-		responseMimeType = mimeTypeText
-	case mimeTypeBytes:
-		responseMimeType = mimeTypeBytes
-	default:
-		http.Error(w, fmt.Sprintf("media type %s unacceptable", accept), http.StatusNotAcceptable)
-		return
-	}
-	if responseMimeType == mimeTypeBytes {
-		w.Header().Set(ctHeaderName, mimeTypeBytes)
-		_, err = w.Write(cert)
-	} else {
-		w.Header().Set(ctHeaderName, mimeTypeTextCharset)
+	switch responseType {
+	case webapp.MimeTypeAll, webapp.MimeTypeText:
+		w.Header().Set(webapp.HeaderNameContentType, webapp.MimeTypeTextCharset)
 		err = pem.Encode(w, &pem.Block{Type: "CERTIFICATE", Bytes: cert})
+	case webapp.MimeTypeBytes:
+		w.Header().Set(webapp.HeaderNameContentType, webapp.MimeTypeBytes)
+		_, err = w.Write(cert)
+	case webapp.MimeTypeHtml:
+		w.Header().Set(webapp.HeaderNameContentType, webapp.MimeTypeHtmlCharset)
+		certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert})
+		data := map[string]any{"certPem": string(certPem)}
+		err = web.Templates.ExecuteTemplate(w, "certificate.html", data)
+	default:
+		msg := fmt.Sprintf("media type %s unacceptable", responseType)
+		http.Error(w, msg, http.StatusNotAcceptable)
+		return
 	}
-
 	if err != nil {
 		slog.Error("error writing certificate response", "err", err)
 	}
-	requestsDuration.Update(time.Since(startTime).Seconds())
+
+	ca.requestsDuration.Update(time.Since(startTime).Seconds())
 }
 
 func readCsr(contentType string, body []byte) ([]byte, error) {
 	asn1Data := body
 	switch contentType {
-	case mimeTypeBytes:
+	case webapp.MimeTypeBytes:
 		// DER encoded
-	case "", mimeTypeText:
+	case "", webapp.MimeTypeText:
 		// PEM
 		block, _ := pem.Decode(body)
 		if block == nil {
@@ -229,13 +231,7 @@ func (ca CA) IssueCertificate(
 	if err != nil {
 		return nil, err
 	}
-	issuedCertsTotal.Inc()
-	return certBytes, nil
-}
 
-func getMimeTypeHeader(value, defaultValue string) (string, map[string]string, error) {
-	if value == "" {
-		return defaultValue, nil, nil
-	}
-	return mime.ParseMediaType(value)
+	ca.issuedTotal.Inc()
+	return certBytes, nil
 }

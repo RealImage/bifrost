@@ -1,11 +1,20 @@
 module github.com/RealImage/bifrost
 
-go 1.21
+go 1.21.3
 
 require (
 	github.com/VictoriaMetrics/metrics v1.24.0
-	github.com/google/uuid v1.3.1
+	github.com/aws/aws-lambda-go v1.41.0
+	github.com/aws/aws-sdk-go v1.46.6
+	github.com/charmbracelet/bubbles v0.16.1
+	github.com/charmbracelet/bubbletea v0.24.2
+	github.com/charmbracelet/charm v0.12.6
+	github.com/charmbracelet/lipgloss v0.9.1
+	github.com/google/uuid v1.4.0
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/timewasted/go-accept-headers v0.0.0-20130320203746-c78f304b1b09
+	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
+	golang.org/x/net v0.17.0
 )
 
 require (
@@ -21,7 +30,7 @@ require (
 	github.com/jacobsa/crypto v0.0.0-20190317225127-9f44e2d11115 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
-	github.com/mattn/go-isatty v0.0.19 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
@@ -39,16 +48,4 @@ require (
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
-)
-
-require (
-	github.com/aws/aws-lambda-go v1.41.0
-	github.com/aws/aws-sdk-go v1.45.24
-	github.com/charmbracelet/bubbles v0.16.1
-	github.com/charmbracelet/bubbletea v0.24.2
-	github.com/charmbracelet/charm v0.12.6
-	github.com/charmbracelet/lipgloss v0.8.0
-	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
-	golang.org/x/net v0.17.0
 )

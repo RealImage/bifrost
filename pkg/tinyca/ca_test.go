@@ -22,7 +22,9 @@ import (
 	"time"
 
 	"github.com/RealImage/bifrost"
+	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/google/uuid"
+	"golang.org/x/net/html"
 )
 
 var serveHTTPTests = []struct {
@@ -66,7 +68,7 @@ l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 		expectedCode: http.StatusOK,
 	},
 	{
-		contentType: "text/plain; charset=urf-8",
+		contentType: "text/plain; charset=utf-8",
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
 OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
@@ -79,6 +81,18 @@ l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 	},
 	{
 		accept: "text/plain",
+		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
+OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
+OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
+f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
+l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
+-----END CERTIFICATE REQUEST-----`),
+		expectedCode: http.StatusOK,
+	},
+	{
+		accept: "text/html",
 		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
 OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
@@ -136,7 +150,7 @@ l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 		expectedBody: []byte("error decoding certificate request PEM block"),
 	},
 	{
-		contentType:  mimeTypeBytes,
+		contentType:  webapp.MimeTypeBytes,
 		expectedCode: http.StatusBadRequest,
 		expectedBody: []byte(
 			"certificate request invalid: asn1: syntax error: sequence truncated",
@@ -252,20 +266,22 @@ func TestCA_ServeHTTP(t *testing.T) {
 				t.Fatal(err)
 			}
 			if ac := tc.accept; ac != "" {
-				req.Header.Set(acHeaderName, ac)
+				req.Header.Set(webapp.HeaderNameAccept, ac)
 			}
 			if ct := tc.contentType; ct != "" {
-				req.Header.Set(ctHeaderName, ct)
+				req.Header.Set(webapp.HeaderNameContentType, ct)
 			}
 			rr := httptest.NewRecorder()
 			ca.ServeHTTP(rr, req)
 			resp := rr.Result()
+			defer resp.Body.Close()
 
 			if resp.StatusCode != tc.expectedCode {
 				t.Fatalf("expected code: %d, actual: %d,\n\nbody:\n```\n%s\n```\n",
 					tc.expectedCode, rr.Code, rr.Body.String())
 			}
-			if ac := resp.Header.Get(acHeaderName); ac != "" && tc.accept != "" && ac != tc.accept {
+			if ac := resp.Header.Get(webapp.HeaderNameAccept); ac != "" && tc.accept != "" &&
+				ac != tc.accept {
 				t.Fatalf("expected response media type: %s, actual: %s\n", tc.accept, ac)
 			}
 			respBody, _ := io.ReadAll(resp.Body)
@@ -276,13 +292,13 @@ func TestCA_ServeHTTP(t *testing.T) {
 				}
 			} else if resp.StatusCode < 300 {
 				// If request succeeded and expected body is empty, check that the response body is valid.
-				ct := resp.Header.Get(ctHeaderName)
+				ct := resp.Header.Get(webapp.HeaderNameContentType)
 				contentType, _, err := mime.ParseMediaType(ct)
 				if err != nil {
 					t.Fatalf("error parsing Content-Type header %s: %s", ct, err)
 				}
 				switch contentType {
-				case "", mimeTypeText:
+				case "", webapp.MimeTypeText:
 					b, _ := pem.Decode(respBody)
 					if b == nil {
 						t.Fatal("response body is not a valid PEM block")
@@ -295,7 +311,7 @@ func TestCA_ServeHTTP(t *testing.T) {
 					if cert.Namespace != testns {
 						t.Fatalf("expected namespace: %s, actual: %s\n", testns, cert.Namespace)
 					}
-				case mimeTypeBytes:
+				case webapp.MimeTypeBytes:
 					cert, err := bifrost.ParseCertificate(respBody)
 					if err != nil {
 						t.Fatal("response body is not a valid bifrost certificate: ", err)
@@ -303,8 +319,14 @@ func TestCA_ServeHTTP(t *testing.T) {
 					if cert.Namespace != testns {
 						t.Fatalf("expected namespace: %s, actual: %s\n", testns, cert.Namespace)
 					}
+				case webapp.MimeTypeHtml:
+					_, err := html.Parse(resp.Body)
+					if err != nil {
+						t.Fatal("response body is not a valid HTML document: ", err)
+					}
+					// TODO: Check that the document contains a pv-certificate-viewer element.
 				default:
-					t.Fatalf("unexpected Content-Type: %s\n", resp.Header.Get(ctHeaderName))
+					t.Fatalf("unexpected Content-Type: %s\n", resp.Header.Get(webapp.HeaderNameContentType))
 				}
 			}
 		})

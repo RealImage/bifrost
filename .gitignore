@@ -1,3 +1,4 @@
 *.pem
-/build
+/bin
 ssllog.txt
+coverage.txt

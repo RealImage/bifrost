@@ -11,18 +11,17 @@ ARG DISTROLESS_VERSION="base-debian12:latest-${TARGETARCH}"
 FROM docker.io/library/node:${NODE_VERSION} as node
 WORKDIR /src
 COPY web .
-RUN npm ci \
-  && env NODE_ENV=production npm run build
+RUN npm ci && npm run build
 
 FROM docker.io/library/golang:${GO_VERSION} as go
 WORKDIR /src
 COPY . .
 COPY --from=node /src/static/ /src/web/static/
-RUN mkdir /build \
-  && env CGO_ENABLED=0 go build -o /build ./...
+RUN mkdir /bin \
+  && env CGO_ENABLED=0 go bin -o /build ./...
 
 FROM gcr.io/distroless/${DISTROLESS_VERSION} as authz
-COPY --from=go /build/bouncer /
+COPY --from=go /bin/bouncer /
 ENTRYPOINT [ "/bouncer" ]
 
 FROM gcr.io/distroless/${DISTROLESS_VERSION} as ca
@@ -32,12 +31,12 @@ FROM gcr.io/distroless/${DISTROLESS_VERSION} as ca
 ARG AWS_LWA_VERSION=0.7.1
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:${AWS_LWA_VERSION} \
   /lambda-adapter /opt/extensions/lambda-adapter
-COPY --from=go /build/issuer /
+COPY --from=go /bin/issuer /
 ENV PORT=8888
 ENV AWS_LWA_READINESS_CHECK_PATH="/namespace"
 ENV AWS_LWA_ENABLE_COMPRESSION="true"
 ENTRYPOINT [ "/issuer" ]
 
 FROM gcr.io/distroless/${DISTROLESS_VERSION}
-COPY --from=go /build/* /
+COPY --from=go /bin/* /
 ENTRYPOINT [ "/bf" ]
