@@ -48,8 +48,8 @@ func main() {
 	mux.Handle("/issue", ca)
 
 	if w := config.Issuer.Web; w.Enabled {
-		slog.DebugCtx(ctx, "web enabled")
-		webapp.AddRoutes(mux, w.Debug, cert.Namespace)
+		slog.DebugCtx(ctx, "web enabled", "staticFiles", w.StaticFilesPath)
+		webapp.AddRoutes(mux, w.StaticFilesPath, cert.Namespace)
 	}
 
 	hdlr := sundry.RequestLogHandler(mux)

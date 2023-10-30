@@ -5,10 +5,12 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,7 +18,11 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-const EnvPrefix = "BF"
+const (
+	EnvPrefix = "BF"
+
+	StaticFilesEmbedded = "embedded"
+)
 
 var (
 	BuildRevision string
@@ -93,23 +99,41 @@ type issuer struct {
 }
 
 type web struct {
-	Enabled bool
-	Debug   bool
+	Enabled         bool
+	StaticFilesPath string
 }
 
 // Decode implements envconfig.Decoder.
-// It allows the web config to be set to "dev" to enable debug mode.
-// Otherwise, it must be a boolean value.
+// It decodes a boolean or a directory path.
 func (w *web) Decode(value string) error {
-	if value == "dev" {
-		w.Enabled = true
-		w.Debug = true
+	value = strings.TrimPrefix(value, "file://")
+	si, err := os.Stat(value)
+	if err != nil || !si.IsDir() {
+		if berr := w.decodeBool(value); berr != nil {
+			err := errors.Join(err, berr)
+			return fmt.Errorf("%s is not a directory or a boolean: %w", value, err)
+		}
 		return nil
 	}
+
+	if err == nil && si.IsDir() {
+		w.Enabled = true
+		w.StaticFilesPath = value
+		return nil
+	}
+
+	if err := w.decodeBool(value); err != nil {
+		return fmt.Errorf("%s is not a directory or a boolean: %w", value, err)
+	}
+	return nil
+}
+
+func (w *web) decodeBool(value string) error {
 	en, err := strconv.ParseBool(value)
 	if err != nil {
 		return fmt.Errorf("invalid value %q for web: %w", value, err)
 	}
 	w.Enabled = en
+	w.StaticFilesPath = StaticFilesEmbedded
 	return nil
 }
