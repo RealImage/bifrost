@@ -1,4 +1,4 @@
 *.pem
-/build
+/bin
 ssllog.txt
 /web/static/js/index.js
