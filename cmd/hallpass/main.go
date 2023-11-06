@@ -97,10 +97,10 @@ func main() {
 		<-ctx.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), config.HallPass.ShutdownTimeout)
 		defer cancel()
-		slog.InfoCtx(ctx, "shutting down server")
 		if err := server.Shutdown(ctx); err != nil {
 			panic(err)
 		}
+		slog.InfoCtx(ctx, "shutting down server")
 	}()
 
 	slog.InfoCtx(ctx, "proxying requests",

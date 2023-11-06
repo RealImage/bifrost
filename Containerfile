@@ -3,7 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 ARG GO_VERSION="1.21"
-ARG NODE_VERSION="20.7.0"
+ARG NODE_VERSION="20.9.0"
 ARG TARGETARCH
 ARG DISTROLESS_VERSION="base-debian12:latest-${TARGETARCH}"
 

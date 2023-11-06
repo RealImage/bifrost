@@ -47,6 +47,11 @@ func main() {
 	sundry.OnErrorExit(ctx, err, "error creating ca")
 	mux.Handle("/issue", ca)
 
+	nss := cert.Namespace.String()
+	mux.HandleFunc("/namespace", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, nss)
+	})
+
 	if w := config.Issuer.Web; w.Enabled {
 		slog.DebugCtx(ctx, "web enabled", "staticFiles", w.StaticFilesPath)
 		webapp.AddRoutes(mux, w.StaticFilesPath, cert.Namespace)
@@ -60,10 +65,10 @@ func main() {
 		<-ctx.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), config.Issuer.ShutdownTimeout)
 		defer cancel()
-		slog.InfoCtx(ctx, "shutting down server")
 		if err := server.Shutdown(ctx); err != nil {
 			panic(err)
 		}
+		slog.InfoCtx(ctx, "shutting down server")
 	}()
 
 	slog.InfoCtx(ctx, "serving requests", "address", addr, "namespace", cert.Namespace)
