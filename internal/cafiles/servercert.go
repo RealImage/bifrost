@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/RealImage/bifrost"
-	"github.com/RealImage/bifrost/pkg/tinyca"
+	"github.com/RealImage/bifrost/tinyca"
 )
 
 func CreateServerCertificate(

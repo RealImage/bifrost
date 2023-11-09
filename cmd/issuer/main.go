@@ -16,7 +16,7 @@ import (
 	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/RealImage/bifrost/internal/sundry"
 	"github.com/RealImage/bifrost/internal/webapp"
-	"github.com/RealImage/bifrost/pkg/tinyca"
+	"github.com/RealImage/bifrost/tinyca"
 	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/exp/slog"
 )
