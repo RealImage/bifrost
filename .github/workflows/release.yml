@@ -38,7 +38,7 @@ jobs:
             latest
           containerfiles: Containerfile
           oci: true
-          archs: amd64  # , arm64
+          archs: amd64, arm64
       - name: Push bifrost image to ghcr.io
         uses: redhat-actions/push-to-registry@v2
         with:
