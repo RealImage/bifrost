@@ -11,21 +11,17 @@ ARG DISTROLESS_VERSION="base-debian12:latest-$TARGETARCH"
 FROM --platform=$BUILDPLATFORM docker.io/library/node:$NODE_VERSION as node
 WORKDIR /src
 COPY web/package.json web/package-lock.json ./
-RUN --mount=type=cache,target=node_modules \
-  npm ci
+RUN npm ci
 COPY web .
-RUN --mount=type=cache,target=node_modules \
-  npm run build
+RUN npm run build
 
 FROM --platform=$BUILDPLATFORM docker.io/library/golang:$GO_VERSION as go
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod/ \
-  go mod download -x
+RUN go mod download -x
 COPY . .
 COPY --from=node /src/static/ /src/web/static/
-RUN --mount=type=cache,target=/go/pkg/mod/ \
-  mkdir -p bin \
+RUN mkdir -p bin \
   && env CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o bin ./...
 
 
