@@ -18,10 +18,22 @@ import (
 	"github.com/RealImage/bifrost/tinyca"
 )
 
+// CreateServerCertificate creates a TLS server certificate signed by the given CA.
+// The certificate is valid for the given duration. If the duration is zero, the
+// certificate is valid for one year.
 func CreateServerCertificate(
 	caCert *bifrost.Certificate,
 	caKey *ecdsa.PrivateKey,
+	validity time.Duration,
 ) (*bifrost.Certificate, *ecdsa.PrivateKey, error) {
+	if validity == 0 {
+		validity = time.Hour * 24 * 365
+	}
+	ca, err := tinyca.New(caCert, caKey, validity)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error generating server key: %w", err)
@@ -41,13 +53,9 @@ func CreateServerCertificate(
 		return nil, nil, fmt.Errorf("error creating certificate request: %w", err)
 	}
 
-	ca, err := tinyca.New(caCert, caKey, time.Hour*24*365)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	keyUsage := x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment
 	extKeyUsage := []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
+
 	certBytes, err := ca.IssueCertificate(csrBytes, keyUsage, extKeyUsage)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error issuing server certificate: %w", err)

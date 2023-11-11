@@ -22,7 +22,6 @@ func HTTPClient(clientCert tls.Certificate, roots *x509.CertPool, ssllog io.Writ
 	}
 	tlsTransport := http.DefaultTransport.(*http.Transport).Clone()
 	tlsTransport.TLSClientConfig = tlsConfig
-
 	return &http.Client{
 		Transport: tlsTransport,
 	}

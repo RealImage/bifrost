@@ -77,7 +77,7 @@ func main() {
 	hdlr := sundry.RequestLogHandler(ti(reverseProxy))
 
 	addr := fmt.Sprintf("%s:%d", config.HallPass.Host, config.HallPass.Port)
-	serverCert, serverKey, err := cafiles.CreateServerCertificate(cert, key)
+	serverCert, serverKey, err := cafiles.CreateServerCertificate(cert, key, 0)
 	sundry.OnErrorExit(ctx, err, "error creating server certificate")
 	tlsCert, err := serverCert.ToTLSCertificate(serverKey)
 	sundry.OnErrorExit(ctx, err, "error creating tls certificate")
