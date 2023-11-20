@@ -23,8 +23,6 @@ jobs:
   lint_test:
     name: Lint & test code.
     runs-on: ubuntu-latest
-    env:
-      GOLANGCILINT_VERSION: "v1.52"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -35,7 +33,11 @@ jobs:
       - name: Lint Go code
         uses: golangci/golangci-lint-action@v3
         with:
-          version: ${{ env.GOLANGCILINT_VERSION }}
+          version: "v1.55.2"
+      - name: nilaway
+        run:
+          go install go.uber.org/nilaway/cmd/nilaway@a267567c6ffff900df0c3394d031ee70079ec8df
+          nilaway ./...
       - name: Vet
         run: go vet ./...
       - name: Test

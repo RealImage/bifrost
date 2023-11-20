@@ -4,9 +4,7 @@
 
 ARG GO_VERSION="1.21"
 ARG NODE_VERSION="20.9.0"
-ARG TARGETOS
-ARG TARGETARCH
-ARG DISTROLESS_VERSION="base-debian12:latest-$TARGETARCH"
+ARG DISTROLESS_VERSION="base-debian12:latest"
 
 FROM --platform=$BUILDPLATFORM docker.io/library/node:$NODE_VERSION as node
 WORKDIR /src
@@ -16,6 +14,8 @@ COPY web .
 RUN npm run build
 
 FROM --platform=$BUILDPLATFORM docker.io/library/golang:$GO_VERSION as go
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download -x
@@ -23,7 +23,6 @@ COPY . .
 COPY --from=node /src/static/ /src/web/static/
 RUN mkdir -p bin \
   && env CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o bin ./...
-
 
 FROM gcr.io/distroless/$DISTROLESS_VERSION as authz
 COPY --from=go /src/bin/bouncer /
