@@ -35,7 +35,7 @@ jobs:
         with:
           version: "v1.55.2"
       - name: nilaway
-        run:
+        run: |
           go install go.uber.org/nilaway/cmd/nilaway@a267567c6ffff900df0c3394d031ee70079ec8df
           nilaway ./...
       - name: Vet
