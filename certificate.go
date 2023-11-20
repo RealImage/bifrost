@@ -83,10 +83,10 @@ func (c *Certificate) Verify() error {
 	cid, err := uuid.Parse(c.Subject.CommonName)
 	if err != nil {
 		return fmt.Errorf(
-			"%w: invalid subj CN '%s', %v",
+			"%w: invalid subj CN '%s', %s",
 			ErrCertificateInvalid,
 			c.Subject.CommonName,
-			err,
+			err.Error(),
 		)
 	}
 	if cid != id {
@@ -127,7 +127,7 @@ type CertificateRequest struct {
 func ParseCertificateRequest(asn1Data []byte) (*CertificateRequest, error) {
 	csr, err := x509.ParseCertificateRequest(asn1Data)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrCertificateRequestInvalid, err)
+		return nil, fmt.Errorf("%w: %s", ErrCertificateRequestInvalid, err.Error())
 	}
 	c := &CertificateRequest{
 		CertificateRequest: csr,
@@ -180,8 +180,8 @@ func (c *CertificateRequest) Verify() error {
 	id := UUID(ns, pubkey)
 	cid, err := uuid.Parse(c.Subject.CommonName)
 	if err != nil {
-		return fmt.Errorf("%w: invalid identity '%s', %v",
-			ErrCertificateRequestInvalid, c.Subject.CommonName, err)
+		return fmt.Errorf("%w: invalid identity '%s', %s",
+			ErrCertificateRequestInvalid, c.Subject.CommonName, err.Error())
 	}
 	if cid != id {
 		return fmt.Errorf("%w: incorrect identity", ErrCertificateRequestInvalid)

@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -73,7 +74,7 @@ func main() {
 
 	slog.InfoCtx(ctx, "serving requests", "address", addr, "namespace", cert.Namespace)
 
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		sundry.OnErrorExit(ctx, err, "error serving requests")
 	}
 }

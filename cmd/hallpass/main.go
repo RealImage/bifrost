@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -109,7 +110,8 @@ func main() {
 		"namespace", cert.Namespace.String(),
 	)
 
-	if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+	if err := server.ListenAndServeTLS("", ""); err != nil &&
+		!errors.Is(err, http.ErrServerClosed) {
 		sundry.OnErrorExit(ctx, err, "error serving requests")
 	}
 }

@@ -136,7 +136,9 @@ func TestTLSIdentifier(t *testing.T) {
 		t.Errorf("error creating request %s", err)
 	}
 
-	if _, err := client.Do(request); err != nil {
+	resp, err := client.Do(request)
+	if err != nil {
 		t.Errorf("error doing request %s", err)
 	}
+	defer resp.Body.Close()
 }
