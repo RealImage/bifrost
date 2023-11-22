@@ -1,4 +1,4 @@
-/* 
+/*
   This Source Code Form is subject to the terms of the Mozilla Public
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -101,28 +101,6 @@ export async function createCsr(ns, keyPem) {
 function bifrostId(pubKey, ns) {
   const xyBytes = pubKey.slice(1, 65);
   return uuidv5(new Uint8Array(xyBytes), ns);
-}
-
-// PEM to ArrayBuffer courtesy of https://stackoverflow.com/q/41529138/1656503
-function pemToArrayBuffer(pem) {
-  var lines = pem.split("\n");
-  var encoded = "";
-  for (var i = 0; i < lines.length; i++) {
-    if (
-      lines[i].trim().length > 0 &&
-      lines[i].indexOf("-----BEGIN RSA PRIVATE KEY-----") < 0 &&
-      lines[i].indexOf("-----BEGIN RSA PUBLIC KEY-----") < 0 &&
-      lines[i].indexOf("-----BEGIN PUBLIC KEY-----") < 0 &&
-      lines[i].indexOf("-----END PUBLIC KEY-----") < 0 &&
-      lines[i].indexOf("-----BEGIN PRIVATE KEY-----") < 0 &&
-      lines[i].indexOf("-----END PRIVATE KEY-----") < 0 &&
-      lines[i].indexOf("-----END RSA PRIVATE KEY-----") < 0 &&
-      lines[i].indexOf("-----END RSA PUBLIC KEY-----") < 0
-    ) {
-      encoded += lines[i].trim();
-    }
-  }
-  return base64StringToArrayBuffer(encoded);
 }
 
 function base64StringToArrayBuffer(b64str) {
