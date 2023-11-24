@@ -281,6 +281,6 @@ Statisticians hate this one weird trick.
 
 ## [LICENSE](LICENSE)
 
-Bifrost is available under the terms of the Mozilla Public License 2.0.
+Bifrost is available under the terms of the MIT License.
 
 Qube Cinema © 2023

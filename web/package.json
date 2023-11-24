@@ -14,7 +14,7 @@
     "url": "git+https://github.com/RealImage/bifrost.git"
   },
   "author": "Qube Cinema",
-  "license": "MPL-2.0",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/RealImage/bifrost/issues"
   },
