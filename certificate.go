@@ -111,6 +111,8 @@ func (c Certificate) ToTLSCertificate(key *ecdsa.PrivateKey) (*tls.Certificate, 
 	}, nil
 }
 
+// CertificateRequest is a bifrost certificate request.
+// It embeds the x509 certificate request and adds the bifrost ID, namespace, and public key.
 type CertificateRequest struct {
 	*x509.CertificateRequest
 	Id        uuid.UUID

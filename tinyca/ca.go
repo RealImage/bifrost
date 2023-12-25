@@ -11,18 +11,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"math/big"
 	"net/http"
 	"time"
 
 	"github.com/RealImage/bifrost"
-	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/RealImage/bifrost/web"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/google/uuid"
-	"golang.org/x/exp/slog"
 )
 
 // CA is a simple Certificate Authority.
@@ -44,7 +43,7 @@ type CA struct {
 // The CA issues certificates for the given namespace.
 func New(cert *bifrost.Certificate, key *ecdsa.PrivateKey, dur time.Duration) (*CA, error) {
 	if err := cert.Verify(); err != nil {
-		return nil, fmt.Errorf("ca certificate is not a bifrost certificate: %w", err)
+		return nil, fmt.Errorf("bifrost: ca certificate is not a bifrost certificate: %w", err)
 	}
 
 	iss := bfMetricName("issued_certs_total", cert.Namespace)
@@ -56,9 +55,9 @@ func New(cert *bifrost.Certificate, key *ecdsa.PrivateKey, dur time.Duration) (*
 		key:  key,
 		dur:  dur,
 
-		issuedTotal:      stats.ForNerds.NewCounter(iss),
-		requestsTotal:    stats.ForNerds.NewCounter(rt),
-		requestsDuration: stats.ForNerds.NewHistogram(rd),
+		issuedTotal:      bifrost.StatsForNerds.NewCounter(iss),
+		requestsTotal:    bifrost.StatsForNerds.NewCounter(rt),
+		requestsDuration: bifrost.StatsForNerds.NewHistogram(rd),
 	}, nil
 }
 
@@ -165,7 +164,7 @@ func readCsr(contentType string, body []byte) ([]byte, error) {
 		// PEM
 		block, _ := pem.Decode(body)
 		if block == nil {
-			return nil, fmt.Errorf("error decoding certificate request PEM block")
+			return nil, fmt.Errorf("bifrost: error decoding certificate request PEM block")
 		}
 		asn1Data = block.Bytes
 	}
@@ -192,7 +191,7 @@ func (ca CA) IssueCertificate(
 
 	serialNumber, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
 	if err != nil {
-		return nil, fmt.Errorf("unexpected error generating certificate serial: %w", err)
+		return nil, fmt.Errorf("bifrost: unexpected error generating certificate serial: %w", err)
 	}
 
 	ns := ca.cert.Namespace

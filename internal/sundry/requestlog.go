@@ -1,10 +1,9 @@
 package sundry
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
-
-	"golang.org/x/exp/slog"
 )
 
 // RequestLogHandler logs the request method and uri to stdout.
@@ -12,7 +11,7 @@ func RequestLogHandler(h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		h.ServeHTTP(w, r)
-		slog.InfoCtx(
+		slog.InfoContext(
 			r.Context(),
 			"request received",
 			slog.String("method", r.Method),

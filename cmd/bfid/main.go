@@ -81,7 +81,7 @@ func main() {
 
 	block, _ := pem.Decode(data)
 	if block == nil {
-		sundry.OnErrorExit(ctx, errors.New("no pem data found in input file"), "")
+		sundry.OnErrorExit(ctx, errors.New("bifrost: no pem data found in input file"), "")
 		return
 	}
 
@@ -93,7 +93,7 @@ func main() {
 		sundry.OnErrorExit(ctx, err, "error parsing key")
 		eckey, ok := key.(*ecdsa.PrivateKey)
 		if !ok {
-			sundry.OnErrorExit(ctx, fmt.Errorf("unexpected key type: %T", key), "")
+			sundry.OnErrorExit(ctx, fmt.Errorf("bifrost: unexpected key type: %T", key), "")
 		}
 		pubkey = &eckey.PublicKey
 	case "EC PRIVATE KEY":
@@ -105,7 +105,7 @@ func main() {
 		sundry.OnErrorExit(ctx, err, "error parsing key")
 		eckey, ok := key.(*ecdsa.PublicKey)
 		if !ok {
-			sundry.OnErrorExit(ctx, fmt.Errorf("unexpected key type: %T", key), "")
+			sundry.OnErrorExit(ctx, fmt.Errorf("bifrost: unexpected key type: %T", key), "")
 		}
 		pubkey = eckey
 	case "CERTIFICATE":
@@ -114,7 +114,7 @@ func main() {
 		namespace = cert.Namespace
 		pubkey = cert.PublicKey
 	default:
-		sundry.OnErrorExit(ctx, fmt.Errorf("unexpected block type: %s", block.Type), "")
+		sundry.OnErrorExit(ctx, fmt.Errorf("bifrost: unexpected block type: %s", block.Type), "")
 	}
 
 	// Print the UUID.

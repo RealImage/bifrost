@@ -1,4 +1,10 @@
-// Bifrost is an mTLS authentication toolkit.
+// Package bifrost provides simple Public Key Infrastructure (PKI) services.
+//
+// Bifrost identifies clients by their private keys.
+// Keys are deterministically mapped to UUIDs by hashing them with the namespace UUID.
+// The same key maps to different UUIDs in different namespaces.
+// Clients can request certificates for their UUIDs.
+// The certificates are signed by a root CA.
 package bifrost
 
 import (
@@ -6,9 +12,9 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
-	"encoding/pem"
 	"errors"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/google/uuid"
 )
 
@@ -20,26 +26,17 @@ const (
 
 // Errors.
 var (
-	ErrCertificateInvalid        = errors.New("certificate invalid")
-	ErrCertificateRequestInvalid = errors.New("certificate request invalid")
-	ErrIncorrectMismatch         = errors.New("namespace mismatch")
+	ErrCertificateInvalid        = errors.New("bifrost: certificate invalid")
+	ErrCertificateRequestInvalid = errors.New("bifrost: certificate request invalid")
+	ErrIncorrectMismatch         = errors.New("bifrost: namespace mismatch")
 )
 
-// NewIdentity generates a new ECDSA private key.
-// The private key is also returned as a PEM encoded DER bytes in the second return value.
-func NewIdentity() (*ecdsa.PrivateKey, []byte, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, nil, err
-	}
-	keyDer, err := x509.MarshalECPrivateKey(key)
-	if err != nil {
-		return nil, nil, err
-	}
-	keyPem := pem.EncodeToMemory(&pem.Block{
-		Type: "EC PRIVATE KEY", Headers: nil, Bytes: keyDer,
-	})
-	return key, keyPem, nil
+// StatsForNerds captures metrics from various bifrost processes.
+var StatsForNerds = metrics.NewSet()
+
+// NewIdentity generates a new private key for use as a Bifrost identity.
+func NewIdentity() (*ecdsa.PrivateKey, error) {
+	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 }
 
 // UUID returns a unique identifier derived from the namespace and the client's public key identity.

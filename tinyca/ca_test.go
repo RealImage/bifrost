@@ -143,13 +143,13 @@ l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 	},
 	{
 		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte("error decoding certificate request PEM block"),
+		expectedBody: []byte("bifrost: error decoding certificate request PEM block"),
 	},
 	{
 		contentType:  webapp.MimeTypeBytes,
 		expectedCode: http.StatusBadRequest,
 		expectedBody: []byte(
-			"certificate request invalid: asn1: syntax error: sequence truncated",
+			"bifrost: certificate request invalid: asn1: syntax error: sequence truncated",
 		),
 	},
 	{
@@ -163,7 +163,7 @@ mgv/AEzrEMftJgIgJMVY2zEn/qS9M/yJb7IeSSWv9IbiHfP325aZsynerNg=
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusBadRequest,
 		expectedBody: []byte(
-			"certificate request invalid: unsupported signature algorithm 'ECDSA-SHA512'",
+			"bifrost: certificate request invalid: unsupported signature algorithm 'ECDSA-SHA512'",
 		),
 	},
 	{
@@ -177,7 +177,7 @@ h3/5fgf2oAAwCgYIKoZIzj0EAwIDSAAwRQIgeb1ei3tJ4OPnX3UXUs3zT9vXfX+1
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusBadRequest,
 		expectedBody: []byte(
-			"certificate request invalid: invalid identity namespace 00000000-0000-0000-0000-0000000000000: invalid UUID length: 37",
+			"bifrost: certificate request invalid: invalid identity namespace 00000000-0000-0000-0000-0000000000000: invalid UUID length: 37",
 		),
 	},
 	{
@@ -191,7 +191,7 @@ f/l+B/agADAKBggqhkjOPQQDAgNGADBDAh8n+tbz1NmD1YPuCVSpXv6F5+FGSC8n
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusBadRequest,
 		expectedBody: []byte(
-			"certificate request invalid: incorrect identity",
+			"bifrost: certificate request invalid: incorrect identity",
 		),
 	},
 	{
@@ -203,7 +203,7 @@ f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAil27xQI3XQqqoNXgPUMNpJUukVDD
 FOioc6+qkAh+Sv8CIQDxi4eJOHAg3+eSnryb3zgsDIoGWcw3NRWI12Kwwr9Upw==
 -----END CERTIFICATE REQUEST-----`),
 		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte("certificate request invalid: missing identity namespace"),
+		expectedBody: []byte("bifrost: certificate request invalid: missing identity namespace"),
 	},
 	{contentType: "text/vindaloo", expectedCode: http.StatusUnsupportedMediaType},
 }

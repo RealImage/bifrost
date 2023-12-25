@@ -3,6 +3,7 @@ package webapp
 import (
 	"net/http"
 
+	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/config"
 	"github.com/RealImage/bifrost/web"
 	"github.com/google/uuid"
@@ -35,4 +36,9 @@ func Index(ns uuid.UUID) http.Handler {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
+}
+
+// MetricsHandler is a HTTP handler that returns metrics from the ForNerds MetricsSet
+func MetricsHandler(w http.ResponseWriter, _ *http.Request) {
+	bifrost.StatsForNerds.WritePrometheus(w)
 }

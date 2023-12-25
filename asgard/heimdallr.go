@@ -9,11 +9,11 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/RealImage/bifrost/internal/middleware"
 	"github.com/google/uuid"
-	"golang.org/x/exp/slog"
 )
 
 type Identity struct {
@@ -76,18 +76,18 @@ func Heimdallr(namespace uuid.UUID) func(http.Handler) http.Handler {
 			ctx := r.Context()
 			hdr := r.Header.Get(middleware.RequestContextHeaderName)
 			if hdr == "" {
-				slog.ErrorCtx(ctx, "missing request context header")
+				slog.ErrorContext(ctx, "missing request context header")
 				http.Error(w, middleware.ServiceUnavailableMsg, http.StatusServiceUnavailable)
 				return
 			}
 			var rctx middleware.AuthorizedRequestContext
 			if err := json.Unmarshal([]byte(hdr), &rctx); err != nil {
-				slog.ErrorCtx(ctx, "error unmarshaling request context", "error", err)
+				slog.ErrorContext(ctx, "error unmarshaling request context", "error", err)
 				http.Error(w, middleware.ServiceUnavailableMsg, http.StatusServiceUnavailable)
 				return
 			}
 			if rctx.Authorizer.Namespace != namespace {
-				slog.ErrorCtx(ctx,
+				slog.ErrorContext(ctx,
 					"namespace mismatch",
 					"want", namespace,
 					"got", rctx.Authorizer.Namespace,

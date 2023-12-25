@@ -1,11 +1,12 @@
 package main
 
 import (
+	"log/slog"
+
 	"github.com/RealImage/bifrost/internal/config"
 	"github.com/RealImage/bifrost/internal/middleware"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/kelseyhightower/envconfig"
-	"golang.org/x/exp/slog"
 )
 
 func main() {

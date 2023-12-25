@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime/debug"
 	"strconv"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kelseyhightower/envconfig"
-	"golang.org/x/exp/slog"
 )
 
 const (

@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -15,10 +16,9 @@ import (
 	"github.com/RealImage/bifrost/internal/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
 	"github.com/RealImage/bifrost/internal/middleware"
-	"github.com/RealImage/bifrost/internal/stats"
 	"github.com/RealImage/bifrost/internal/sundry"
+	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/kelseyhightower/envconfig"
-	"golang.org/x/exp/slog"
 )
 
 func main() {
@@ -27,15 +27,15 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	slog.InfoCtx(
+	slog.InfoContext(
 		ctx, "build info",
 		slog.String("rev", config.BuildRevision),
 		slog.Time("timestamp", config.BuildTime),
 	)
 
 	if u := config.HallPass.MetricsUrl; u != "" {
-		slog.DebugCtx(ctx, "metrics enabled", slog.String("url", u))
-		http.HandleFunc("/", stats.MetricsHandler)
+		slog.DebugContext(ctx, "metrics enabled", slog.String("url", u))
+		http.HandleFunc("/", webapp.MetricsHandler)
 		go func() {
 			if err := http.ListenAndServe(u, nil); err != nil {
 				panic(err)
@@ -97,10 +97,10 @@ func main() {
 		if err := server.Shutdown(ctx); err != nil {
 			panic(err)
 		}
-		slog.InfoCtx(ctx, "shutting down server")
+		slog.InfoContext(ctx, "shutting down server")
 	}()
 
-	slog.InfoCtx(ctx, "proxying requests",
+	slog.InfoContext(ctx, "proxying requests",
 		"from", "https://"+addr,
 		"to", config.HallPass.BackendUrl,
 		"namespace", cert.Namespace.String(),

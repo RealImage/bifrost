@@ -2,11 +2,11 @@ package middleware
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/RealImage/bifrost"
 	"github.com/google/uuid"
-	"golang.org/x/exp/slog"
 )
 
 // TLSIdentifier returns a HTTP Handler middleware function that identifies clients using
@@ -24,13 +24,13 @@ func TLSIdentifier(namespace uuid.UUID) func(http.Handler) http.Handler {
 				Certificate: r.TLS.PeerCertificates[0],
 			}
 			if err := cert.Verify(); err != nil {
-				slog.ErrorCtx(ctx, "error validating client certificate", "error", err)
+				slog.ErrorContext(ctx, "error validating client certificate", "error", err)
 				http.Error(w, "invalid client certificate", http.StatusUnauthorized)
 				return
 			}
 
 			if cert.Namespace != namespace {
-				slog.ErrorCtx(
+				slog.ErrorContext(
 					ctx,
 					"client certificate namespace mismatch",
 					"expected",
@@ -45,7 +45,7 @@ func TLSIdentifier(namespace uuid.UUID) func(http.Handler) http.Handler {
 			j := JWKFromECDSA(cert.PublicKey)
 			val, err := json.Marshal(j)
 			if err != nil {
-				slog.ErrorCtx(ctx, "error marshaling public key", "error", err)
+				slog.ErrorContext(ctx, "error marshaling public key", "error", err)
 				http.Error(w, "unexpected error", http.StatusInternalServerError)
 				return
 			}
@@ -58,7 +58,7 @@ func TLSIdentifier(namespace uuid.UUID) func(http.Handler) http.Handler {
 
 			rctxHeader, err := json.Marshal(&rctx)
 			if err != nil {
-				slog.ErrorCtx(ctx, "error marshaling request context", "error", err)
+				slog.ErrorContext(ctx, "error marshaling request context", "error", err)
 				http.Error(w, "unexpected error", http.StatusInternalServerError)
 				return
 			}
