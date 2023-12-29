@@ -44,11 +44,11 @@ jobs:
           pushd web; npm ci; popd
 
           gobuild() {
-            env GOOS="$1" GOARCH="$2" go build -o bin/bfid_"$1"_"$2" ./cmd/bf
+            env GOOS="$1" GOARCH="$2" go build -o bin/bf_"$1"_"$2" ./cmd/bf
             env GOOS="$1" GOARCH="$2" go build -o bin/bfid_"$1"_"$2" ./cmd/bfid
-            env GOOS="$1" GOARCH="$2" go build -o bin/bfid_"$1"_"$2" ./cmd/bouncer
-            env GOOS="$1" GOARCH="$2" go build -o bin/bfid_"$1"_"$2" ./cmd/hallpass
-            env GOOS="$1" GOARCH="$2" go build -o bin/bfid_"$1"_"$2" ./cmd/issuer
+            env GOOS="$1" GOARCH="$2" go build -o bin/bouncer_"$1"_"$2" ./cmd/bouncer
+            env GOOS="$1" GOARCH="$2" go build -o bin/hallpass_"$1"_"$2" ./cmd/hallpass
+            env GOOS="$1" GOARCH="$2" go build -o bin/issuer_"$1"_"$2" ./cmd/issuer
           }
 
           go generate -x ./...
