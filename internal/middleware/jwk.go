@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+
+	"github.com/RealImage/bifrost"
 )
 
 // JWK is a JSON Web Key.
@@ -34,7 +36,7 @@ func (j *JWK) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (j JWK) ToECDSA() (*ecdsa.PublicKey, bool) {
+func (j JWK) PublicKey() (*bifrost.PublicKey, bool) {
 	var x, y big.Int
 	if _, ok := x.SetString(j.X, 10); !ok {
 		return nil, ok
@@ -42,10 +44,12 @@ func (j JWK) ToECDSA() (*ecdsa.PublicKey, bool) {
 	if _, ok := y.SetString(j.Y, 10); !ok {
 		return nil, ok
 	}
-	return &ecdsa.PublicKey{
-		Curve: elliptic.P256(),
-		X:     &x,
-		Y:     &y,
+	return &bifrost.PublicKey{
+		PublicKey: &ecdsa.PublicKey{
+			Curve: elliptic.P256(),
+			X:     &x,
+			Y:     &y,
+		},
 	}, true
 }
 

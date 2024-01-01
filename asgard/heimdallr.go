@@ -7,19 +7,21 @@ package asgard
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 
+	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/middleware"
 	"github.com/google/uuid"
 )
 
-type Identity struct {
+// Papers contains information about the client.
+// It gets you through the bifrost.
+type Papers struct {
 	Namespace uuid.UUID
-	PublicKey *ecdsa.PublicKey
-	SourceIp  string
+	PublicKey *bifrost.PublicKey
+	SourceIP  string
 	UserAgent string
 }
 
@@ -28,7 +30,7 @@ type keyAuthz struct{}
 // FromContext returns an Identity from the request context.
 // If the request context does not contain an AuthorizedRequestContext,
 // the second return value is false.
-func FromContext(ctx context.Context) (*Identity, bool) {
+func FromContext(ctx context.Context) (*Papers, bool) {
 	authz := ctx.Value(keyAuthz{})
 	if authz == nil {
 		return nil, false
@@ -41,14 +43,14 @@ func FromContext(ctx context.Context) (*Identity, bool) {
 	if err := json.Unmarshal([]byte(a.Authorizer.PublicKey), &jwk); err != nil {
 		return nil, false
 	}
-	key, ok := jwk.ToECDSA()
+	key, ok := jwk.PublicKey()
 	if !ok {
 		return nil, false
 	}
-	id := &Identity{
+	id := &Papers{
 		Namespace: a.Authorizer.Namespace,
 		PublicKey: key,
-		SourceIp:  a.Identity.SourceIp,
+		SourceIP:  a.Identity.SourceIp,
 		UserAgent: a.Identity.UserAgent,
 	}
 	return id, true
@@ -56,7 +58,7 @@ func FromContext(ctx context.Context) (*Identity, bool) {
 
 // MustFromContext is like FromContext but panics if the request context
 // does not contain an AuthorizedRequestContext.
-func MustFromContext(ctx context.Context) *Identity {
+func MustFromContext(ctx context.Context) *Papers {
 	id, ok := FromContext(ctx)
 	if !ok {
 		panic("no public key in context")

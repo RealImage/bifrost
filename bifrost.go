@@ -12,9 +12,12 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
 )
 
@@ -34,8 +37,64 @@ var (
 // StatsForNerds captures metrics from various bifrost processes.
 var StatsForNerds = metrics.NewSet()
 
-// NewIdentity generates a new private key for use as a Bifrost identity.
-func NewIdentity() (*ecdsa.PrivateKey, error) {
+// PublicKey is a wrapper around an ECDSA public key.
+// It implements the Marshaler and Unmarshaler interfaces for JSON and DynamoDB.
+type PublicKey struct {
+	*ecdsa.PublicKey
+}
+
+// UUID returns a unique identifier derived from the namespace and the client's public key.
+func (p PublicKey) UUID(ns uuid.UUID) uuid.UUID {
+	return UUID(ns, p.PublicKey)
+}
+
+func (p PublicKey) MarshalJSON() ([]byte, error) {
+	keyDer, err := x509.MarshalPKIXPublicKey(p.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+	return pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: keyDer,
+	}), nil
+}
+
+func (p *PublicKey) UnmarshalJSON(data []byte) error {
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return errors.New("bifrost: invalid PEM block")
+	}
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return err
+	}
+	p.PublicKey = pub.(*ecdsa.PublicKey)
+	return nil
+}
+
+func (p PublicKey) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
+	keyDer, err := x509.MarshalPKIXPublicKey(p.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+	return attributevalue.Marshal(keyDer)
+}
+
+func (p *PublicKey) UnmarshalDynamoDBAttributeValue(av types.AttributeValue) error {
+	var keyDer []byte
+	if err := attributevalue.Unmarshal(av, &keyDer); err != nil {
+		return err
+	}
+	pub, err := x509.ParsePKIXPublicKey(keyDer)
+	if err != nil {
+		return err
+	}
+	p.PublicKey = pub.(*ecdsa.PublicKey)
+	return nil
+}
+
+// NewPrivateKey generates a new private key for use with bifrost.
+func NewPrivateKey() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 }
 

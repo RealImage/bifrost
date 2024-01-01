@@ -91,7 +91,7 @@ func TestTLSIdentifier(t *testing.T) {
 			if err := json.Unmarshal([]byte(rctx.Authorizer.PublicKey), &gotKey); err != nil {
 				t.Errorf("error unmarshaling public key %s", err)
 			}
-			ecKey, _ := gotKey.ToECDSA()
+			ecKey, _ := gotKey.PublicKey()
 			if ecKey.X.Cmp(priv.PublicKey.X) != 0 {
 				t.Errorf("expected public key X coordinate %s, got %s", priv.PublicKey.X, gotKey.X)
 			}

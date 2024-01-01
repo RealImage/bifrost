@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/RealImage/bifrost"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 )
 
 const fetchTimeout = time.Minute
@@ -120,11 +120,12 @@ func getPemFile(ctx context.Context, uri string) (*pem.Block, error) {
 }
 
 func getS3Key(ctx context.Context, bucket, key string) ([]byte, error) {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	rawObject, err := s3.New(sess).GetObjectWithContext(
-		ctx,
+	sdkConfig, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading aws config: %w", err)
+	}
+
+	rawObject, err := s3.NewFromConfig(sdkConfig).GetObject(ctx,
 		&s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(key),
@@ -141,11 +142,13 @@ func getS3Key(ctx context.Context, bucket, key string) ([]byte, error) {
 }
 
 func getSecret(ctx context.Context, secretARN string) ([]byte, error) {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+	sdkConfig, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading aws config: %w", err)
+	}
 	input := secretsmanager.GetSecretValueInput{SecretId: aws.String(secretARN)}
-	val, err := secretsmanager.New(sess).GetSecretValueWithContext(ctx, &input)
+
+	val, err := secretsmanager.NewFromConfig(sdkConfig).GetSecretValue(ctx, &input)
 	if err != nil {
 		return nil, err
 	}
