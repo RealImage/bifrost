@@ -92,7 +92,7 @@ func main() {
 
 	go func() {
 		<-ctx.Done()
-		ctx, cancel := context.WithTimeout(context.Background(), config.HallPass.ShutdownTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), config.ShutdownTimeout)
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
 			panic(err)

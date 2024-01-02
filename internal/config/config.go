@@ -18,6 +18,8 @@ const (
 	EnvPrefix = "BF"
 
 	StaticFilesEmbedded = "embedded"
+
+	ShutdownTimeout = 1 * time.Second
 )
 
 var (
@@ -72,10 +74,9 @@ type bouncer struct {
 }
 
 type Server struct {
-	Host            string        `envconfig:"HOST"             default:"localhost"`
-	CrtUri          string        `envconfig:"CRT"              default:"crt.pem"`
-	KeyUri          string        `envconfig:"KEY"              default:"key.pem"`
-	ShutdownTimeout time.Duration `envconfig:"SHUTDOWN_TIMEOUT" default:"2s"`
+	Host   string `envconfig:"HOST" default:"localhost"`
+	CrtUri string `envconfig:"CRT"  default:"crt.pem"`
+	KeyUri string `envconfig:"KEY"  default:"key.pem"`
 }
 
 type hallpass struct {
