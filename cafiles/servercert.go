@@ -37,7 +37,7 @@ func CreateServerCertificate(
 
 	template := x509.CertificateRequest{
 		Subject: pkix.Name{
-			CommonName:   bifrost.UUID(caCert.Namespace, &key.PublicKey).String(),
+			CommonName:   bifrost.UUID(caCert.Namespace, key.PublicKey).String(),
 			Organization: []string{caCert.Namespace.String()},
 		},
 		SignatureAlgorithm: bifrost.SignatureAlgorithm,

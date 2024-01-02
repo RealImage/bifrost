@@ -51,7 +51,7 @@ func TestTLSIdentifier(t *testing.T) {
 	}
 
 	ns := uuid.MustParse("80485314-6c73-40ff-86c5-a5942a0f514f")
-	identity := bifrost.UUID(ns, &priv.PublicKey)
+	identity := bifrost.UUID(ns, priv.PublicKey)
 
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(1),

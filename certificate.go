@@ -75,7 +75,7 @@ func (c *Certificate) Verify() error {
 	}
 
 	// Check if calculated UUID matches the UUID in the certificate
-	id := UUID(ns, pubkey)
+	id := UUID(ns, *pubkey)
 	cid, err := uuid.Parse(c.Subject.CommonName)
 	if err != nil {
 		return fmt.Errorf(
@@ -175,7 +175,7 @@ func (c *CertificateRequest) Verify() error {
 	}
 
 	// Check if calculated UUID matches the UUID in the certificate
-	id := UUID(ns, pubkey)
+	id := UUID(ns, *pubkey)
 	cid, err := uuid.Parse(c.Subject.CommonName)
 	if err != nil {
 		return fmt.Errorf("%w: invalid identity '%s', %s",

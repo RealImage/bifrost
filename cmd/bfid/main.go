@@ -118,7 +118,7 @@ func main() {
 	}
 
 	// Print the UUID.
-	id := bifrost.UUID(namespace, pubkey)
+	id := bifrost.UUID(namespace, *pubkey)
 	if verbose {
 		fmt.Printf("namespace:\t%s\nuuid:\t\t%s\n", namespace, id)
 	} else {

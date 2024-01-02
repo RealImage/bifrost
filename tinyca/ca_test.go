@@ -218,7 +218,7 @@ func TestCA_ServeHTTP(t *testing.T) {
 	}
 
 	testns := uuid.Must(uuid.Parse("80485314-6C73-40FF-86C5-A5942A0F514F"))
-	id := bifrost.UUID(testns, &key.PublicKey)
+	id := bifrost.UUID(testns, key.PublicKey)
 
 	// Create root certificate.
 	template := x509.Certificate{

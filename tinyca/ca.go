@@ -206,7 +206,7 @@ func (ca CA) IssueCertificate(
 		Issuer:             ca.cert.Issuer,
 		Subject: pkix.Name{
 			Organization: []string{ns.String()},
-			CommonName:   bifrost.UUID(ns, csr.PublicKey).String(),
+			CommonName:   bifrost.UUID(ns, *csr.PublicKey).String(),
 		},
 		PublicKey:             csr.PublicKey,
 		Signature:             csr.Signature,
