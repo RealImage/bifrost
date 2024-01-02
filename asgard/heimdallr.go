@@ -50,7 +50,7 @@ func FromContext(ctx context.Context) (*Papers, bool) {
 	id := &Papers{
 		Namespace: a.Authorizer.Namespace,
 		PublicKey: key,
-		SourceIP:  a.Identity.SourceIp,
+		SourceIP:  a.Identity.SourceIP,
 		UserAgent: a.Identity.UserAgent,
 	}
 	return id, true

@@ -18,7 +18,7 @@ type AuthorizedRequestContext struct {
 }
 
 type AuthzIdentity struct {
-	SourceIp  string `json:"sourceIp"`
+	SourceIP  string `json:"sourceIp"`
 	UserAgent string `json:"userAgent"`
 }
 
