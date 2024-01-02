@@ -98,9 +98,14 @@ func (p *PublicKey) UnmarshalDynamoDBAttributeValue(av types.AttributeValue) err
 
 type PrivateKey struct {
 	*ecdsa.PrivateKey
+
+	jsonMarshalPrivateKey bool
 }
 
 // NewPrivateKey generates a new private key for use with bifrost.
+// PrivateKey implements the Marshaler and Unmarshaler interfaces for JSON and DynamoDB.
+// By default, PrivateKey's MarshalJSON method marshals the corresponding public key.
+// Use WithJSONMarshalPrivateKey to marshal the private key instead.
 func NewPrivateKey() (*PrivateKey, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	return &PrivateKey{
@@ -108,11 +113,20 @@ func NewPrivateKey() (*PrivateKey, error) {
 	}, err
 }
 
+// WithJSONMarshalPrivateKey configures the private key to be marshaled as a JSON object.
+func (p *PrivateKey) WithJSONMarshalPrivateKey() *PrivateKey {
+	p.jsonMarshalPrivateKey = true
+	return p
+}
+
 func (p PrivateKey) PublicKey() PublicKey {
 	return PublicKey{&p.PrivateKey.PublicKey}
 }
 
 func (p PrivateKey) MarshalJSON() ([]byte, error) {
+	if !p.jsonMarshalPrivateKey {
+		return p.PublicKey().MarshalJSON()
+	}
 	keyDer, err := x509.MarshalECPrivateKey(p.PrivateKey)
 	if err != nil {
 		return nil, err
