@@ -13,7 +13,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/RealImage/bifrost/internal/cafiles"
+	"github.com/RealImage/bifrost/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
 	"github.com/RealImage/bifrost/internal/middleware"
 	"github.com/RealImage/bifrost/internal/sundry"
@@ -46,7 +46,7 @@ func main() {
 	backendUrl, err := url.Parse(config.HallPass.BackendUrl)
 	sundry.OnErrorExit(ctx, err, "error parsing backend url")
 
-	cert, key, err := cafiles.GetCertKey(ctx, config.HallPass.CrtUri, config.HallPass.KeyUri)
+	cert, key, err := cafiles.GetCertKey(ctx, config.HallPass.CertUri, config.HallPass.KeyUri)
 	sundry.OnErrorExit(ctx, err, "error getting cert and key")
 
 	clientCertPool := x509.NewCertPool()

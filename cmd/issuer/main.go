@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/RealImage/bifrost/internal/cafiles"
+	"github.com/RealImage/bifrost/cafiles"
 	"github.com/RealImage/bifrost/internal/config"
 	"github.com/RealImage/bifrost/internal/sundry"
 	"github.com/RealImage/bifrost/internal/webapp"
@@ -29,7 +29,7 @@ func main() {
 		slog.Time("timestamp", config.BuildTime),
 	)
 
-	cert, key, err := cafiles.GetCertKey(ctx, config.Issuer.CrtUri, config.Issuer.KeyUri)
+	cert, key, err := cafiles.GetCertKey(ctx, config.Issuer.CertUri, config.Issuer.KeyUri)
 	sundry.OnErrorExit(ctx, err, "error getting cert and key")
 
 	mux := http.NewServeMux()

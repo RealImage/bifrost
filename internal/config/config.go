@@ -74,9 +74,9 @@ type bouncer struct {
 }
 
 type Server struct {
-	Host   string `envconfig:"HOST" default:"localhost"`
-	CrtUri string `envconfig:"CRT"  default:"crt.pem"`
-	KeyUri string `envconfig:"KEY"  default:"key.pem"`
+	Host    string `envconfig:"HOST"     default:"localhost"`
+	CertUri string `envconfig:"CERT_URI" default:"crt.pem"`
+	KeyUri  string `envconfig:"KEY_URI"  default:"key.pem"`
 }
 
 type hallpass struct {
