@@ -3,7 +3,6 @@
 package tinyca
 
 import (
-	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -29,7 +28,7 @@ import (
 // Client certificates are signed by the configured root certificate and private key.
 type CA struct {
 	cert *bifrost.Certificate
-	key  *ecdsa.PrivateKey
+	key  *bifrost.PrivateKey
 	// dur is the duration for which the issued certificate is valid.
 	dur time.Duration
 
@@ -41,7 +40,7 @@ type CA struct {
 
 // New returns a new CA.
 // The CA issues certificates for the given namespace.
-func New(cert *bifrost.Certificate, key *ecdsa.PrivateKey, dur time.Duration) (*CA, error) {
+func New(cert *bifrost.Certificate, key *bifrost.PrivateKey, dur time.Duration) (*CA, error) {
 	if err := cert.Verify(); err != nil {
 		return nil, fmt.Errorf("bifrost: ca certificate is not a bifrost certificate: %w", err)
 	}
@@ -111,7 +110,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, bifrost.ErrCertificateRequestInvalid) {
 			statusCode = http.StatusBadRequest
 		}
-		if errors.Is(err, bifrost.ErrIncorrectMismatch) {
+		if errors.Is(err, bifrost.ErrNamespaceMismatch) {
 			statusCode = http.StatusForbidden
 		}
 		http.Error(w, err.Error(), statusCode)
@@ -186,15 +185,13 @@ func (ca CA) IssueCertificate(
 	}
 
 	if csr.Namespace != ca.cert.Namespace {
-		return nil, bifrost.ErrIncorrectMismatch
+		return nil, bifrost.ErrNamespaceMismatch
 	}
 
 	serialNumber, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
 	if err != nil {
 		return nil, fmt.Errorf("bifrost: unexpected error generating certificate serial: %w", err)
 	}
-
-	ns := ca.cert.Namespace
 
 	// Client certificate template.
 	notBefore := time.Now()
@@ -205,8 +202,8 @@ func (ca CA) IssueCertificate(
 		ExtKeyUsage:        extKeyUsage,
 		Issuer:             ca.cert.Issuer,
 		Subject: pkix.Name{
-			Organization: []string{ns.String()},
-			CommonName:   bifrost.UUID(ns, *csr.PublicKey).String(),
+			Organization: []string{ca.cert.Namespace.String()},
+			CommonName:   csr.PublicKey.UUID(ca.cert.Namespace).String(),
 		},
 		PublicKey:             csr.PublicKey,
 		Signature:             csr.Signature,

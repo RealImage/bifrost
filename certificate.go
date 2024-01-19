@@ -10,13 +10,21 @@ import (
 	"github.com/google/uuid"
 )
 
+// Certificate related errors.
+var (
+	ErrCertificateInvalid        = errors.New("bifrost: certificate invalid")
+	ErrCertificateRequestInvalid = errors.New("bifrost: certificate request invalid")
+	ErrNamespaceMismatch         = errors.New("bifrost: namespace mismatch")
+)
+
 // Certificate is a bifrost certificate.
 // It embeds the x509 certificate and adds the bifrost ID, namespace, and public key.
 type Certificate struct {
 	*x509.Certificate
-	Id        uuid.UUID
+
+	ID        uuid.UUID
 	Namespace uuid.UUID
-	PublicKey *ecdsa.PublicKey
+	PublicKey *PublicKey
 }
 
 // ParseCertificate parses a DER encoded certificate and validates it.
@@ -74,8 +82,13 @@ func (c *Certificate) Verify() error {
 		)
 	}
 
+	pk := &PublicKey{
+		PublicKey: pubkey,
+	}
+
 	// Check if calculated UUID matches the UUID in the certificate
-	id := UUID(ns, *pubkey)
+	id := pk.UUID(ns)
+
 	cid, err := uuid.Parse(c.Subject.CommonName)
 	if err != nil {
 		return fmt.Errorf(
@@ -89,19 +102,26 @@ func (c *Certificate) Verify() error {
 		return fmt.Errorf("%w: incorrect identity", ErrCertificateInvalid)
 	}
 
-	c.Id = id
+	c.ID = id
 	c.Namespace = ns
-	c.PublicKey = pubkey
+	c.PublicKey = pk
 
 	return nil
 }
 
-// ToTLSCertificate puts a bifrost certificate inside a tls.Certificate.
-func (c Certificate) ToTLSCertificate(key *ecdsa.PrivateKey) (*tls.Certificate, error) {
-	if c.PublicKey.X.Cmp(key.X) != 0 || c.PublicKey.Y.Cmp(key.Y) != 0 {
+// IssuedTo returns true if the certificate was issued to the given public key.
+func (c Certificate) IssuedTo(key PublicKey) bool {
+	return c.PublicKey.Equal(key)
+}
+
+// ToTLSCertificate returns a tls.Certificate from a bifrost certificate and private key.
+func (c Certificate) ToTLSCertificate(key PrivateKey) (*tls.Certificate, error) {
+	if key.PrivateKey == nil {
+		return nil, errors.New("private key is nil")
+	}
+	if !c.IssuedTo(*key.PublicKey()) {
 		return nil, errors.New("private key does not match certificate public key")
 	}
-
 	return &tls.Certificate{
 		Certificate: [][]byte{
 			c.Raw,
@@ -115,9 +135,10 @@ func (c Certificate) ToTLSCertificate(key *ecdsa.PrivateKey) (*tls.Certificate, 
 // It embeds the x509 certificate request and adds the bifrost ID, namespace, and public key.
 type CertificateRequest struct {
 	*x509.CertificateRequest
-	Id        uuid.UUID
+
+	ID        uuid.UUID
 	Namespace uuid.UUID
-	PublicKey *ecdsa.PublicKey
+	PublicKey *PublicKey
 }
 
 // ParseCertificateRequest parses a DER encoded certificate request and validates it.
@@ -137,7 +158,7 @@ func ParseCertificateRequest(asn1Data []byte) (*CertificateRequest, error) {
 }
 
 // Verify validates a bifrost certificate request.
-func (c *CertificateRequest) Verify() error {
+func (c CertificateRequest) Verify() error {
 	// Check for bifrost signature algorithm
 	if c.SignatureAlgorithm != SignatureAlgorithm {
 		return fmt.Errorf(
@@ -174,8 +195,12 @@ func (c *CertificateRequest) Verify() error {
 		)
 	}
 
+	pk := &PublicKey{
+		PublicKey: pubkey,
+	}
+
 	// Check if calculated UUID matches the UUID in the certificate
-	id := UUID(ns, *pubkey)
+	id := pk.UUID(ns)
 	cid, err := uuid.Parse(c.Subject.CommonName)
 	if err != nil {
 		return fmt.Errorf("%w: invalid identity '%s', %s",
@@ -185,9 +210,9 @@ func (c *CertificateRequest) Verify() error {
 		return fmt.Errorf("%w: incorrect identity", ErrCertificateRequestInvalid)
 	}
 
-	c.Id = id
+	c.ID = id
 	c.Namespace = ns
-	c.PublicKey = pubkey
+	c.PublicKey = pk
 
 	return nil
 }

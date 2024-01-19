@@ -1,8 +1,6 @@
 package cafiles
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -19,9 +17,9 @@ import (
 // certificate is valid for one year.
 func CreateServerCertificate(
 	caCert *bifrost.Certificate,
-	caKey *ecdsa.PrivateKey,
+	caKey *bifrost.PrivateKey,
 	validity time.Duration,
-) (*bifrost.Certificate, *ecdsa.PrivateKey, error) {
+) (*bifrost.Certificate, *bifrost.PrivateKey, error) {
 	if validity == 0 {
 		validity = time.Hour * 24 * 365
 	}
@@ -30,15 +28,16 @@ func CreateServerCertificate(
 		return nil, nil, err
 	}
 
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	key, err := bifrost.NewPrivateKey()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error generating server key: %w", err)
 	}
 
+	caNs := caCert.Namespace
 	template := x509.CertificateRequest{
 		Subject: pkix.Name{
-			CommonName:   bifrost.UUID(caCert.Namespace, key.PublicKey).String(),
-			Organization: []string{caCert.Namespace.String()},
+			CommonName:   key.UUID(caNs).String(),
+			Organization: []string{caNs.String()},
 		},
 		SignatureAlgorithm: bifrost.SignatureAlgorithm,
 		DNSNames:           []string{"localhost"},

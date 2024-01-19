@@ -1,4 +1,4 @@
-package middleware
+package asgard
 
 import (
 	"crypto/ecdsa"

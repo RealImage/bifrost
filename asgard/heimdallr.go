@@ -7,64 +7,34 @@ package asgard
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/pem"
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/RealImage/bifrost"
-	"github.com/RealImage/bifrost/internal/middleware"
 	"github.com/google/uuid"
 )
 
-// Papers contains information about the client.
-// It gets you through the bifrost.
-type Papers struct {
-	Namespace uuid.UUID
-	PublicKey *bifrost.PublicKey
-	SourceIP  string
-	UserAgent string
+type HeaderName int
+
+const (
+	HeaderNameClientCertLeaf HeaderName = iota
+	HeaderNameClientCert
+)
+
+func (h HeaderName) String() string {
+	switch h {
+	case HeaderNameClientCertLeaf:
+		return "X-Amzn-Mtls-Clientcert-Leaf"
+	case HeaderNameClientCert:
+		return "X-Amzn-Mtls-Clientcert"
+	default:
+		panic(fmt.Sprintf("unknown header name #%d", h))
+	}
 }
 
-type keyAuthz struct{}
-
-// FromContext returns an Identity from the request context.
-// If the request context does not contain an AuthorizedRequestContext,
-// the second return value is false.
-func FromContext(ctx context.Context) (*Papers, bool) {
-	authz := ctx.Value(keyAuthz{})
-	if authz == nil {
-		return nil, false
-	}
-	a, ok := authz.(middleware.AuthorizedRequestContext)
-	if !ok {
-		return nil, false
-	}
-	var jwk middleware.JWK
-	if err := json.Unmarshal([]byte(a.Authorizer.PublicKey), &jwk); err != nil {
-		return nil, false
-	}
-	key, ok := jwk.PublicKey()
-	if !ok {
-		return nil, false
-	}
-	id := &Papers{
-		Namespace: a.Authorizer.Namespace,
-		PublicKey: key,
-		SourceIP:  a.Identity.SourceIP,
-		UserAgent: a.Identity.UserAgent,
-	}
-	return id, true
-}
-
-// MustFromContext is like FromContext but panics if the request context
-// does not contain an AuthorizedRequestContext.
-func MustFromContext(ctx context.Context) *Papers {
-	id, ok := FromContext(ctx)
-	if !ok {
-		panic("no public key in context")
-	}
-	return id
-}
+type keyClientCert struct{}
 
 // Heimdallr returns a HTTP Handler middleware function that parses an AuthorizedRequestContext
 // from the request context header. If namespace does not match the parsed one, the
@@ -72,32 +42,47 @@ func MustFromContext(ctx context.Context) *Papers {
 //
 // If Heimdallr is used in an AWS Lambda Web Adapter powered API server, Bouncer Lambda Authorizer
 // must be configured as an authorizer for the API Gateway method.
-func Heimdallr(namespace uuid.UUID) func(http.Handler) http.Handler {
+func Heimdallr(namespace uuid.UUID, h HeaderName) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			hdr := r.Header.Get(middleware.RequestContextHeaderName)
-			if hdr == "" {
-				slog.ErrorContext(ctx, "missing request context header")
-				http.Error(w, middleware.ServiceUnavailableMsg, http.StatusServiceUnavailable)
+
+			certPEM := r.Header.Get(h.String())
+			if certPEM == "" {
+				slog.ErrorContext(ctx, "missing authorization header")
+				http.Error(w, "missing authorization header", http.StatusUnauthorized)
 				return
 			}
-			var rctx middleware.AuthorizedRequestContext
-			if err := json.Unmarshal([]byte(hdr), &rctx); err != nil {
-				slog.ErrorContext(ctx, "error unmarshaling request context", "error", err)
-				http.Error(w, middleware.ServiceUnavailableMsg, http.StatusServiceUnavailable)
-				return
-			}
-			if rctx.Authorizer.Namespace != namespace {
-				slog.ErrorContext(ctx,
-					"namespace mismatch",
-					"want", namespace,
-					"got", rctx.Authorizer.Namespace,
+
+			block, _ := pem.Decode([]byte(certPEM))
+			if block == nil {
+				slog.ErrorContext(
+					ctx, "no PEM data found in authorization header",
+					"headerName", h.String(),
+					"headerValue", certPEM,
 				)
-				http.Error(w, "Forbidden", http.StatusForbidden)
+				http.Error(w, "invalid authorization header", http.StatusUnauthorized)
 				return
 			}
-			ctx = context.WithValue(ctx, keyAuthz{}, rctx)
+
+			cert, err := bifrost.ParseCertificate(block.Bytes)
+			if err != nil {
+				slog.ErrorContext(ctx, "error parsing client certificate", "error", err)
+				http.Error(w, "invalid authorization header", http.StatusUnauthorized)
+				return
+			}
+
+			if cert.Namespace != namespace {
+				slog.ErrorContext(
+					ctx, "client certificate namespace mismatch",
+					"expected", namespace,
+					"actual", cert.Namespace,
+				)
+				http.Error(w, "incorrect namespace", http.StatusForbidden)
+				return
+			}
+
+			ctx = context.WithValue(ctx, keyClientCert{}, cert)
 			r = r.WithContext(ctx)
 			next.ServeHTTP(w, r)
 		})

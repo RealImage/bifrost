@@ -4,8 +4,6 @@ package cafiles
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -47,34 +45,14 @@ func GetCertificate(ctx context.Context, uri string) (*bifrost.Certificate, erro
 // GetPrivateKey retrieves a PEM encoded private key from uri.
 // uri can be one of a relative or absolute file path, file://... uri, s3://... uri,
 // or an AWS S3 or AWS Secrets Manager ARN.
-func GetPrivateKey(ctx context.Context, uri string) (*ecdsa.PrivateKey, error) {
+func GetPrivateKey(ctx context.Context, uri string) (*bifrost.PrivateKey, error) {
 	ctx, cancel := context.WithTimeout(ctx, fetchTimeout)
 	defer cancel()
-
 	keyPem, err := getPemFile(ctx, uri)
 	if err != nil {
 		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
 	}
-
-	var key *ecdsa.PrivateKey
-
-	switch blockType := keyPem.Type; blockType {
-	case "PRIVATE KEY":
-		k, err := x509.ParsePKCS8PrivateKey(keyPem.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing key uri %s: %w", uri, err)
-		}
-		key, ok := k.(*ecdsa.PrivateKey)
-		if !ok {
-			return nil, fmt.Errorf("unexpected key type: %T", key)
-		}
-	case "EC PRIVATE KEY":
-		if key, err = x509.ParseECPrivateKey(keyPem.Bytes); err != nil {
-			return nil, fmt.Errorf("error parsing key uri %s: %w", uri, err)
-		}
-	}
-
-	return key, nil
+	return bifrost.ParseECPrivateKey(keyPem.Bytes)
 }
 
 func getPemFile(ctx context.Context, uri string) (*pem.Block, error) {
@@ -166,20 +144,17 @@ func GetCertKey(
 	ctx context.Context,
 	certUri string,
 	keyUri string,
-) (*bifrost.Certificate, *ecdsa.PrivateKey, error) {
+) (*bifrost.Certificate, *bifrost.PrivateKey, error) {
 	cert, err := GetCertificate(ctx, certUri)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cert: %w", err)
 	}
-
 	key, err := GetPrivateKey(ctx, keyUri)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting key: %w", err)
 	}
-
-	if cert.PublicKey.X.Cmp(key.X) != 0 || cert.PublicKey.Y.Cmp(key.Y) != 0 {
+	if !cert.IssuedTo(*key.PublicKey()) {
 		return nil, nil, fmt.Errorf("certificate and key do not match")
 	}
-
 	return cert, key, nil
 }

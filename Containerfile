@@ -18,25 +18,18 @@ RUN go mod download -x
 COPY . .
 COPY --from=node /src/static/ /src/web/static/
 RUN mkdir -p bin \
-  && env CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o bin ./...
+  && env CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build ./cmd/bf
 
-FROM gcr.io/distroless/$DISTROLESS_VERSION as authz
-COPY --from=go /src/bin/bouncer /
-ENTRYPOINT [ "/bouncer" ]
-
-FROM gcr.io/distroless/$DISTROLESS_VERSION as ca
+FROM gcr.io/distroless/$DISTROLESS_VERSION
 # uses lambda-web-adapter to run our standard HTTP app in a lambda
 # https://github.com/awslabs/aws-lambda-web-adapter
 # for configuration see https://github.com/awslabs/aws-lambda-web-adapter#configurations
 ARG AWS_LWA_VERSION=0.7.1
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:$AWS_LWA_VERSION \
   /lambda-adapter /opt/extensions/lambda-adapter
-COPY --from=go /src/bin/issuer /
-ENV PORT=8888
+COPY --from=go /src/bf /
+ENV PORT=8080
 ENV AWS_LWA_READINESS_CHECK_PATH="/namespace"
 ENV AWS_LWA_ENABLE_COMPRESSION="true"
-ENTRYPOINT [ "/issuer" ]
-
-FROM gcr.io/distroless/$DISTROLESS_VERSION
-COPY --from=go /src/bin/* /
-ENTRYPOINT [ "/bf" ]
+ENTRYPOINT ["/bf"]
+CMD ["ca"]

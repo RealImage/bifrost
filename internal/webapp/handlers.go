@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/RealImage/bifrost"
-	"github.com/RealImage/bifrost/internal/config"
 	"github.com/RealImage/bifrost/web"
 	"github.com/google/uuid"
 )
@@ -15,7 +14,7 @@ import (
 func AddRoutes(mux *http.ServeMux, staticFilesPath string, ns uuid.UUID) {
 	index := Index(ns)
 	static := http.FileServer(http.FS(web.Static))
-	if staticFilesPath != config.StaticFilesEmbedded {
+	if staticFilesPath != "" {
 		static = http.FileServer(http.Dir("web/static"))
 	}
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

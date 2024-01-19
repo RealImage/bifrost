@@ -3,7 +3,6 @@ package bifrost
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -34,11 +33,11 @@ func RequestCertificate(
 	ctx context.Context,
 	url string,
 	ns uuid.UUID,
-	key *ecdsa.PrivateKey,
+	key PrivateKey,
 ) (*Certificate, error) {
 	template := x509.CertificateRequest{
 		Subject: pkix.Name{
-			CommonName:   UUID(ns, key.PublicKey).String(),
+			CommonName:   key.PublicKey().UUID(ns).String(),
 			Organization: []string{ns.String()},
 		},
 		SignatureAlgorithm: SignatureAlgorithm,
