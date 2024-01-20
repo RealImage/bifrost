@@ -40,25 +40,8 @@ jobs:
             web/package-lock.json
 
       - name: Build
-        run: |
-          pushd web; npm ci; popd
-
-          gobuild() {
-            if [[ "$1" == "windows" ]]; then
-              ext=".exe"
-            fi
-            env GOOS="$1" GOARCH="$2" go build -o bin/bf_"$1_$2$ext" ./cmd/bf
-            env GOOS="$1" GOARCH="$2" go build -o bin/bfid_"$1_$2$ext" \
-              ./cmd/bfid
-          }
-
-          go generate -x ./...
-          mkdir bin
-          gobuild linux amd64
-          gobuild linux arm64
-          gobuild darwin amd64
-          gobuild darwin arm64
-          gobuild windows amd64
+        shell: bash
+        run: ./build.sh
 
       - name: Upload binary
         uses: actions/upload-artifact@v3

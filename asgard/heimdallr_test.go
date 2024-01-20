@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/RealImage/bifrost/internal/middleware"
 	"github.com/google/uuid"
 )
 
@@ -32,7 +31,7 @@ func init() {
 }
 
 var heimdallrTestCases = []struct {
-	headerName   string
+	headerName   HeaderName
 	headerValue  string
 	expectedCode int
 	expectedKey  *ecdsa.PublicKey
@@ -50,13 +49,6 @@ var heimdallrTestCases = []struct {
 		expectedCode: http.StatusForbidden,
 	},
 	{
-		headerName:   "foo",
-		expectedCode: http.StatusServiceUnavailable,
-	},
-	{
-		expectedCode: http.StatusServiceUnavailable,
-	},
-	{
 		headerValue:  "invalid json",
 		expectedCode: http.StatusServiceUnavailable,
 	},
@@ -66,22 +58,28 @@ func TestHeimdallr(t *testing.T) {
 	for i, tc := range heimdallrTestCases {
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
-			if tc.headerName == "" {
-				tc.headerName = middleware.RequestContextHeaderName
-			}
-			req.Header.Set(tc.headerName, tc.headerValue)
+			req.Header.Set(tc.headerName.String(), tc.headerValue)
+
 			w := httptest.NewRecorder()
-			h := Heimdallr(tc.expectedNs)
-			h(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				id := MustFromContext(r.Context())
-				if ns := id.Namespace; ns != tc.expectedNs {
-					t.Errorf("expected namespace %v, got %v", tc.expectedNs, ns)
-				}
-				if key := id.PublicKey; !key.Equal(tc.expectedKey) {
-					t.Errorf("expected key %v, got %v", tc.expectedKey, key)
-				}
-			}),
+
+			Heimdallr(
+				tc.headerName,
+				tc.expectedNs,
+			)(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					cert, ok := ClientCert(r.Context())
+					if !ok {
+						t.Error("expected client certificate in request context")
+					}
+					if ns := cert.Namespace; ns != tc.expectedNs {
+						t.Errorf("expected namespace %v, got %v", tc.expectedNs, ns)
+					}
+					if key := cert.PublicKey; !key.Equal(tc.expectedKey) {
+						t.Errorf("expected key %v, got %v", tc.expectedKey, key)
+					}
+				}),
 			).ServeHTTP(w, req)
+
 			if w.Code != tc.expectedCode {
 				t.Errorf("expected status %d, got %d", tc.expectedCode, w.Code)
 			}

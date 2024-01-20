@@ -41,10 +41,6 @@ type CA struct {
 // New returns a new CA.
 // The CA issues certificates for the given namespace.
 func New(cert *bifrost.Certificate, key *bifrost.PrivateKey, dur time.Duration) (*CA, error) {
-	if err := cert.Verify(); err != nil {
-		return nil, fmt.Errorf("bifrost: ca certificate is not a bifrost certificate: %w", err)
-	}
-
 	iss := bfMetricName("issued_certs_total", cert.Namespace)
 	rt := bfMetricName("requests_total", cert.Namespace)
 	rd := bfMetricName("requests_duration_seconds", cert.Namespace)

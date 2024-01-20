@@ -104,7 +104,7 @@ var (
 				defer ssllog.Close()
 			}
 
-			hf := asgard.Hofund(cert.Namespace, asgard.HeaderNameClientCertLeaf)
+			hf := asgard.Hofund(asgard.HeaderNameClientCertLeaf, cert.Namespace)
 			hdlr := sundry.RequestLogHandler(hf(reverseProxy))
 
 			addr := fmt.Sprintf("%s:%d", proxyHost, proxyPort)

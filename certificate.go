@@ -34,35 +34,30 @@ func ParseCertificate(asn1Data []byte) (*Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := &Certificate{
-		Certificate: cert,
-	}
-	if err := c.Verify(); err != nil {
-		return nil, err
-	}
-	return c, nil
+	return NewCertificate(cert)
 }
 
-// Verify validates a bifrost certificate. It checks for the correct signature algorithm,
-// identity namespace, and identity. On success, it sets the ID, Namespace, and PublicKey fields.
-func (c *Certificate) Verify() error {
+// NewCertificate creates a bifrost certificate from an x509 certificate.
+// It checks for the correct signature algorithm, identity namespace, and identity.
+// On success, it sets the ID, Namespace, and PublicKey fields.
+func NewCertificate(cert *x509.Certificate) (*Certificate, error) {
 	// Check for bifrost signature algorithm
-	if c.SignatureAlgorithm != SignatureAlgorithm {
-		return fmt.Errorf(
+	if cert.SignatureAlgorithm != SignatureAlgorithm {
+		return nil, fmt.Errorf(
 			"%w: unsupported signature algorithm '%s'",
 			ErrCertificateRequestInvalid,
-			c.SignatureAlgorithm,
+			cert.SignatureAlgorithm,
 		)
 	}
 
 	// Parse identity namespace
-	if len(c.Subject.Organization) != 1 {
-		return fmt.Errorf("%w: missing identity namespace", ErrCertificateInvalid)
+	if len(cert.Subject.Organization) != 1 {
+		return nil, fmt.Errorf("%w: missing identity namespace", ErrCertificateInvalid)
 	}
-	rawNS := c.Subject.Organization[0]
+	rawNS := cert.Subject.Organization[0]
 	ns, err := uuid.Parse(rawNS)
 	if err != nil {
-		return fmt.Errorf(
+		return nil, fmt.Errorf(
 			"%w: invalid identity namespace %s: %w",
 			ErrCertificateInvalid,
 			rawNS,
@@ -70,15 +65,15 @@ func (c *Certificate) Verify() error {
 		)
 	}
 	if ns == uuid.Nil {
-		return fmt.Errorf("%w: nil identity namespace", ErrCertificateInvalid)
+		return nil, fmt.Errorf("%w: nil identity namespace", ErrCertificateInvalid)
 	}
 
-	pubkey, ok := c.Certificate.PublicKey.(*ecdsa.PublicKey)
+	pubkey, ok := cert.PublicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return fmt.Errorf(
+		return nil, fmt.Errorf(
 			"%w: invalid public key type: '%T'",
 			ErrCertificateInvalid,
-			c.Certificate.PublicKey,
+			cert.PublicKey,
 		)
 	}
 
@@ -89,24 +84,27 @@ func (c *Certificate) Verify() error {
 	// Check if calculated UUID matches the UUID in the certificate
 	id := pk.UUID(ns)
 
-	cid, err := uuid.Parse(c.Subject.CommonName)
+	cid, err := uuid.Parse(cert.Subject.CommonName)
 	if err != nil {
-		return fmt.Errorf(
+		return nil, fmt.Errorf(
 			"%w: invalid subj CN '%s', %s",
 			ErrCertificateInvalid,
-			c.Subject.CommonName,
+			cert.Subject.CommonName,
 			err.Error(),
 		)
 	}
 	if cid != id {
-		return fmt.Errorf("%w: incorrect identity", ErrCertificateInvalid)
+		return nil, fmt.Errorf("%w: incorrect identity", ErrCertificateInvalid)
 	}
 
-	c.ID = id
-	c.Namespace = ns
-	c.PublicKey = pk
+	bfCert := &Certificate{
+		Certificate: cert,
+		ID:          id,
+		Namespace:   ns,
+		PublicKey:   pk,
+	}
 
-	return nil
+	return bfCert, nil
 }
 
 // IssuedTo returns true if the certificate was issued to the given public key.
@@ -148,37 +146,33 @@ func ParseCertificateRequest(asn1Data []byte) (*CertificateRequest, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrCertificateRequestInvalid, err.Error())
 	}
-	c := &CertificateRequest{
-		CertificateRequest: csr,
-	}
-	if err := c.Verify(); err != nil {
-		return nil, err
-	}
-	return c, nil
+	return NewCertificateRequest(csr)
 }
 
-// Verify validates a bifrost certificate request.
-func (c CertificateRequest) Verify() error {
+// NewCertificateRequest creates a bifrost certificate request from an x509 certificate request.
+// It checks for the correct signature algorithm, identity namespace, and identity.
+// On success, it sets the ID, Namespace, and PublicKey fields.
+func NewCertificateRequest(cert *x509.CertificateRequest) (*CertificateRequest, error) {
 	// Check for bifrost signature algorithm
-	if c.SignatureAlgorithm != SignatureAlgorithm {
-		return fmt.Errorf(
+	if cert.SignatureAlgorithm != SignatureAlgorithm {
+		return nil, fmt.Errorf(
 			"%w: unsupported signature algorithm '%s'",
 			ErrCertificateRequestInvalid,
-			c.SignatureAlgorithm,
+			cert.SignatureAlgorithm,
 		)
 	}
 
 	// Parse identity namespace
-	if len(c.Subject.Organization) != 1 {
-		return fmt.Errorf(
+	if len(cert.Subject.Organization) != 1 {
+		return nil, fmt.Errorf(
 			"%w: missing identity namespace",
 			ErrCertificateRequestInvalid,
 		)
 	}
-	rawNS := c.Subject.Organization[0]
+	rawNS := cert.Subject.Organization[0]
 	ns, err := uuid.Parse(rawNS)
 	if err != nil {
-		return fmt.Errorf(
+		return nil, fmt.Errorf(
 			"%w: invalid identity namespace %s: %w",
 			ErrCertificateRequestInvalid,
 			rawNS,
@@ -186,12 +180,12 @@ func (c CertificateRequest) Verify() error {
 		)
 	}
 
-	pubkey, ok := c.CertificateRequest.PublicKey.(*ecdsa.PublicKey)
+	pubkey, ok := cert.PublicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return fmt.Errorf(
+		return nil, fmt.Errorf(
 			"%w: invalid public key type: '%T'",
 			ErrCertificateRequestInvalid,
-			c.PublicKey,
+			cert.PublicKey,
 		)
 	}
 
@@ -201,20 +195,23 @@ func (c CertificateRequest) Verify() error {
 
 	// Check if calculated UUID matches the UUID in the certificate
 	id := pk.UUID(ns)
-	cid, err := uuid.Parse(c.Subject.CommonName)
+	cid, err := uuid.Parse(cert.Subject.CommonName)
 	if err != nil {
-		return fmt.Errorf("%w: invalid identity '%s', %s",
-			ErrCertificateRequestInvalid, c.Subject.CommonName, err.Error())
+		return nil, fmt.Errorf("%w: invalid identity '%s', %s",
+			ErrCertificateRequestInvalid, cert.Subject.CommonName, err.Error())
 	}
 	if cid != id {
-		return fmt.Errorf("%w: incorrect identity", ErrCertificateRequestInvalid)
+		return nil, fmt.Errorf("%w: incorrect identity", ErrCertificateRequestInvalid)
 	}
 
-	c.ID = id
-	c.Namespace = ns
-	c.PublicKey = pk
+	bfReq := &CertificateRequest{
+		CertificateRequest: cert,
+		ID:                 id,
+		Namespace:          ns,
+		PublicKey:          pk,
+	}
 
-	return nil
+	return bfReq, nil
 }
 
 // X509ToTLSCertificate puts an x509.Certificate inside a tls.Certificate.

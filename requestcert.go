@@ -28,6 +28,17 @@ func getNsMetrics(namespace uuid.UUID) *metrics.Counter {
 	return m.(*metrics.Counter)
 }
 
+// Template returns a bifrost certificate template for the given namespace and public key.
+func Template(ns uuid.UUID, key *PublicKey) *x509.CertificateRequest {
+	return &x509.CertificateRequest{
+		Subject: pkix.Name{
+			CommonName:   key.UUID(ns).String(),
+			Organization: []string{ns.String()},
+		},
+		SignatureAlgorithm: SignatureAlgorithm,
+	}
+}
+
 // RequestCertificate sends a certificate request to url and returns the signed certificate.
 func RequestCertificate(
 	ctx context.Context,
@@ -35,14 +46,8 @@ func RequestCertificate(
 	ns uuid.UUID,
 	key PrivateKey,
 ) (*Certificate, error) {
-	template := x509.CertificateRequest{
-		Subject: pkix.Name{
-			CommonName:   key.PublicKey().UUID(ns).String(),
-			Organization: []string{ns.String()},
-		},
-		SignatureAlgorithm: SignatureAlgorithm,
-	}
-	csr, err := x509.CreateCertificateRequest(rand.Reader, &template, key)
+	template := Template(ns, key.PublicKey())
+	csr, err := x509.CreateCertificateRequest(rand.Reader, template, key)
 	if err != nil {
 		return nil, fmt.Errorf("bifrost: error creating certificate request: %w", err)
 	}
@@ -65,16 +70,12 @@ func RequestCertificate(
 		)
 	}
 
-	cert, err := x509.ParseCertificate(body)
+	cert, err := ParseCertificate(body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bifrost: error parsing certificate: %w", err)
 	}
-	c := &Certificate{
-		Certificate: cert,
-	}
-	if err := c.Verify(); err != nil {
-		return nil, err
-	}
+
 	getNsMetrics(ns).Inc()
-	return c, nil
+
+	return cert, nil
 }
