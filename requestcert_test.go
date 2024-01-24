@@ -2,9 +2,6 @@ package bifrost
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"fmt"
 	"time"
 
@@ -16,7 +13,7 @@ func ExampleRequestCertificate() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	// TODO: handle errors
-	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	key, _ := NewPrivateKey()
 	cert, _ := RequestCertificate(ctx, "https://bifrost-ca", exampleNS, key)
 	fmt.Println(cert.Subject)
 }

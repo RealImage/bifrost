@@ -2,8 +2,6 @@ package tinyca
 
 import (
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -212,13 +210,13 @@ func TestCA_ServeHTTP(t *testing.T) {
 	randReader := rand.New(rand.NewSource(42))
 
 	// Create new private key.
-	key, err := ecdsa.GenerateKey(elliptic.P256(), randReader)
+	key, err := bifrost.NewPrivateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	testns := uuid.Must(uuid.Parse("80485314-6C73-40FF-86C5-A5942A0F514F"))
-	id := bifrost.UUID(testns, key.PublicKey)
+	id := bifrost.UUID(testns, key.PublicKey())
 
 	// Create root certificate.
 	template := x509.Certificate{

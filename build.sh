@@ -23,7 +23,7 @@ gobuild() {
       ;;
     "linux")
       tar -c --zstd --numeric-owner \
-        -f ../../"${app}_${1}_${2}".tar.zstd .
+        -f ../../"${app}_${1}_${2}".tar.zst .
       ;;
     *)
       tar -c --numeric-owner \

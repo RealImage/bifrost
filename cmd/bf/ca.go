@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/RealImage/bifrost/cafiles"
-	"github.com/RealImage/bifrost/internal/sundry"
 	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/RealImage/bifrost/tinyca"
 	"github.com/urfave/cli/v2"
@@ -107,7 +106,7 @@ var (
 				webapp.AddRoutes(mux, webStaticPath, cert.Namespace)
 			}
 
-			hdlr := sundry.RequestLogHandler(mux)
+			hdlr := webapp.RequestLogHandler(mux)
 
 			addr := fmt.Sprintf("%s:%d", caHost, caPort)
 			slog.InfoContext(ctx, "starting server", "addr", addr)

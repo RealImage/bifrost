@@ -72,7 +72,7 @@ var (
 				if err != nil {
 					return cli.Exit(fmt.Sprintf("Error generating new private key: %s", err), 1)
 				}
-				fmt.Println(bifrost.UUID(bfns, *pk.PublicKey()))
+				fmt.Println(bifrost.UUID(bfns, pk.PublicKey()))
 
 			}
 
@@ -112,19 +112,19 @@ func parseUUIDFromFile(filename string) (uuid.UUID, error) {
 		if err != nil {
 			return uuid.Nil, err
 		}
-		return bifrost.UUID(bfns, *privkey.PublicKey()), nil
+		return bifrost.UUID(bfns, privkey.PublicKey()), nil
 	case "EC PRIVATE KEY":
 		privkey, err := bifrost.ParseECPrivateKey(block.Bytes)
 		if err != nil {
 			return uuid.Nil, err
 		}
-		return bifrost.UUID(bfns, *privkey.PublicKey()), nil
+		return bifrost.UUID(bfns, privkey.PublicKey()), nil
 	case "PUBLIC KEY":
 		pubkey, err := bifrost.ParsePKIXPublicKey(block.Bytes)
 		if err != nil {
 			return uuid.Nil, err
 		}
-		return bifrost.UUID(bfns, *pubkey), nil
+		return bifrost.UUID(bfns, pubkey), nil
 	case "CERTIFICATE":
 		cert, err := bifrost.ParseCertificate(block.Bytes)
 		if err != nil {

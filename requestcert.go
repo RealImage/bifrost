@@ -44,7 +44,7 @@ func RequestCertificate(
 	ctx context.Context,
 	url string,
 	ns uuid.UUID,
-	key PrivateKey,
+	key *PrivateKey,
 ) (*Certificate, error) {
 	template := Template(ns, key.PublicKey())
 	csr, err := x509.CreateCertificateRequest(rand.Reader, template, key)

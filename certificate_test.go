@@ -26,7 +26,7 @@ var (
 		SetString("35068856771725771339387917164601956621562646129885199575367583771781073078262", 10)
 )
 
-var certVerifyTestCases = []certVerifyTestCase{
+var newCertTestCases = []certVerifyTestCase{
 	{
 		certPem: []byte(`-----BEGIN CERTIFICATE-----
 MIIB+TCCAaCgAwIBAgIIeythG8hQTGcwCgYIKoZIzj0EAwIwXjEtMCsGA1UEAwwk
@@ -98,15 +98,15 @@ m+cbVg9K0lG0SJlTp+qUz15lE6EGvZZOjaNR
 	},
 }
 
-func TestCertificate_Verify(t *testing.T) {
-	for ti, tc := range certVerifyTestCases {
+func TestNewCertificate(t *testing.T) {
+	for ti, tc := range newCertTestCases {
 		t.Run(fmt.Sprintf("#%d", ti), func(t *testing.T) {
-			testCertVerify(t, &tc)
+			testNewCert(t, &tc)
 		})
 	}
 }
 
-func testCertVerify(t *testing.T, tc *certVerifyTestCase) {
+func testNewCert(t *testing.T, tc *certVerifyTestCase) {
 	var b []byte
 	if block, _ := pem.Decode(tc.certPem); block != nil {
 		b = block.Bytes
@@ -118,10 +118,7 @@ func testCertVerify(t *testing.T, tc *certVerifyTestCase) {
 	if tc.err && err != nil {
 		return
 	}
-	c := &Certificate{
-		Certificate: cert,
-	}
-	err = c.Verify()
+	c, err := NewCertificate(cert)
 	if !tc.err && err != nil {
 		t.Fatalf("Certificate.Verify(%s)\n\nunexpected error = %v", tc.certPem, err)
 	}
