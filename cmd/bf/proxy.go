@@ -20,11 +20,11 @@ import (
 )
 
 var (
-	backendUrl    *url.URL
-	proxyHost     string
-	proxyPort     int
-	sslLogfile    string
-	identityProxy = &cli.Command{
+	backendUrl *url.URL
+	proxyHost  string
+	proxyPort  int
+	sslLogfile string
+	idProxyCmd = &cli.Command{
 		Name:    "identity-proxy",
 		Aliases: []string{"proxy", "id-proxy"},
 		Flags: []cli.Flag{

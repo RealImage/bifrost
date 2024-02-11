@@ -35,10 +35,11 @@ func main() {
 			},
 		},
 		Commands: []*cli.Command{
-			ca,
-			id,
-			issue,
-			identityProxy,
+			newCmd,
+			caCmd,
+			idCmd,
+			issueCmd,
+			idProxyCmd,
 		},
 	}
 	if err := app.Run(os.Args); err != nil {

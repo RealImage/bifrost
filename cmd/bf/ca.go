@@ -18,7 +18,7 @@ var (
 	webEnabled    bool
 	webStaticPath string
 	exposeMetrics bool
-	ca            = &cli.Command{
+	caCmd         = &cli.Command{
 		Name:    "certificate-authority",
 		Aliases: []string{"ca"},
 		Flags: []cli.Flag{

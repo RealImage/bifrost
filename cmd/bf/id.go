@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 
 	"github.com/RealImage/bifrost"
@@ -14,68 +13,24 @@ import (
 )
 
 var (
-	newNS bool
-	newID bool
-	newCA bool
 	bfns  uuid.UUID
-	id    = &cli.Command{
+	idCmd = &cli.Command{
 		Name:    "identity",
 		Aliases: []string{"id"},
 		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:        "new-namespace",
-				Aliases:     []string{"new-ns"},
-				Destination: &newNS,
-			},
-			&cli.BoolFlag{
-				Name:        "new-identitiy",
-				Aliases:     []string{"new-id"},
-				Destination: &newID,
-			},
-			&cli.BoolFlag{
-				Name:        "new-certificate-authority",
-				Aliases:     []string{"new-ca"},
-				Destination: &newCA,
-			},
 			&cli.StringFlag{
-				Name:    "namespace",
-				Usage:   "Bifrost Namespace `UUID`",
-				Aliases: []string{"n", "ns"},
-				EnvVars: envvarNames("NS"),
+				Name:     "namespace",
+				Usage:    "Bifrost Namespace `UUID`",
+				Aliases:  []string{"n", "ns"},
+				EnvVars:  envvarNames("NS"),
+				Required: true,
 				Action: func(ctx *cli.Context, s string) (err error) {
-					if s != "" {
-						bfns, err = uuid.Parse(s)
-					}
+					bfns, err = uuid.Parse(s)
 					return
 				},
 			},
 		},
 		Action: func(cliCtx *cli.Context) error {
-			if bfns == uuid.Nil && !newNS {
-				return cli.Exit("Error: namespace not set", 1)
-			}
-			if newNS {
-				bfns = uuid.New()
-				slog.Info("new namespace generated")
-			}
-			slog.Info("using", "namespace", bfns)
-
-			if newID && newCA {
-				return cli.Exit(
-					"Error: cannot set both --new-identity and --new-certificate-authority",
-					1,
-				)
-			}
-
-			if newID {
-				pk, err := bifrost.NewPrivateKey()
-				if err != nil {
-					return cli.Exit(fmt.Sprintf("Error generating new private key: %s", err), 1)
-				}
-				fmt.Println(bifrost.UUID(bfns, pk.PublicKey()))
-
-			}
-
 			id, err := parseUUIDFromFile(cliCtx.Args().First())
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("Error parsing file: %s", err), 1)
@@ -131,6 +86,12 @@ func parseUUIDFromFile(filename string) (uuid.UUID, error) {
 			return uuid.Nil, err
 		}
 		return cert.PublicKey.UUID(bfns), nil
+	case "CERTIFICATE REQUEST":
+		csr, err := bifrost.ParseCertificateRequest(block.Bytes)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		return csr.PublicKey.UUID(bfns), nil
 	default:
 		return uuid.Nil, fmt.Errorf("unsupported PEM block type: %s", block.Type)
 	}

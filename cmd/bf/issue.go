@@ -8,7 +8,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var issue = &cli.Command{
+var issueCmd = &cli.Command{
 	Name: "issue",
 	Flags: []cli.Flag{
 		certFlag,
