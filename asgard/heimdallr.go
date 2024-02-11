@@ -8,31 +8,12 @@ package asgard
 import (
 	"context"
 	"encoding/pem"
-	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/RealImage/bifrost"
 	"github.com/google/uuid"
 )
-
-type HeaderName int
-
-const (
-	HeaderNameClientCertLeaf HeaderName = iota
-	HeaderNameClientCert
-)
-
-func (h HeaderName) String() string {
-	switch h {
-	case HeaderNameClientCertLeaf:
-		return "X-Amzn-Mtls-Clientcert-Leaf"
-	case HeaderNameClientCert:
-		return "X-Amzn-Mtls-Clientcert"
-	default:
-		panic(fmt.Sprintf("unknown header name #%d", h))
-	}
-}
 
 type keyClientCert struct{}
 

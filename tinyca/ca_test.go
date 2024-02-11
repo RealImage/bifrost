@@ -231,7 +231,14 @@ func TestCA_ServeHTTP(t *testing.T) {
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 	}
-	certDer, err := x509.CreateCertificate(randReader, &template, &template, &key.PublicKey, key)
+
+	certDer, err := x509.CreateCertificate(
+		randReader,
+		&template,
+		&template,
+		key.PublicKey().PublicKey,
+		key,
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

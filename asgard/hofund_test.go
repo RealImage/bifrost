@@ -1,12 +1,9 @@
 package asgard
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/json"
 	"encoding/pem"
 	"math/big"
 	"math/rand"
@@ -21,7 +18,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestCertAuthorizerNoTLS(t *testing.T) {
+func TestHofundNoTLS(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
 			t.Errorf("this should panic but did not")
@@ -32,26 +29,22 @@ func TestCertAuthorizerNoTLS(t *testing.T) {
 	defer backendServer.Close()
 	backendUrl, _ := url.Parse(backendServer.URL)
 
-	ti := TLSIdentifier(uuid.Nil)(httputil.NewSingleHostReverseProxy(backendUrl))
+	ti := Hofund(HeaderNameClientCert, uuid.Nil)(httputil.NewSingleHostReverseProxy(backendUrl))
 	rr := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	ti.ServeHTTP(rr, request)
 }
 
-func TestTLSIdentifier(t *testing.T) {
+func TestHofund(t *testing.T) {
 	randReader := rand.New(rand.NewSource(42))
 	// generate key pair and certificate
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), randReader)
+	priv, err := bifrost.NewPrivateKey()
 	if err != nil {
 		t.Errorf("error generating private key %s", err)
 	}
-	privBytes, err := x509.MarshalECPrivateKey(priv)
-	if err != nil {
-		t.Errorf("error marshaling private key %s", err)
-	}
 
 	ns := uuid.MustParse("80485314-6c73-40ff-86c5-a5942a0f514f")
-	identity := bifrost.UUID(ns, priv.PublicKey)
+	identity := priv.UUID(ns)
 
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(1),
@@ -70,6 +63,11 @@ func TestTLSIdentifier(t *testing.T) {
 		t.Errorf("error creating certificate %s", err)
 	}
 	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
+
+	privBytes, err := x509.MarshalECPrivateKey(priv.PrivateKey)
+	if err != nil {
+		t.Errorf("error marshaling private key %s", err)
+	}
 	keyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes})
 	cert, err := tls.X509KeyPair(certPem, keyPem)
 	if err != nil {
@@ -79,24 +77,31 @@ func TestTLSIdentifier(t *testing.T) {
 	// backend server handler checks if request has expected header
 	backendServer := httptest.NewServer(
 		http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-			rctxVal := r.Header.Get(RequestContextHeaderName)
-			if rctxVal == "" {
-				t.Errorf("expected %s header in request", RequestContextHeaderName)
+			certPem := r.Header.Get(HeaderNameClientCert.String())
+			if certPem == "" {
+				t.Errorf("expected %s header in request", HeaderNameClientCert)
 			}
-			var rctx AuthorizedRequestContext
-			if err := json.Unmarshal([]byte(rctxVal), &rctx); err != nil {
-				t.Errorf("error unmarshaling request context %s", err)
+
+			block, _ := pem.Decode([]byte(certPem))
+			if block == nil {
+				t.Errorf("error decoding certificate")
+				return
 			}
-			var gotKey JWK
-			if err := json.Unmarshal([]byte(rctx.Authorizer.PublicKey), &gotKey); err != nil {
-				t.Errorf("error unmarshaling public key %s", err)
+
+			cert, err := bifrost.ParseCertificate(block.Bytes)
+			if err != nil {
+				t.Errorf("error parsing certificate %s", err)
+				return
 			}
-			ecKey, _ := gotKey.PublicKey()
-			if ecKey.X.Cmp(priv.PublicKey.X) != 0 {
-				t.Errorf("expected public key X coordinate %s, got %s", priv.PublicKey.X, gotKey.X)
+
+			if cert.Namespace != ns {
+				t.Errorf("expected namespace %s, got %s", ns, cert.Namespace)
+				return
 			}
-			if ecKey.Y.Cmp(priv.PublicKey.Y) != 0 {
-				t.Errorf("expected public key Y coordinate %s, got %s", priv.PublicKey.Y, gotKey.Y)
+
+			if !cert.PublicKey.Equal(priv.Public()) {
+				t.Errorf("expected public key %v, got %v", priv.Public(), cert.PublicKey)
+				return
 			}
 		}),
 	)
@@ -106,10 +111,10 @@ func TestTLSIdentifier(t *testing.T) {
 		t.Errorf("error parsing backedn url %s", err)
 	}
 
-	ti := TLSIdentifier(ns)(httputil.NewSingleHostReverseProxy(backendUrl))
+	hf := Hofund(HeaderNameClientCert, ns)(httputil.NewSingleHostReverseProxy(backendUrl))
 
 	// TLS server accepts client requests requiring TLS client cert auth
-	server := httptest.NewUnstartedServer(ti)
+	server := httptest.NewUnstartedServer(hf)
 	server.TLS = &tls.Config{
 		ClientAuth: tls.RequireAnyClientCert,
 	}
