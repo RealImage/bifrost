@@ -11,14 +11,14 @@ import (
 var issueCmd = &cli.Command{
 	Name: "issue",
 	Flags: []cli.Flag{
-		certFlag,
-		keyFlag,
+		caCertFlag,
+		caKeyFlag,
 		issueValidFlag,
 	},
 
 	Action: func(cliCtx *cli.Context) error {
 		ctx := cliCtx.Context
-		cert, key, err := cafiles.GetCertKey(ctx, certUri, privKeyUri)
+		cert, key, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("Error reading cert/key: %s", err), 1)
 		}

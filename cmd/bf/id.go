@@ -19,11 +19,10 @@ var (
 		Aliases: []string{"id"},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "namespace",
-				Usage:    "Bifrost Namespace `UUID`",
-				Aliases:  []string{"n", "ns"},
-				EnvVars:  envvarNames("NS"),
-				Required: true,
+				Name:    "namespace",
+				Usage:   "Bifrost Namespace `UUID`",
+				Aliases: []string{"n", "ns"},
+				EnvVars: envvarNames("NS"),
 				Action: func(ctx *cli.Context, s string) (err error) {
 					bfns, err = uuid.Parse(s)
 					return
@@ -31,9 +30,17 @@ var (
 			},
 		},
 		Action: func(cliCtx *cli.Context) error {
-			id, err := parseUUIDFromFile(cliCtx.Args().First())
+			ns, id, err := parseUUIDFromFile(bfns, cliCtx.Args().First())
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("Error parsing file: %s", err), 1)
+			}
+
+			if ns == uuid.Nil {
+				return cli.Exit("Error: Namespace is required", 1)
+			}
+
+			if bfns != ns {
+				fmt.Printf("Namespace: %s\n", ns)
 			}
 
 			fmt.Println(id)
@@ -42,7 +49,7 @@ var (
 	}
 )
 
-func parseUUIDFromFile(filename string) (uuid.UUID, error) {
+func parseUUIDFromFile(ns uuid.UUID, filename string) (uuid.UUID, uuid.UUID, error) {
 	var data []byte
 	var err error
 	switch filename {
@@ -52,12 +59,12 @@ func parseUUIDFromFile(filename string) (uuid.UUID, error) {
 		data, err = os.ReadFile(filename)
 	}
 	if err != nil {
-		return uuid.Nil, err
+		return ns, uuid.Nil, err
 	}
 
 	block, _ := pem.Decode(data)
 	if block == nil {
-		return uuid.Nil, errors.New("no PEM data found")
+		return ns, uuid.Nil, errors.New("no PEM data found")
 	}
 
 	// Parse the key or certificate.
@@ -65,34 +72,36 @@ func parseUUIDFromFile(filename string) (uuid.UUID, error) {
 	case "PRIVATE KEY":
 		privkey, err := bifrost.ParsePKCS8PrivateKey(block.Bytes)
 		if err != nil {
-			return uuid.Nil, err
+			return ns, uuid.Nil, err
 		}
-		return bifrost.UUID(bfns, privkey.PublicKey()), nil
+		return ns, bifrost.UUID(ns, privkey.PublicKey()), nil
 	case "EC PRIVATE KEY":
 		privkey, err := bifrost.ParseECPrivateKey(block.Bytes)
 		if err != nil {
-			return uuid.Nil, err
+			return ns, uuid.Nil, err
 		}
-		return bifrost.UUID(bfns, privkey.PublicKey()), nil
+		return ns, bifrost.UUID(ns, privkey.PublicKey()), nil
 	case "PUBLIC KEY":
 		pubkey, err := bifrost.ParsePKIXPublicKey(block.Bytes)
 		if err != nil {
-			return uuid.Nil, err
+			return ns, uuid.Nil, err
 		}
-		return bifrost.UUID(bfns, pubkey), nil
+		return ns, bifrost.UUID(ns, pubkey), nil
 	case "CERTIFICATE":
 		cert, err := bifrost.ParseCertificate(block.Bytes)
 		if err != nil {
-			return uuid.Nil, err
+			return ns, uuid.Nil, err
 		}
-		return cert.PublicKey.UUID(bfns), nil
+		ns = cert.Namespace
+		return ns, cert.PublicKey.UUID(ns), nil
 	case "CERTIFICATE REQUEST":
 		csr, err := bifrost.ParseCertificateRequest(block.Bytes)
 		if err != nil {
-			return uuid.Nil, err
+			return ns, uuid.Nil, err
 		}
-		return csr.PublicKey.UUID(bfns), nil
+		ns = csr.Namespace
+		return ns, csr.PublicKey.UUID(ns), nil
 	default:
-		return uuid.Nil, fmt.Errorf("unsupported PEM block type: %s", block.Type)
+		return ns, uuid.Nil, fmt.Errorf("unsupported PEM block type: %s", block.Type)
 	}
 }

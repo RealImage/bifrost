@@ -21,25 +21,28 @@ import (
 	"golang.org/x/net/html"
 )
 
-var serveHTTPTests = []struct {
-	accept        string
-	contentType   string
-	requestMethod string
-	requestBody   []byte
-	expectedCode  int
-	expectedBody  []byte
-}{
-	// Certificate requests are generated using the following command:
-	//
-	// export BF_NS=80485314-6C73-40FF-86C5-A5942A0F514F
-	// openssl req -new \
-	//   -key clientkey.pem -nodes \
-	//   -subj "/CN=$(bfid clientkey.pem)/O=$BF_NS)" \
-	//   -out clientcsr.pem
-	//
-	// Good requests.
-	{
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+var (
+	testns = uuid.Must(uuid.Parse("80485314-6C73-40FF-86C5-A5942A0F514F"))
+
+	serveHTTPTests = []struct {
+		accept        string
+		contentType   string
+		requestMethod string
+		requestBody   []byte
+		expectedCode  int
+		expectedBody  []byte
+	}{
+		// Certificate requests are generated using the following command:
+		//
+		// export BF_NS=80485314-6C73-40FF-86C5-A5942A0F514F
+		// openssl req -new \
+		//   -key clientkey.pem -nodes \
+		//   -subj "/CN=$(bfid clientkey.pem)/O=$BF_NS)" \
+		//   -out clientcsr.pem
+		//
+		// Good requests.
+		{
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
 OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
 OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
@@ -47,11 +50,11 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
 l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 -----END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusOK,
-	},
-	{
-		accept: "application/octet-stream",
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+			expectedCode: http.StatusOK,
+		},
+		{
+			accept: "application/octet-stream",
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
 OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
 OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
@@ -59,11 +62,11 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
 l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 -----END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusOK,
-	},
-	{
-		contentType: "text/plain; charset=utf-8",
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+			expectedCode: http.StatusOK,
+		},
+		{
+			contentType: "text/plain; charset=utf-8",
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
 OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
 OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
@@ -71,11 +74,11 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
 l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 -----END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusOK,
-	},
-	{
-		accept: "text/plain",
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+			expectedCode: http.StatusOK,
+		},
+		{
+			accept: "text/plain",
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
 OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
 OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
@@ -83,11 +86,11 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
 l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 -----END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusOK,
-	},
-	{
-		accept: "text/html",
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+			expectedCode: http.StatusOK,
+		},
+		{
+			accept: "text/html",
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
 OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
 OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
@@ -95,11 +98,11 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
 l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 -----END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusOK,
-	},
-	{
-		accept: "*/*",
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+			expectedCode: http.StatusOK,
+		},
+		{
+			accept: "*/*",
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
 OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
 OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
@@ -107,17 +110,17 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
 l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 -----END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusOK,
-	},
-	// Bad.
-	{
-		requestMethod: http.MethodGet,
-		expectedCode:  http.StatusMethodNotAllowed,
-	},
-	{
-		contentType:  "application/json",
-		expectedCode: http.StatusUnsupportedMediaType,
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+			expectedCode: http.StatusOK,
+		},
+		// Bad.
+		{
+			requestMethod: http.MethodGet,
+			expectedCode:  http.StatusMethodNotAllowed,
+		},
+		{
+			contentType:  "application/json",
+			expectedCode: http.StatusUnsupportedMediaType,
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBGTCBwAIBADBeMS0wKwYDVQQDDCQ4YjlmY2E3OS0xM2UwLTUxNTctYjc1NC1m
 ZjJlNGU5ODVjMzAxLTArBgNVBAoMJDAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAw
 MDAwMDAwMDAwMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
@@ -125,12 +128,12 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNIADBFAiEA9e4/Ntkgv8DB19EWs+BwLKnlA94V
 a9rP0bn1HhVb/P8CIEMAqO2BWQ28M3Io0Wy+MTpqtX7/O1BAnSXT4BvZGUot
 -----END CERTIFICATE REQUEST-----`),
-	},
-	{
-		accept:        "application/json",
-		requestMethod: http.MethodPost,
-		expectedCode:  http.StatusNotAcceptable,
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+		},
+		{
+			accept:        "application/json",
+			requestMethod: http.MethodPost,
+			expectedCode:  http.StatusNotAcceptable,
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
 OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
 OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
@@ -138,20 +141,20 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
 l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 -----END CERTIFICATE REQUEST-----`),
-	},
-	{
-		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte("bifrost: error decoding certificate request PEM block"),
-	},
-	{
-		contentType:  webapp.MimeTypeBytes,
-		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte(
-			"bifrost: certificate request invalid: asn1: syntax error: sequence truncated",
-		),
-	},
-	{
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+		},
+		{
+			expectedCode: http.StatusBadRequest,
+			expectedBody: []byte("bifrost: error decoding certificate request PEM block"),
+		},
+		{
+			contentType:  webapp.MimeTypeBytes,
+			expectedCode: http.StatusBadRequest,
+			expectedBody: []byte(
+				"bifrost: certificate request invalid: asn1: syntax error: sequence truncated",
+			),
+		},
+		{
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBGDCBwAIBADBeMS0wKwYDVQQDDCQ4YjlmY2E3OS0xM2UwLTUxNTctYjc1NC1m
 ZjJlNGU5ODVjMzAxLTArBgNVBAoMJDAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAw
 MDAwMDAwMDAwMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
@@ -159,13 +162,13 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDBANHADBEAiB50xScLE5smT/CVvnHCYIm69msOX3+
 mgv/AEzrEMftJgIgJMVY2zEn/qS9M/yJb7IeSSWv9IbiHfP325aZsynerNg=
 -----END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte(
-			"bifrost: certificate request invalid: unsupported signature algorithm 'ECDSA-SHA512'",
-		),
-	},
-	{
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+			expectedCode: http.StatusBadRequest,
+			expectedBody: []byte(
+				"bifrost: certificate request invalid: unsupported signature algorithm 'ECDSA-SHA512'",
+			),
+		},
+		{
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBGjCBwQIBADBfMS0wKwYDVQQDDCQ0NkJEMDZENy1COENELTQ0Q0MtQUIwOS1E
 QTMwMUI1OTY0REIxLjAsBgNVBAoMJTAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAw
 MDAwMDAwMDAwMDAwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASESjv6Lt0H1aeW
@@ -173,13 +176,13 @@ JmisgRaKy1cCCseu07PatbQtpchlwk2IRQBaRPMwUqtjQlk9UGhQReBgYeFXuFzc
 h3/5fgf2oAAwCgYIKoZIzj0EAwIDSAAwRQIgeb1ei3tJ4OPnX3UXUs3zT9vXfX+1
 2OzwaXuGWZq1lcICIQDRfRgkf6Kb9XJj3od161qwGG25y7bt2zxOnvoHY3QdkQ==
 -----END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte(
-			"bifrost: certificate request invalid: invalid identity namespace 00000000-0000-0000-0000-0000000000000: invalid UUID length: 37",
-		),
-	},
-	{
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+			expectedCode: http.StatusBadRequest,
+			expectedBody: []byte(
+				"bifrost: certificate request invalid: invalid identity namespace 00000000-0000-0000-0000-0000000000000: invalid UUID length: 37",
+			),
+		},
+		{
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIIBFzCBwAIBADBeMS0wKwYDVQQDDCQ0NUZBNzA5Ni01RTI2LTRCMEYtODJFOC0z
 Q0E0RkMyOEQzQkUxLTArBgNVBAoMJDAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAw
 MDAwMDAwMDAwMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
@@ -187,24 +190,27 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNGADBDAh8n+tbz1NmD1YPuCVSpXv6F5+FGSC8n
 /0VF8h3MlyMJAiAbtdpfYZElm0SMRfbVOGNVRxrurlXyENPSVzzgVx3MoQ==
 -----END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte(
-			"bifrost: certificate request invalid: incorrect identity",
-		),
-	},
-	{
-		requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+			expectedCode: http.StatusBadRequest,
+			expectedBody: []byte(
+				"bifrost: certificate request invalid: incorrect identity",
+			),
+		},
+		{
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
 MIHrMIGRAgEAMC8xLTArBgNVBAMMJDg5N0U0QzZDLUVCRDUtNEE4OC04RDVFLTYx
 M0QzNjczRTM0NDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
 aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAil27xQI3XQqqoNXgPUMNpJUukVDD
 FOioc6+qkAh+Sv8CIQDxi4eJOHAg3+eSnryb3zgsDIoGWcw3NRWI12Kwwr9Upw==
 -----END CERTIFICATE REQUEST-----`),
-		expectedCode: http.StatusBadRequest,
-		expectedBody: []byte("bifrost: certificate request invalid: missing identity namespace"),
-	},
-	{contentType: "text/vindaloo", expectedCode: http.StatusUnsupportedMediaType},
-}
+			expectedCode: http.StatusBadRequest,
+			expectedBody: []byte(
+				"bifrost: certificate request invalid: missing identity namespace",
+			),
+		},
+		{contentType: "text/vindaloo", expectedCode: http.StatusUnsupportedMediaType},
+	}
+)
 
 func TestCA_ServeHTTP(t *testing.T) {
 	randReader := rand.New(rand.NewSource(42))
@@ -215,7 +221,6 @@ func TestCA_ServeHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testns := uuid.Must(uuid.Parse("80485314-6C73-40FF-86C5-A5942A0F514F"))
 	id := bifrost.UUID(testns, key.PublicKey())
 
 	// Create root certificate.

@@ -28,8 +28,8 @@ var (
 		Name:    "identity-proxy",
 		Aliases: []string{"proxy", "id-proxy"},
 		Flags: []cli.Flag{
-			certFlag,
-			keyFlag,
+			caCertFlag,
+			caKeyFlag,
 			&cli.StringFlag{
 				Name:    "backend-url",
 				Aliases: []string{"b"},
@@ -76,7 +76,7 @@ var (
 		},
 		Action: func(cliCtx *cli.Context) error {
 			ctx := cliCtx.Context
-			cert, key, err := cafiles.GetCertKey(ctx, certUri, privKeyUri)
+			cert, key, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("Error reading cert/key: %s", err), 1)
 			}

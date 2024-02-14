@@ -22,8 +22,8 @@ var (
 		Name:    "certificate-authority",
 		Aliases: []string{"ca"},
 		Flags: []cli.Flag{
-			certFlag,
-			keyFlag,
+			caCertFlag,
+			caKeyFlag,
 			issueValidFlag,
 			&cli.StringFlag{
 				Name:        "host",
@@ -77,7 +77,7 @@ var (
 
 		Action: func(cliCtx *cli.Context) error {
 			ctx := cliCtx.Context
-			cert, key, err := cafiles.GetCertKey(ctx, certUri, privKeyUri)
+			cert, key, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("Error reading cert/key: %s", err), 1)
 			}
