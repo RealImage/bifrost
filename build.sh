@@ -8,6 +8,7 @@ pushd web
 npm ci
 popd
 
+go install golang.org/x/tools/cmd/stringer@latest
 go generate -x ./...
 
 mkdir -p bin

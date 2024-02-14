@@ -15,6 +15,8 @@ ARG TARGETARCH
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download -x
+RUN go install golang.org/x/tools/cmd/stringer@latest
+RUN go generate ./asgard
 COPY . .
 COPY --from=node /src/static/ /src/web/static/
 RUN mkdir -p bin \
