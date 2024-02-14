@@ -49,98 +49,6 @@ In pseudo-code,
 
 `bifrostUUID = UUIDv5(sha1(NamespaceClientIdentity + PublicKey.X.Bytes() + PublicKey.Y.Bytes())`
 
-## Components
-
-## [`bf`](cmd/bf) (alpha)
-
-`bf` is an interactive tool that generates Bifrost CA material.
-It uses [Charm Cloud](https://charm.sh/cloud/) to store your key material securely
-in the cloud.
-
-### [`bfid`](cmd/bfid)
-
-`bfid` prints the Bifrost UUID of a certificate, public key, or private key.
-
-### [`bouncer`](cmd/bouncer)
-
-`bouncer` is an AWS Lambda Authorizer Function meant for use with an
-AWS API Gateway instance in mTLS mode. Deploy it to AWS Lambda
-and use it as a Lambda Authorizer in an AWS API Gateway instance using mTLS.
-
-Bouncer either returns an access policy that authorizes the request or fails.
-
-This sample JSON represents what Bifrost expects in the Lambda request context object.
-
-```json
-"requestContext": {
-    "authentication": {
-        "clientCert": {
-            "clientCertPem": "-----BEGIN CERTIFICATE-----\nMIIEZTCCAk0CAQEwDQ...",
-            "issuerDN": "C=012d325d-6a4e-4076-b49a-a3e84e52bf79,O=765e4c02-b41a-4226-8522-2a52f4fbeebe",
-            "serialNumber": "1",
-            "subjectDN": "C=2ef463c4-cca9-4885-a8e2-d041c90d61fa,O=765e4c02-b41a-4226-8522-2a52f4fbeebe",
-            "validity": {
-                "notAfter": "Aug  5 00:28:21 2120 GMT",
-                "notBefore": "Aug 29 00:28:21 2020 GMT"
-            }
-        }
-    },
-}
-```
-
-### [`issuer`](cmd/issuer)
-
-[OpenAPI schema](docs/issuer-openapi.yml)
-
-`issuer` accepts certificate requests and returns signed certificates.
-It reads a CA certificate and key from the `CRT` and `KEY` environment
-variables respectively. Each variable must be a URI to a PEM-encoded
-certificate or key. Issuer understands file, S3, and AWS Secrets Manager ARN URIs.
-The CA certificate must be a valid Bifrost certificate.
-If unconfigured, it looks for `crt.pem` and `key.pem` in the current working directory.
-
-`issuer` returns its issuing namespace at `/namespace`.
-If enabled, `issuer` exposes prometheus format metrics at `/metrics`.
-
-#### [Web Application](web) (alpha)
-
-`issuer` includes an embedded web application that can generate private keys
-and request certificates from the API. Enable it by setting `WEB=true`
-in the issuer process's environment.
-
-### [`hallpass`](cmd/hallpass)
-
-`hallpass` is a simple mTLS reverse proxy ("gateway") suitable for local development.
-If client authentication succeeds, it proxies the request to the backend url.
-It also stores the namespace and public key from the certificate into the
-AWS Lambda Web Adapter request context header.
-
-Hallpass will log TLS Pre-Master secrets to a file if the `SSLKEYLOGFILE`
-environment variable is present. [Wireshark](https://www.wireshark.org)
-can use this file to decrypt traffic.
-
-JSON sample representing output added as an encoded string to the
-request context header.
-
-```json
-"requestContext": {
-    "identity": {
-        "sourceIp": "197.23.1.43",
-        "userAgent": "curl"
-    },
-    "authorizer": {
-        "namespace": "80485314-6c73-40ff-86c5-a5942a0f514f",
-        "publicKey": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"10138...\",\"y\":\"63295...\"}",
-    }
-}
-```
-
-Run `hallpass` in front of a HTTP server which is listening on localhost port 5000:
-
-```bash
-env BACKEND_URL=http://127.0.0.1:5000 ./hallpass
-```
-
 ## Build
 
 ### Native
@@ -158,16 +66,11 @@ env CGO_ENABLED=0 go build -o bin ./...
 
 ### Container
 
-Build all binaries.
+Build everything including an AWS Lambda runtime extension, allowing you to run
+the same image on AWS Lambda or elsewhere.
 
 ```console
 podman build -t ghcr.io/realimage/bifrost .
-```
-
-Build the CA container with the AWS Lambda Web Adapter extension.
-
-```console
-podman build -f ca.Containerfile -t bifrost-ca .
 ```
 
 ## Take Bifrost out for a spin
@@ -190,16 +93,16 @@ Set up server key material and start the CA and TLS reverse-proxy.
 
    ```console
    openssl req -new -key key.pem -x509 -nodes -days 3650 \
-     -subj "/CN=$(bfid -ns "$BF_NS" key.pem)/O=$BF_NS" \
+     -subj "/CN=$(bf id -ns "$BF_NS" key.pem)/O=$BF_NS" \
      -addext basicConstraints=critical,CA:TRUE,pathlen:0 \
     -out crt.pem
    ```
 
-3. Start issuer (CA), hallpass (TLS reverse-proxy), and a python web server (target).
+3. Start the CA issuer, reverse proxy, and the target web server.
 
     ```console
-    issuer &
-    hallpass &
+    bf ca &
+    bf proxy &
     python -m http.server 8080 &
     ```
 
@@ -213,7 +116,7 @@ Set up server key material and start the CA and TLS reverse-proxy.
 
    ```console
    openssl req -new -key clientkey.pem -sha256 \
-     -subj "/CN=$(bfid -ns "$BF_NS" clientkey.pem)/O=$BF_NS" \
+     -subj "/CN=$(bf id -ns "$BF_NS" clientkey.pem)/O=$BF_NS" \
      -out csr.pem
    ```
 
@@ -274,10 +177,8 @@ A toy benchmark for your favourite toy CA.
 
 ![Fishy Benchmark](docs/fishy-benchmark.jpg)
 
-`issuer` issued 10,000 certificates on my Macbook Pro M1 Pro in ~41s.
-The slowest request completed in 12ms.
-With a mean response time of 4ms this is objectively the fastest CA on the planet.
-Statisticians hate this one weird trick.
+Bifrost CA issued 10,000 certificates on my Macbook Pro M1 Pro in ~41s.
+Your results may vary.
 
 ## [LICENSE](LICENSE)
 
