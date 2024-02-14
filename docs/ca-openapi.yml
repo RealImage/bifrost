@@ -36,10 +36,26 @@ paths:
       operationId: issueCertificate
       summary: Fetch a signed authentication certificate
       description: >
-        Send an X.509 certificate request in PEM-encoded DER ASN.1 form (text/plain) or in
-        DER ASN.1 form (application/octet-stream) and receive a signed certificate.
-        Response content type mirrors the request's, unless the Accept header is set.
-        A 403 response status code indicates that the client is using the wrong namespace UUID.
+        Send an X.509 certificate request in PEM-encoded DER ASN.1 form
+        (text/plain) or in DER ASN.1 form (application/octet-stream) and
+        receive a signed certificate.
+        Response content type mirrors the request's, unless the request sets the
+        Accept header.
+        A 403 response status code indicates that the request
+        used the wrong namespace UUID.
+      parameters:
+        - in: query
+          name: not-before
+          schema:
+            type: string
+            format: date-time
+          description: Issue certificate valid not before this date.
+        - in: query
+          name: not-after
+          schema:
+            type: string
+            format: date-time
+          description: Issue certificate valid not after this date.
       requestBody:
         content:
           "text/plain":
@@ -113,3 +129,4 @@ paths:
             "text/plain":
               schema:
                 type: string
+
