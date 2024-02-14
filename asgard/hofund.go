@@ -4,6 +4,7 @@ import (
 	"encoding/pem"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/RealImage/bifrost"
 	"github.com/google/uuid"
@@ -38,7 +39,9 @@ func Hofund(h HeaderName, ns uuid.UUID) func(http.Handler) http.Handler {
 				Type:  "CERTIFICATE",
 				Bytes: cert.Raw,
 			})
-			r.Header.Set(h.String(), string(certPEM))
+			hval := url.QueryEscape(string(certPEM))
+
+			r.Header.Set(h.String(), hval)
 
 			next.ServeHTTP(w, r)
 		})

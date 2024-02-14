@@ -24,7 +24,6 @@ var (
 		Flags: []cli.Flag{
 			caCertFlag,
 			caKeyFlag,
-			issueValidFlag,
 			&cli.StringFlag{
 				Name:        "host",
 				Usage:       "listen on `HOST`",
@@ -69,7 +68,7 @@ var (
 			&cli.BoolFlag{
 				Name:        "metrics",
 				Usage:       "expose Prometheus metrics",
-				EnvVars:     envvarNames("METRICS"),
+				EnvVars:     []string{"METRICS"},
 				Value:       false,
 				Destination: &exposeMetrics,
 			},
@@ -89,7 +88,7 @@ var (
 				mux.HandleFunc("/metrics", webapp.MetricsHandler)
 			}
 
-			ca, err := tinyca.New(cert, key, issueValidity)
+			ca, err := tinyca.New(cert, key)
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("Error creating CA: %s", err), 1)
 			}

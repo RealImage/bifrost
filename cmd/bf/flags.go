@@ -1,8 +1,6 @@
 package main
 
 import (
-	"time"
-
 	"github.com/urfave/cli/v2"
 )
 
@@ -30,15 +28,5 @@ var (
 		EnvVars:     envvarNames("CA_PRIVATE_KEY"),
 		Value:       "key.pem",
 		Destination: &caPrivKeyUri,
-	}
-
-	issueValidity  time.Duration
-	issueValidFlag = &cli.DurationFlag{
-		Name:        "issue-validity",
-		Usage:       "issue certificates valid for `DURATION`",
-		Aliases:     []string{"valid"},
-		EnvVars:     envvarNames("ISSUE_VALIDITY"),
-		Value:       time.Hour,
-		Destination: &issueValidity,
 	}
 )

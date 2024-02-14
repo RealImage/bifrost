@@ -29,8 +29,6 @@ import (
 type CA struct {
 	cert *bifrost.Certificate
 	key  *bifrost.PrivateKey
-	// dur is the duration for which the issued certificate is valid.
-	dur time.Duration
 
 	// metrics
 	issuedTotal      *metrics.Counter
@@ -40,7 +38,7 @@ type CA struct {
 
 // New returns a new CA.
 // The CA issues certificates for the given namespace.
-func New(cert *bifrost.Certificate, key *bifrost.PrivateKey, dur time.Duration) (*CA, error) {
+func New(cert *bifrost.Certificate, key *bifrost.PrivateKey) (*CA, error) {
 	iss := bfMetricName("issued_certs_total", cert.Namespace)
 	rt := bfMetricName("requests_total", cert.Namespace)
 	rd := bfMetricName("requests_duration_seconds", cert.Namespace)
@@ -48,7 +46,6 @@ func New(cert *bifrost.Certificate, key *bifrost.PrivateKey, dur time.Duration) 
 	return &CA{
 		cert: cert,
 		key:  key,
-		dur:  dur,
 
 		issuedTotal:      bifrost.StatsForNerds.NewCounter(iss),
 		requestsTotal:    bifrost.StatsForNerds.NewCounter(rt),
@@ -68,6 +65,24 @@ func bfMetricName(name string, ns uuid.UUID) string {
 func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ca.requestsTotal.Inc()
 	startTime := time.Now()
+
+	notBefore := time.Now()
+	if nb := r.URL.Query().Get("notBefore"); nb != "" {
+		var err error
+		if notBefore, err = time.Parse(time.RFC3339, nb); err != nil {
+			http.Error(w, "invalid notBefore query parameter", http.StatusBadRequest)
+			return
+		}
+	}
+
+	notAfter := notBefore.AddDate(0, 0, 1)
+	if na := r.URL.Query().Get("notAfter"); na != "" {
+		var err error
+		if notAfter, err = time.Parse(time.RFC3339, na); err != nil {
+			http.Error(w, "invalid notAfter query parameter", http.StatusBadRequest)
+			return
+		}
+	}
 
 	if r.Method != http.MethodPost {
 		http.Error(w, fmt.Sprintf("method %s not allowed", r.Method), http.StatusMethodNotAllowed)
@@ -98,9 +113,13 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keyUsage := x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment
-	extKeyUsage := []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
-	cert, err := ca.IssueCertificate(csr, keyUsage, extKeyUsage)
+	template := &x509.Certificate{
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		NotBefore:   notBefore,
+		NotAfter:    notAfter,
+	}
+	cert, err := ca.IssueCertificate(csr, template)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
 		if errors.Is(err, bifrost.ErrCertificateRequestInvalid) {
@@ -124,7 +143,6 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	fmt.Println(r.Header)
 
 	switch responseType {
 	case webapp.MimeTypeAll, webapp.MimeTypeText:
@@ -170,12 +188,8 @@ func readCsr(contentType string, body []byte) ([]byte, error) {
 // The certificate is issued with the Subject Common Name set to the
 // UUID of the client public key and the Subject Organization
 // set to the identity namespace UUID.
-func (ca CA) IssueCertificate(
-	asn1Data []byte,
-	keyUsage x509.KeyUsage,
-	extKeyUsage []x509.ExtKeyUsage,
-) ([]byte, error) {
-	csr, err := bifrost.ParseCertificateRequest(asn1Data)
+func (ca CA) IssueCertificate(asn1CSR []byte, template *x509.Certificate) ([]byte, error) {
+	csr, err := bifrost.ParseCertificateRequest(asn1CSR)
 	if err != nil {
 		return nil, err
 	}
@@ -184,34 +198,35 @@ func (ca CA) IssueCertificate(
 		return nil, bifrost.ErrNamespaceMismatch
 	}
 
+	if t := template; t.NotBefore.IsZero() || t.NotAfter.IsZero() ||
+		t.NotAfter.Before(t.NotBefore) {
+		return nil, fmt.Errorf(
+			"bifrost: %w invalid validity period",
+			bifrost.ErrCertificateRequestInvalid,
+		)
+	}
+
 	serialNumber, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
 	if err != nil {
 		return nil, fmt.Errorf("bifrost: unexpected error generating certificate serial: %w", err)
 	}
 
-	// Client certificate template.
-	notBefore := time.Now()
-	template := x509.Certificate{
-		SignatureAlgorithm: bifrost.SignatureAlgorithm,
-		PublicKeyAlgorithm: bifrost.PublicKeyAlgorithm,
-		KeyUsage:           keyUsage,
-		ExtKeyUsage:        extKeyUsage,
-		Issuer:             ca.cert.Issuer,
-		Subject: pkix.Name{
-			Organization: []string{ca.cert.Namespace.String()},
-			CommonName:   csr.PublicKey.UUID(ca.cert.Namespace).String(),
-		},
-		PublicKey:             csr.PublicKey.PublicKey,
-		Signature:             csr.Signature,
-		SerialNumber:          serialNumber,
-		NotBefore:             notBefore,
-		NotAfter:              notBefore.Add(ca.dur),
-		BasicConstraintsValid: true,
+	// Override the fields we care about.
+	template.SerialNumber = serialNumber
+	template.SignatureAlgorithm = bifrost.SignatureAlgorithm
+	template.PublicKeyAlgorithm = bifrost.PublicKeyAlgorithm
+	template.Issuer = ca.cert.Issuer
+	template.Subject = pkix.Name{
+		Organization: []string{ca.cert.Namespace.String()},
+		CommonName:   csr.PublicKey.UUID(ca.cert.Namespace).String(),
 	}
+	template.PublicKey = csr.PublicKey.PublicKey
+	template.Signature = csr.Signature
+	template.BasicConstraintsValid = true
 
 	certBytes, err := x509.CreateCertificate(
 		rand.Reader,
-		&template,
+		template,
 		ca.cert.Certificate,
 		csr.PublicKey.PublicKey,
 		ca.key,

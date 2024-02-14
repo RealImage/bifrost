@@ -257,7 +257,7 @@ func TestCA_ServeHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ca, err := New(bfCert, key, time.Hour)
+	ca, err := New(bfCert, key)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -77,9 +77,16 @@ func TestHofund(t *testing.T) {
 	// backend server handler checks if request has expected header
 	backendServer := httptest.NewServer(
 		http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-			certPem := r.Header.Get(HeaderNameClientCert.String())
-			if certPem == "" {
+			escapedCertPem := r.Header.Get(HeaderNameClientCert.String())
+			if escapedCertPem == "" {
 				t.Errorf("expected %s header in request", HeaderNameClientCert)
+				return
+			}
+
+			certPem, err := url.QueryUnescape(escapedCertPem)
+			if err != nil {
+				t.Errorf("error unescaping certificate %s", err)
+				return
 			}
 
 			block, _ := pem.Decode([]byte(certPem))
