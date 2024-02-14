@@ -67,19 +67,19 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
 	notBefore := time.Now()
-	if nb := r.URL.Query().Get("notBefore"); nb != "" {
+	if nb := r.URL.Query().Get("not-before"); nb != "" {
 		var err error
 		if notBefore, err = time.Parse(time.RFC3339, nb); err != nil {
-			http.Error(w, "invalid notBefore query parameter", http.StatusBadRequest)
+			http.Error(w, "invalid not-before query parameter", http.StatusBadRequest)
 			return
 		}
 	}
 
 	notAfter := notBefore.AddDate(0, 0, 1)
-	if na := r.URL.Query().Get("notAfter"); na != "" {
+	if na := r.URL.Query().Get("not-after"); na != "" {
 		var err error
 		if notAfter, err = time.Parse(time.RFC3339, na); err != nil {
-			http.Error(w, "invalid notAfter query parameter", http.StatusBadRequest)
+			http.Error(w, "invalid not-after query parameter", http.StatusBadRequest)
 			return
 		}
 	}
