@@ -99,7 +99,7 @@ func TestHofund(t *testing.T) {
 				return
 			}
 
-			if !cert.PublicKey.Equal(priv.Public()) {
+			if !cert.PublicKey.Equal(priv.PublicKey()) {
 				t.Errorf("expected public key %v, got %v", priv.Public(), cert.PublicKey)
 				return
 			}

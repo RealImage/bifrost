@@ -53,6 +53,10 @@ func ParsePKIXPublicKey(asn1Data []byte) (*PublicKey, error) {
 	}, nil
 }
 
+func (p *PublicKey) Equal(other *PublicKey) bool {
+	return p.PublicKey.Equal(other.PublicKey)
+}
+
 // UUID returns a unique identifier derived from the namespace and the client's public key.
 func (p PublicKey) UUID(ns uuid.UUID) uuid.UUID {
 	if p.PublicKey == nil {

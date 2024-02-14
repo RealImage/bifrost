@@ -108,7 +108,7 @@ func NewCertificate(cert *x509.Certificate) (*Certificate, error) {
 }
 
 // IssuedTo returns true if the certificate was issued to the given public key.
-func (c Certificate) IssuedTo(key PublicKey) bool {
+func (c *Certificate) IssuedTo(key *PublicKey) bool {
 	return c.PublicKey.Equal(key)
 }
 
@@ -117,7 +117,7 @@ func (c Certificate) ToTLSCertificate(key PrivateKey) (*tls.Certificate, error) 
 	if key.PrivateKey == nil {
 		return nil, errors.New("private key is nil")
 	}
-	if !c.IssuedTo(*key.PublicKey()) {
+	if !c.IssuedTo(key.PublicKey()) {
 		return nil, errors.New("private key does not match certificate public key")
 	}
 	return &tls.Certificate{

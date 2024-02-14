@@ -109,7 +109,7 @@ var (
 			hdlr := webapp.RequestLogHandler(mux)
 
 			addr := fmt.Sprintf("%s:%d", caHost, caPort)
-			slog.InfoContext(ctx, "starting server", "addr", addr)
+			slog.InfoContext(ctx, "starting server", "address", addr, "namespace", nss)
 
 			server := http.Server{Addr: addr, Handler: hdlr}
 			if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

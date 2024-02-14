@@ -15,7 +15,7 @@ import (
 type certVerifyTestCase struct {
 	certPem []byte
 	wantNS  uuid.UUID
-	wantKey *ecdsa.PublicKey
+	wantKey *PublicKey
 	err     bool
 }
 
@@ -42,10 +42,12 @@ PQQDAgNHADBEAiAkFsFf52lUWYaPPvmzm3EewrCud4Ju86Shy9Y4X/81NAIgKTYy
 krCRDqY7/t+yGnvnBBIcam3xNWXnM9dk5v3DJss=
 -----END CERTIFICATE-----`),
 		wantNS: uuid.MustParse("1512daa4-ddc1-41d1-8673-3fd19d2f338d"),
-		wantKey: &ecdsa.PublicKey{
-			Curve: elliptic.P256(),
-			X:     t1X,
-			Y:     t1Y,
+		wantKey: &PublicKey{
+			PublicKey: &ecdsa.PublicKey{
+				Curve: elliptic.P256(),
+				X:     t1X,
+				Y:     t1Y,
+			},
 		},
 	},
 	{

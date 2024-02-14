@@ -153,7 +153,7 @@ func GetCertKey(
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting key: %w", err)
 	}
-	if !cert.IssuedTo(*key.PublicKey()) {
+	if !cert.IssuedTo(key.PublicKey()) {
 		return nil, nil, fmt.Errorf("certificate and key do not match")
 	}
 	return cert, key, nil

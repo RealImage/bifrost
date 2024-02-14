@@ -9,11 +9,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/RealImage/bifrost"
 	"github.com/google/uuid"
 )
 
-var testPubKey = &ecdsa.PublicKey{
-	Curve: elliptic.P256(),
+var testPubKey = &bifrost.PublicKey{
+	PublicKey: &ecdsa.PublicKey{
+		Curve: elliptic.P256(),
+	},
 }
 
 func init() {
@@ -34,7 +37,7 @@ var heimdallrTestCases = []struct {
 	headerName   HeaderName
 	headerValue  string
 	expectedCode int
-	expectedKey  *ecdsa.PublicKey
+	expectedKey  *bifrost.PublicKey
 	expectedNs   uuid.UUID
 }{
 	{
