@@ -25,15 +25,9 @@ Bifrost binaries are available on the [releases](https://github.com/RealImage/bi
 page.
 
 [ghcr.io/realimage/bifrost](https://ghcr.io/realimage/bifrost) container image
-on ghcr.io contains all binaries.
-
-[ghcr.io/realimage/bifrost-authz](https://ghcr.io/realimage/bifrost-auths) contains
-the `bouncer` binary. This ia an AWS Lambda Function meant to used as a Lambda Authorizer
-in AWS API Gateway instances.
-
-[ghcr.io/realimage/bifrost-ca](https://ghcr.io/realimage/bifrost-ca) contains the
-`issuer` binary along with the AWS Lambda Web Adapter extension, making it suitable
-for AWS Lambda deployments.
+container contains the Bifrost binary bundled with the
+[aws-lambda-web-adapter](https://github.com/awslabs/aws-lambda-web-adapter) AWS
+Lambda extension.
 
 ```console
 podman pull ghcr.io/realimage/bifrost
@@ -66,8 +60,7 @@ env CGO_ENABLED=0 go build -o bin ./...
 
 ### Container
 
-Build everything including an AWS Lambda runtime extension, allowing you to run
-the same image on AWS Lambda or elsewhere.
+Build everything.
 
 ```console
 podman build -t ghcr.io/realimage/bifrost .
