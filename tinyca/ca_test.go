@@ -251,8 +251,10 @@ func TestCA_ServeHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bfCert := &bifrost.Certificate{
-		Certificate: cert,
+
+	bfCert, err := bifrost.NewCertificate(cert)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	ca, err := New(bfCert, key, time.Hour)

@@ -201,7 +201,7 @@ func (ca CA) IssueCertificate(
 			Organization: []string{ca.cert.Namespace.String()},
 			CommonName:   csr.PublicKey.UUID(ca.cert.Namespace).String(),
 		},
-		PublicKey:             csr.PublicKey,
+		PublicKey:             csr.PublicKey.PublicKey,
 		Signature:             csr.Signature,
 		SerialNumber:          serialNumber,
 		NotBefore:             notBefore,
@@ -213,7 +213,7 @@ func (ca CA) IssueCertificate(
 		rand.Reader,
 		&template,
 		ca.cert.Certificate,
-		csr.PublicKey,
+		csr.PublicKey.PublicKey,
 		ca.key,
 	)
 	if err != nil {
