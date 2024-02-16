@@ -11,6 +11,7 @@ popd
 go install golang.org/x/tools/cmd/stringer@latest
 go generate -x ./...
 
+rm -rf bin
 mkdir -p bin
 pushd bin
 
@@ -33,6 +34,8 @@ gobuild() {
   esac
   popd
 }
+
+export CGO_ENABLED=0
 
 gobuild linux amd64
 gobuild linux arm64
