@@ -48,14 +48,10 @@ In pseudo-code,
 ### Native
 
 Install Node.js & Go.
-Build static binaries on your machine.
+Build static binaries on your machine for all supported platforms.
 
 ```console
-pushd web; npm ci; popd
-go generate -x ./...
-
-mkdir bin
-env CGO_ENABLED=0 go build -o bin ./...
+./build.sh
 ```
 
 ### Container

@@ -26,8 +26,7 @@ FROM gcr.io/distroless/$DISTROLESS_VERSION
 # uses lambda-web-adapter to run our standard HTTP app in a lambda
 # https://github.com/awslabs/aws-lambda-web-adapter
 # for configuration see https://github.com/awslabs/aws-lambda-web-adapter#configurations
-ARG AWS_LWA_VERSION=0.7.1
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:$AWS_LWA_VERSION \
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.7.1 \
   /lambda-adapter /opt/extensions/lambda-adapter
 COPY --from=go /src/bf /
 ENV PORT=8080
