@@ -85,7 +85,7 @@ var (
 
 			if exposeMetrics {
 				slog.DebugContext(ctx, "metrics enabled")
-				mux.HandleFunc("/metrics", webapp.MetricsHandler)
+				mux.HandleFunc("GET /metrics", webapp.MetricsHandler)
 			}
 
 			ca, err := tinyca.New(cert, key)
@@ -93,10 +93,10 @@ var (
 				return cli.Exit(fmt.Sprintf("Error creating CA: %s", err), 1)
 			}
 
-			mux.Handle("/issue", ca)
+			mux.Handle("POST /issue", ca)
 
 			nss := cert.Namespace.String()
-			mux.HandleFunc("/namespace", func(w http.ResponseWriter, r *http.Request) {
+			mux.HandleFunc("GET /namespace", func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprint(w, nss)
 			})
 

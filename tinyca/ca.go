@@ -84,11 +84,6 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if r.Method != http.MethodPost {
-		http.Error(w, fmt.Sprintf("method %s not allowed", r.Method), http.StatusMethodNotAllowed)
-		return
-	}
-
 	contentType, _, err := webapp.GetContentType(r.Header, webapp.MimeTypeText)
 	if err != nil {
 		e := fmt.Sprintf("error parsing Content-Type header: %s", err)

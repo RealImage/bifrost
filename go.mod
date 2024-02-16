@@ -1,6 +1,8 @@
 module github.com/RealImage/bifrost
 
-go 1.21.3
+go 1.22
+
+toolchain go1.22.0
 
 require (
 	github.com/VictoriaMetrics/metrics v1.24.0
