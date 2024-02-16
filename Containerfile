@@ -1,5 +1,5 @@
 ARG GO_VERSION="1.22"
-ARG NODE_VERSION="20.9.0"
+ARG NODE_VERSION="20"
 ARG DISTROLESS_VERSION="base-debian12:latest"
 
 FROM --platform=$BUILDPLATFORM docker.io/library/node:$NODE_VERSION as node
