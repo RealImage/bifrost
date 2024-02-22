@@ -14,6 +14,7 @@ go generate -x ./...
 rm -rf bin
 mkdir -p bin
 pushd bin
+trap popd EXIT
 
 gobuild() {
   mkdir -p "$1/$2"
@@ -32,17 +33,23 @@ gobuild() {
         -f ../../"${app}_${1}_${2}".tar.gz .
       ;;
   esac
+  rm ./*
   popd
+  rmdir "${1:?}/${2:?}" "${1:?}"
 }
 
 export CGO_ENABLED=0
 
+# Binaries for all platforms
 gobuild linux amd64
 gobuild linux arm64
 gobuild darwin amd64
 gobuild darwin arm64
 gobuild windows amd64
 
-sha1sum ./*.tar.gz ./*.zip >sha1sums.txt
+# AWS Lambda zip file
+GOOS=linux GOARCH=arm64 go build -o bootstrap -tags lambda.norpc ../cmd/bf
+zip bifrost_lambda_function.zip bootstrap
+rm bootstrap
 
-popd
+sha1sum ./*.tar.* ./*.zip >sha1sums.txt
