@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build binaries
+  release:
+    name: Build binaries and container images
     runs-on: ubuntu-latest
 
     steps:
@@ -25,6 +25,9 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Setup ko
+        uses: imjasonh/setup-ko@v0.6
+
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -33,9 +36,14 @@ jobs:
           cache-dependency-path: |
             web/package-lock.json
 
-      - name: Build
+      - name: Build container images
+        env:
+          TAGS: ${{ github.ref_name }},${{ github.sha }},latest
         shell: bash
-        run: ./build.sh
+        run: |
+          ./build.sh
+          export KO_DOCKER_REPO="ghcr.io/${GITHUB_REPOSITORY@L}"
+          ko build --bare --platform=all --tags=$TAGS ./cmd/bf
 
       - name: Upload binary
         uses: actions/upload-artifact@v3
@@ -53,35 +61,3 @@ jobs:
           files: |
             bin/*
             docs/ca-openapi.yml
-
-  container_images:
-    name: Push contaimer images
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Build bifrost image
-        uses: redhat-actions/buildah-build@v2
-        id: build_bf
-        with:
-          image: ${{ github.repository }}
-          tags: >
-            ${{ github.ref_name }}
-            ${{ github.sha }}
-            latest
-          containerfiles: Containerfile
-          oci: true
-          archs: amd64, arm64
-
-      - name: Push bifrost image to ghcr.io
-        uses: redhat-actions/push-to-registry@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          image: ${{ steps.build_bf.outputs.image }}
-          tags: ${{ steps.build_bf.outputs.tags }}
