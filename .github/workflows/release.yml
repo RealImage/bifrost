@@ -17,19 +17,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: Setup ko
-        uses: imjasonh/setup-ko@v0.6
+      - uses: ko-build/setup-ko@v0.6
 
-      - name: Setup node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version-file: web/package.json
           cache: 'npm'
@@ -45,16 +41,14 @@ jobs:
           export KO_DOCKER_REPO="ghcr.io/${GITHUB_REPOSITORY@L}"
           ko build --bare --platform=all --tags=$TAGS ./cmd/bf
 
-      - name: Upload binary
-        uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v3
         with:
           name: bifrost
           path: |
             bin/*
             docs/ca-openapi.yml
 
-      - name: Update Github release
-        uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v1
         with:
           append_body: true
           generate_release_notes: true

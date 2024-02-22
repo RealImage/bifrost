@@ -16,21 +16,16 @@ jobs:
     name: Lint & test code.
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: Lint Go code
-        uses: golangci/golangci-lint-action@v3
+      - uses: golangci/golangci-lint-action@v3
         with:
           version: "v1.55.2"
 
-      - name: Vet
-        run: go vet ./...
+      - run: go vet ./...
 
-      - name: Test
-        run: go test -race -cover ./...
+      - run: go test -race -cover ./...

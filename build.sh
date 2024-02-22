@@ -49,7 +49,6 @@ gobuild windows amd64
 
 # AWS Lambda zip file
 GOOS=linux GOARCH=arm64 go build -o bootstrap -tags lambda.norpc ../cmd/bf
-zip bifrost_lambda_function.zip bootstrap
-rm bootstrap
+zip -m bifrost_lambda_function.zip bootstrap
 
 sha1sum ./*.tar.* ./*.zip >sha1sums.txt
