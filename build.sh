@@ -1,8 +1,14 @@
 #!/bin/bash
+#
+# $1 - The version number to use for the build. If not provided, the current git
+#     commit hash will be used.
+#
 
 set -euo pipefail
 
 app="$(basename "$PWD")"
+
+version="${1:-$(git rev-parse --short HEAD)}"
 
 pushd web
 npm ci
@@ -22,15 +28,15 @@ gobuild() {
   env GOOS="$1" GOARCH="$2" go build ../../../cmd/...
   case "$1" in
     "windows")
-      zip ../../"${app}_${1}_${2}".zip ./*.exe
+      zip ../../"${app}_${1}_${2}_${version}".zip ./*.exe
       ;;
     "linux")
       tar -c --zstd --numeric-owner \
-        -f ../../"${app}_${1}_${2}".tar.zst .
+        -f ../../"${app}_${1}_${2}_${version}".tar.zst .
       ;;
     *)
       tar -c --numeric-owner \
-        -f ../../"${app}_${1}_${2}".tar.bz2 .
+        -f ../../"${app}_${1}_${2}_${version}".tar.bz2 .
       ;;
   esac
   rm ./*
@@ -49,6 +55,6 @@ gobuild windows amd64
 
 # AWS Lambda zip file
 GOOS=linux GOARCH=arm64 go build -o bootstrap ../cmd/bf
-zip -m bifrost_lambda_function.zip bootstrap
+zip -m "bifrost_lambda_function_${version}.zip" bootstrap
 
 sha1sum ./*.tar.* ./*.zip >sha1sums.txt

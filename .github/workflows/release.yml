@@ -34,10 +34,11 @@ jobs:
 
       - name: Build
         env:
+          VERSION: ${{ github.ref_name }}
           TAGS: ${{ github.ref_name }},${{ github.sha }},latest
         shell: bash
         run: |
-          ./build.sh
+          ./build.sh "$VERSION"
           export KO_DOCKER_REPO="ghcr.io/${GITHUB_REPOSITORY@L}"
           ko build --bare --platform=all --tags=$TAGS ./cmd/bf
 
