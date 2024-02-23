@@ -30,7 +30,7 @@ gobuild() {
       ;;
     *)
       tar -c --numeric-owner \
-        -f ../../"${app}_${1}_${2}".tar.gz .
+        -f ../../"${app}_${1}_${2}".tar.bz2 .
       ;;
   esac
   rm ./*
@@ -48,7 +48,7 @@ gobuild darwin arm64
 gobuild windows amd64
 
 # AWS Lambda zip file
-GOOS=linux GOARCH=arm64 go build -o bootstrap -tags lambda.norpc ../cmd/bf
+GOOS=linux GOARCH=arm64 go build -o bootstrap ../cmd/bf
 zip -m bifrost_lambda_function.zip bootstrap
 
 sha1sum ./*.tar.* ./*.zip >sha1sums.txt
