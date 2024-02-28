@@ -21,17 +21,11 @@ Client identity namespaces allow Bifrost to be natively multi-tenant.
 
 [![Release 🚀](https://github.com/RealImage/bifrost/actions/workflows/release.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/release.yml)
 
-Bifrost binaries are available on the [releases](https://github.com/RealImage/bifrost/releases)
-page.
+Bifrost binaries are available for Windows, MacOS, and Linux on
+the [releases](https://github.com/RealImage/bifrost/releases) page.
 
-[ghcr.io/realimage/bifrost](https://ghcr.io/realimage/bifrost) container image
-container contains the Bifrost binary bundled with the
-[aws-lambda-web-adapter](https://github.com/awslabs/aws-lambda-web-adapter) AWS
-Lambda extension.
-
-```console
-podman pull ghcr.io/realimage/bifrost
-```
+Container images are available at
+[ghcr.io/realimage/bifrost](https://ghcr.io/realimage/bifrost).
 
 ## Identity
 
@@ -56,10 +50,10 @@ Build static binaries on your machine for all supported platforms.
 
 ### Container
 
-Build everything.
+Build an image with [`ko`](https://ko.build).
 
 ```console
-podman build -t ghcr.io/realimage/bifrost .
+ko build --local ./cmd/bf
 ```
 
 ## Take Bifrost out for a spin
