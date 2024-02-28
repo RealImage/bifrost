@@ -67,25 +67,20 @@ podman build -t ghcr.io/realimage/bifrost .
 Here's what you need to get started.
 
 1. Install all bifrost binaries by running `go install ./...`.
-2. Generate a new namespace UUID using `export BF_NS=$(uuidgen)`.
+2. Generate a new namespace UUID using `export BF_NS=$(bf new ns)`.
 3. Ensure that python, curl, and openssl are available in your environment.
 
 ### Start your engines
 
 Set up server key material and start the CA and TLS reverse-proxy.
 
-1. Create ECDSA P256 private key in PEM format:
+1. Create Bifrost ECDSA private key:
 
-    `openssl ecparam -out key.pem -name prime256v1 -genkey -noout`
+    `bf new id -o key.pem`
 
-2. Create self-signed CA certificate:
+2. Create self-signed CA root certificate:
 
-   ```console
-   openssl req -new -key key.pem -x509 -nodes -days 3650 \
-     -subj "/CN=$(bf id -ns "$BF_NS" key.pem)/O=$BF_NS" \
-     -addext basicConstraints=critical,CA:TRUE,pathlen:0 \
-    -out crt.pem
-   ```
+    `bf new ca -o cert.pem`
 
 3. Start the CA issuer, reverse proxy, and the target web server.
 
@@ -99,7 +94,7 @@ Set up server key material and start the CA and TLS reverse-proxy.
 
 1. Generate a new client identity key:
 
-    `openssl ecparam -out clientkey.pem -name prime256v1 -genkey -noout`
+    `bf new id -out clientkey.pem`
 
 2. Create a Certificate Signing Request with the client private key:
 
@@ -116,7 +111,7 @@ Set up server key material and start the CA and TLS reverse-proxy.
      "localhost:8888/issue" >clientcrt.pem`
    ```
 
-4. Make a request through hallpass to the python web server:
+4. Make a request through the mTLS proxy to the python web server:
 
     `curl --cert clientcrt.pem --key clientkey.pem -k https://localhost:8443`
 

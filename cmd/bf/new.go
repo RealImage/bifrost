@@ -100,6 +100,7 @@ var newCmd = &cli.Command{
 					NotAfter:              notAfter,
 					KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 					ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+					IsCA:                  true,
 					BasicConstraintsValid: true,
 				}
 
