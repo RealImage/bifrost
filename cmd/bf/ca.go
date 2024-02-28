@@ -23,7 +23,7 @@ var (
 		Aliases: []string{"ca"},
 		Flags: []cli.Flag{
 			caCertFlag,
-			caKeyFlag,
+			caPrivKeyFlag,
 			&cli.StringFlag{
 				Name:        "host",
 				Usage:       "listen on `HOST`",

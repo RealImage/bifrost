@@ -17,7 +17,7 @@ var (
 		Name: "issue",
 		Flags: []cli.Flag{
 			caCertFlag,
-			caKeyFlag,
+			caPrivKeyFlag,
 			&cli.TimestampFlag{
 				Name:        "not-before",
 				Usage:       "issue certificates valid from `TIMESTAMP`",

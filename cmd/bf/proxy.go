@@ -34,7 +34,7 @@ var (
 		Aliases: []string{"proxy", "id-proxy"},
 		Flags: []cli.Flag{
 			caCertFlag,
-			caKeyFlag,
+			caPrivKeyFlag,
 			&cli.StringFlag{
 				Name:        "backend-url",
 				Usage:       "Proxy requests to `URL`",
