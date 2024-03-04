@@ -21,7 +21,7 @@ func main() {
 			&cli.StringFlag{
 				Name:    "log-level",
 				Aliases: []string{"l"},
-				EnvVars: envvarNames("LOG_LEVEL"),
+				EnvVars: []string{"LOG_LEVEL"},
 				Value:   slog.LevelInfo.String(),
 				Action: func(_ *cli.Context, l string) error {
 					logLevel := new(slog.LevelVar)

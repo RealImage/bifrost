@@ -8,19 +8,14 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func envvarNames(s string) []string {
-	return []string{s, "BF_" + s}
-}
-
 // Flags
 var (
 	namespace uuid.UUID
 	nsFlag    = &cli.StringFlag{
-		Name:     "namespace",
-		Usage:    "namespace `UUID`",
-		Required: true,
-		Aliases:  []string{"ns"},
-		EnvVars:  envvarNames("NS"),
+		Name:    "namespace",
+		Usage:   "namespace `UUID`",
+		Aliases: []string{"ns"},
+		EnvVars: []string{"NS", "NAMESPACE"},
 		Action: func(_ *cli.Context, ns string) (err error) {
 			namespace, err = uuid.Parse(ns)
 			return err
@@ -32,7 +27,7 @@ var (
 		Name:        "ca-certificate",
 		Usage:       "read CA certificate from `FILE`",
 		Aliases:     []string{"ca-cert"},
-		EnvVars:     envvarNames("CA_CERT"),
+		EnvVars:     []string{"CA_CERT", "CA_CRT", "CRT"},
 		TakesFile:   true,
 		Value:       "cert.pem",
 		Destination: &caCertUri,
@@ -43,7 +38,7 @@ var (
 		Name:        "ca-private-key",
 		Usage:       "read CA private key from `FILE`",
 		Aliases:     []string{"ca-key"},
-		EnvVars:     envvarNames("CA_PRIVKEY"),
+		EnvVars:     []string{"CA_PRIVKEY", "CA_KEY", "KEY"},
 		TakesFile:   true,
 		Value:       "key.pem",
 		Destination: &caPrivKeyUri,

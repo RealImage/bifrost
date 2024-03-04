@@ -18,16 +18,7 @@ var (
 		Name:    "identity",
 		Aliases: []string{"id"},
 		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "namespace",
-				Usage:   "Bifrost Namespace `UUID`",
-				Aliases: []string{"n", "ns"},
-				EnvVars: envvarNames("NS"),
-				Action: func(ctx *cli.Context, s string) (err error) {
-					bfns, err = uuid.Parse(s)
-					return
-				},
-			},
+			nsFlag,
 		},
 		Action: func(cliCtx *cli.Context) error {
 			ns, id, err := parseUUIDFromFile(bfns, cliCtx.Args().First())

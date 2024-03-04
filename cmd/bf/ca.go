@@ -28,7 +28,7 @@ var (
 				Name:        "host",
 				Usage:       "listen on `HOST`",
 				Aliases:     []string{"H"},
-				EnvVars:     envvarNames("HOST"),
+				EnvVars:     []string{"HOST"},
 				Value:       "localhost",
 				Destination: &caHost,
 				Action: func(_ *cli.Context, h string) error {
@@ -42,7 +42,7 @@ var (
 				Name:        "port",
 				Usage:       "listen on `PORT`",
 				Aliases:     []string{"p"},
-				EnvVars:     envvarNames("PORT"),
+				EnvVars:     []string{"PORT"},
 				Value:       8008,
 				Destination: &caPort,
 				Action: func(_ *cli.Context, p int) error {
@@ -56,13 +56,13 @@ var (
 				Name:        "web",
 				Usage:       "enable web interface",
 				Aliases:     []string{"w"},
-				EnvVars:     envvarNames("WEB"),
+				EnvVars:     []string{"WEB"},
 				Destination: &webEnabled,
 			},
 			&cli.PathFlag{
 				Name:        "web-static-path",
 				Usage:       "read web static files from `PATH`",
-				EnvVars:     envvarNames("WEB_STATIC_PATH"),
+				EnvVars:     []string{"WEB_STATIC_PATH"},
 				Destination: &webStaticPath,
 			},
 			&cli.BoolFlag{

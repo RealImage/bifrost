@@ -41,6 +41,16 @@ func ParseCertificate(asn1Data []byte) (*Certificate, error) {
 // It checks for the correct signature algorithm, identity namespace, and identity.
 // On success, it sets the ID, Namespace, and PublicKey fields.
 func NewCertificate(cert *x509.Certificate) (*Certificate, error) {
+	if !cert.BasicConstraintsValid {
+		return nil, fmt.Errorf("%w: basic constraints not valid", ErrCertificateInvalid)
+	}
+
+	if cert.IsCA {
+		if cert.KeyUsage&x509.KeyUsageCertSign == 0 {
+			return nil, fmt.Errorf("%w: certificate is a CA but cannot sign", ErrCertificateInvalid)
+		}
+	}
+
 	// Check for bifrost signature algorithm
 	if cert.SignatureAlgorithm != SignatureAlgorithm {
 		return nil, fmt.Errorf(

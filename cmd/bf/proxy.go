@@ -46,7 +46,7 @@ var (
 				Name:        "host",
 				Usage:       "Listen on `HOST`",
 				Aliases:     []string{"H"},
-				EnvVars:     envvarNames("HOST"),
+				EnvVars:     []string{"HOST"},
 				Value:       "localhost",
 				Destination: &proxyHost,
 				Action: func(_ *cli.Context, h string) error {
@@ -60,7 +60,7 @@ var (
 				Name:        "port",
 				Usage:       "Listen on `PORT`",
 				Aliases:     []string{"p"},
-				EnvVars:     envvarNames("PORT"),
+				EnvVars:     []string{"PORT"},
 				Value:       8443,
 				Destination: &proxyPort,
 				Action: func(_ *cli.Context, p int) error {
