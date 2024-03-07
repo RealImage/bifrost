@@ -18,6 +18,17 @@ func (i Identity) UUID() uuid.UUID {
 	return i.PublicKey.UUID(i.Namespace)
 }
 
+func (i Identity) String() string {
+	return i.UUID().String()
+}
+
+// ParseIdentity parses a Bifrost identity from a PEM-encoded block.
+// The block may contain a private key, public key, certificate, or certificate request.
+//
+// If the block contains a private or a public key,
+// the returned identity will contain the public key.
+// If the block contains a certificate or certificate request,
+// the returned identity will contain the public key and namespace.
 func ParseIdentity(data []byte) (*Identity, error) {
 	block, _ := pem.Decode(data)
 	if block == nil {
