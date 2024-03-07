@@ -70,22 +70,19 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ca.requestsTotal.Inc()
 	startTime := time.Now()
 
-	notBefore := time.Now()
-	if nb := r.URL.Query().Get("not-before"); nb != "" {
-		var err error
-		if notBefore, err = time.Parse(time.RFC3339, nb); err != nil {
-			http.Error(w, "invalid not-before query parameter", http.StatusBadRequest)
-			return
-		}
+	nb := r.URL.Query().Get("not-before")
+	if nb == "" {
+		nb = "now"
+	}
+	na := r.URL.Query().Get("not-after")
+	if na == "" {
+		na = "+1h"
 	}
 
-	notAfter := notBefore.AddDate(0, 0, 1)
-	if na := r.URL.Query().Get("not-after"); na != "" {
-		var err error
-		if notAfter, err = time.Parse(time.RFC3339, na); err != nil {
-			http.Error(w, "invalid not-after query parameter", http.StatusBadRequest)
-			return
-		}
+	notBefore, notAfter, err := ParseValidity(nb, na)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	contentType, _, err := webapp.GetContentType(r.Header, webapp.MimeTypeText)
@@ -112,12 +109,8 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	template := &x509.Certificate{
-		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		NotBefore:   notBefore,
-		NotAfter:    notAfter,
-	}
+	template := TLSClientCertTemplate(notBefore, notAfter)
+
 	cert, err := ca.IssueCertificate(csr, template)
 	if err != nil {
 		statusCode := http.StatusInternalServerError

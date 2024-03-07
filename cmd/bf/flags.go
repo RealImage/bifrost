@@ -44,6 +44,34 @@ var (
 		Destination: &caPrivKeyUri,
 	}
 
+	clientPrivKeyUri  string
+	clientPrivKeyFlag = &cli.StringFlag{
+		Name:        "client-private-key",
+		Usage:       "read CA private key from `FILE`",
+		Aliases:     []string{"client-key"},
+		EnvVars:     []string{"CLIENT_PRIVKEY", "CLIENT_KEY"},
+		TakesFile:   true,
+		Value:       "client-key.pem",
+		Destination: &clientPrivKeyUri,
+	}
+
+	notBeforeTime string
+	notBeforeFlag = &cli.StringFlag{
+		Name:        "not-before",
+		Usage:       "certificate valid from `TIMESPEC` (default: \"now\")",
+		Aliases:     []string{"before"},
+		EnvVars:     []string{"NOT_BEFORE"},
+		Destination: &notBeforeTime,
+	}
+	notAfterTime string
+	notAfterFlag = &cli.StringFlag{
+		Name:        "not-after",
+		Usage:       "certificate valid until `TIMESPEC` (default: \"+1h\")",
+		Aliases:     []string{"after"},
+		EnvVars:     []string{"NOT_AFTER"},
+		Destination: &notAfterTime,
+	}
+
 	outputFile string
 	outputFlag = &cli.StringFlag{
 		Name:        "output",
@@ -56,7 +84,7 @@ var (
 )
 
 func getOutputWriter() (io.Writer, error) {
-	if outputFile == "-" {
+	if outputFile == "" || outputFile == "-" {
 		return os.Stdout, nil
 	}
 	return os.Create(outputFile)

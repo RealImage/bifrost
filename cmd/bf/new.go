@@ -6,11 +6,10 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"math/big"
-	"time"
 
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/cafiles"
+	"github.com/RealImage/bifrost/tinyca"
 	"github.com/google/uuid"
 	"github.com/urfave/cli/v2"
 )
@@ -38,8 +37,8 @@ var newCmd = &cli.Command{
 			},
 		},
 		{
-			Name:    "identity",
-			Aliases: []string{"id"},
+			Name:    "private-key",
+			Aliases: []string{"key", "pk", "pkey"},
 			Usage:   "Create a new identity",
 			Flags: []cli.Flag{
 				outputFlag,
@@ -67,47 +66,81 @@ var newCmd = &cli.Command{
 			},
 		},
 		{
+			Name:    "certificate-request",
+			Aliases: []string{"csr", "req"},
+			Flags: []cli.Flag{
+				nsFlag,
+				clientPrivKeyFlag,
+				outputFlag,
+			},
+			Usage: "Create a new certificate request",
+			Action: func(c *cli.Context) error {
+				if namespace == uuid.Nil {
+					return fmt.Errorf("namespace is required")
+				}
+
+				key, err := cafiles.GetPrivateKey(c.Context, clientPrivKeyUri)
+				if err != nil {
+					return err
+				}
+
+				csr, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
+					Subject: pkix.Name{
+						Organization: []string{namespace.String()},
+						CommonName:   key.UUID(namespace).String(),
+					},
+				}, key)
+				if err != nil {
+					return err
+				}
+
+				out, err := getOutputWriter()
+				if err != nil {
+					return err
+				}
+
+				block := &pem.Block{
+					Type:  "CERTIFICATE REQUEST",
+					Bytes: csr,
+				}
+				fmt.Fprint(out, string(pem.EncodeToMemory(block)))
+
+				return nil
+			},
+		},
+		{
 			Name:    "ca-certificate",
 			Aliases: []string{"ca-cert", "ca"},
 			Flags: []cli.Flag{
 				nsFlag,
 				caPrivKeyFlag,
 				outputFlag,
-				&cli.DurationFlag{
-					Name:  "validity",
-					Usage: "certificate `VALIDITY`",
-					Value: time.Hour * 24 * 365,
-				},
+				notBeforeFlag,
+				notAfterFlag,
 			},
 			Usage: "Create a new certificate authority signing certificate",
 			Action: func(c *cli.Context) error {
+				if namespace == uuid.Nil {
+					return fmt.Errorf("namespace is required")
+				}
+
 				key, err := cafiles.GetPrivateKey(c.Context, caPrivKeyUri)
 				if err != nil {
 					return err
 				}
 
-				notBefore := time.Now()
-				notAfter := notBefore.Add(c.Duration("validity"))
-
-				// Create root certificate.
-				template := x509.Certificate{
-					SerialNumber: big.NewInt(2),
-					Subject: pkix.Name{
-						CommonName:   key.UUID(namespace).String(),
-						Organization: []string{namespace.String()},
-					},
-					NotBefore:             notBefore,
-					NotAfter:              notAfter,
-					KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
-					BasicConstraintsValid: true,
-					IsCA:                  true,
-					MaxPathLenZero:        true,
+				id := key.UUID(namespace)
+				notBefore, notAfter, err := tinyca.ParseValidity(notBeforeTime, notAfterTime)
+				if err != nil {
+					return err
 				}
+
+				template := tinyca.CACertTemplate(notBefore, notAfter, namespace, id)
 
 				certDer, err := x509.CreateCertificate(
 					rand.Reader,
-					&template,
-					&template,
+					template,
+					template,
 					key.PublicKey().PublicKey,
 					key,
 				)
