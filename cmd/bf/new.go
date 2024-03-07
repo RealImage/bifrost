@@ -96,12 +96,12 @@ var newCmd = &cli.Command{
 						CommonName:   key.UUID(namespace).String(),
 						Organization: []string{namespace.String()},
 					},
-					NotBefore:      notBefore,
-					NotAfter:       notAfter,
-					KeyUsage:       x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-					ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-					IsCA:           true,
-					MaxPathLenZero: true,
+					NotBefore:             notBefore,
+					NotAfter:              notAfter,
+					KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+					BasicConstraintsValid: true,
+					IsCA:                  true,
+					MaxPathLenZero:        true,
 				}
 
 				certDer, err := x509.CreateCertificate(

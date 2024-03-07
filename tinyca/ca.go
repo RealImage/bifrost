@@ -43,6 +43,10 @@ func New(cert *bifrost.Certificate, key *bifrost.PrivateKey) (*CA, error) {
 	rt := bfMetricName("requests_total", cert.Namespace)
 	rd := bfMetricName("requests_duration_seconds", cert.Namespace)
 
+	if !cert.IsCA() {
+		return nil, fmt.Errorf("bifrost: root certificate is not a valid CA")
+	}
+
 	return &CA{
 		cert: cert,
 		key:  key,

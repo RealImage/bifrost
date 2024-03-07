@@ -27,6 +27,12 @@ type Certificate struct {
 	PublicKey *PublicKey
 }
 
+func (c Certificate) IsCA() bool {
+	return c.Certificate.BasicConstraintsValid &&
+		c.Certificate.IsCA &&
+		c.Certificate.KeyUsage&x509.KeyUsageCertSign != 0
+}
+
 // ParseCertificate parses a DER encoded certificate and validates it.
 // On success, it returns the bifrost certificate.
 func ParseCertificate(asn1Data []byte) (*Certificate, error) {
