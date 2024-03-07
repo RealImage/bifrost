@@ -34,6 +34,7 @@ func main() {
 				},
 			},
 		},
+		DefaultCommand: "ca",
 		Commands: []*cli.Command{
 			newCmd,
 			caCmd,
