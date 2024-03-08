@@ -71,41 +71,35 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
 	nb := r.URL.Query().Get("not-before")
-	if nb == "" {
-		nb = "now"
-	}
 	na := r.URL.Query().Get("not-after")
-	if na == "" {
-		na = "+1h"
-	}
 
 	notBefore, notAfter, err := ParseValidity(nb, na)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeHTTPError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	contentType, _, err := webapp.GetContentType(r.Header, webapp.MimeTypeText)
 	if err != nil {
-		e := fmt.Sprintf("error parsing Content-Type header: %s", err)
-		http.Error(w, e, http.StatusBadRequest)
+		msg := fmt.Sprintf("error parsing Content-Type header: %s", err)
+		writeHTTPError(w, msg, http.StatusBadRequest)
 		return
 	}
 
 	if ct := contentType; ct != webapp.MimeTypeText && ct != webapp.MimeTypeBytes {
 		msg := fmt.Sprintf("unsupported Content-Type %s", ct)
-		http.Error(w, msg, http.StatusUnsupportedMediaType)
+		writeHTTPError(w, msg, http.StatusUnsupportedMediaType)
 		return
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeHTTPError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	csr, err := readCsr(contentType, body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeHTTPError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -120,7 +114,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, bifrost.ErrNamespaceMismatch) {
 			statusCode = http.StatusForbidden
 		}
-		http.Error(w, err.Error(), statusCode)
+		writeHTTPError(w, err.Error(), statusCode)
 		return
 	}
 
@@ -158,22 +152,6 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ca.requestsDuration.Update(time.Since(startTime).Seconds())
-}
-
-func readCsr(contentType string, body []byte) ([]byte, error) {
-	asn1Data := body
-	switch contentType {
-	case webapp.MimeTypeBytes:
-		// DER encoded
-	case "", webapp.MimeTypeText:
-		// PEM
-		block, _ := pem.Decode(body)
-		if block == nil {
-			return nil, fmt.Errorf("bifrost: error decoding certificate request PEM block")
-		}
-		asn1Data = block.Bytes
-	}
-	return asn1Data, nil
 }
 
 // IssueCertificate issues a client certificate for a certificate request.
@@ -229,4 +207,25 @@ func (ca CA) IssueCertificate(asn1CSR []byte, template *x509.Certificate) ([]byt
 
 	ca.issuedTotal.Inc()
 	return certBytes, nil
+}
+
+func readCsr(contentType string, body []byte) ([]byte, error) {
+	asn1Data := body
+	switch contentType {
+	case webapp.MimeTypeBytes:
+		// DER encoded
+	case "", webapp.MimeTypeText:
+		// PEM
+		block, _ := pem.Decode(body)
+		if block == nil {
+			return nil, fmt.Errorf("bifrost: error decoding certificate request PEM block")
+		}
+		asn1Data = block.Bytes
+	}
+	return asn1Data, nil
+}
+
+func writeHTTPError(w http.ResponseWriter, msg string, statusCode int) {
+	slog.Error(msg, "statusCode", statusCode)
+	http.Error(w, msg, statusCode)
 }
