@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -8,7 +9,7 @@ import (
 
 	"github.com/RealImage/bifrost"
 	"github.com/google/uuid"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var idCmd = &cli.Command{
@@ -17,8 +18,8 @@ var idCmd = &cli.Command{
 	Flags: []cli.Flag{
 		nsFlag,
 	},
-	Action: func(cliCtx *cli.Context) error {
-		filename := cliCtx.Args().First()
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		filename := cmd.Args().First()
 
 		var data []byte
 		var err error

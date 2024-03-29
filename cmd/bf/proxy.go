@@ -21,15 +21,15 @@ import (
 	"github.com/RealImage/bifrost/cafiles"
 	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/RealImage/bifrost/tinyca"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var (
 	backendUrl string
 	proxyHost  string
-	proxyPort  int
+	proxyPort  int64
 	sslLogfile string
-	idProxyCmd = &cli.Command{
+	proxyCmd   = &cli.Command{
 		Name:    "identity-proxy",
 		Aliases: []string{"proxy", "id-proxy"},
 		Flags: []cli.Flag{
@@ -46,10 +46,10 @@ var (
 				Name:        "host",
 				Usage:       "Listen on `HOST`",
 				Aliases:     []string{"H"},
-				EnvVars:     []string{"HOST"},
+				Sources:     cli.EnvVars("HOST"),
 				Value:       "localhost",
 				Destination: &proxyHost,
-				Action: func(_ *cli.Context, h string) error {
+				Action: func(_ context.Context, _ *cli.Command, h string) error {
 					if h == "" {
 						return errors.New("host cannot be empty")
 					}
@@ -60,25 +60,24 @@ var (
 				Name:        "port",
 				Usage:       "Listen on `PORT`",
 				Aliases:     []string{"p"},
-				EnvVars:     []string{"PORT"},
+				Sources:     cli.EnvVars("PORT"),
 				Value:       8443,
 				Destination: &proxyPort,
-				Action: func(_ *cli.Context, p int) error {
+				Action: func(_ context.Context, _ *cli.Command, p int64) error {
 					if p < 1 || p > 65535 {
 						return errors.New("port must be between 1 and 65535")
 					}
 					return nil
 				},
 			},
-			&cli.PathFlag{
+			&cli.StringFlag{
 				Name:        "ssl-key-logfile",
 				Usage:       "Log SSL Key information to `FILE`",
-				EnvVars:     []string{"SSLKEYLOGFILE"},
+				Sources:     cli.EnvVars("SSLKEYLOGFILE"),
 				Destination: &sslLogfile,
 			},
 		},
-		Action: func(cliCtx *cli.Context) error {
-			ctx := cliCtx.Context
+		Action: func(ctx context.Context, _ *cli.Command) error {
 			caCert, caKey, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
 			if err != nil {
 				return cli.Exit(fmt.Sprintf("Error reading cert/key: %s", err), 1)

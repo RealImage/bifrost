@@ -1,11 +1,12 @@
 package main
 
 import (
+	"context"
 	"io"
 	"os"
 
 	"github.com/google/uuid"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 // Flags
@@ -15,8 +16,8 @@ var (
 		Name:    "namespace",
 		Usage:   "namespace `UUID`",
 		Aliases: []string{"ns"},
-		EnvVars: []string{"NS", "NAMESPACE"},
-		Action: func(_ *cli.Context, ns string) (err error) {
+		Sources: cli.EnvVars("NS", "NAMESPACE"),
+		Action: func(_ context.Context, _ *cli.Command, ns string) (err error) {
 			namespace, err = uuid.Parse(ns)
 			return err
 		},
@@ -25,9 +26,9 @@ var (
 	caCertUri  string
 	caCertFlag = &cli.StringFlag{
 		Name:        "ca-certificate",
-		Usage:       "read CA certificate from `FILE`",
+		Usage:       "read CA certificate from `URI`",
 		Aliases:     []string{"ca-cert"},
-		EnvVars:     []string{"CA_CERT", "CA_CRT", "CRT"},
+		Sources:     cli.EnvVars("CA_CERT", "CA_CRT", "CRT"),
 		TakesFile:   true,
 		Value:       "cert.pem",
 		Destination: &caCertUri,
@@ -36,9 +37,9 @@ var (
 	caPrivKeyUri  string
 	caPrivKeyFlag = &cli.StringFlag{
 		Name:        "ca-private-key",
-		Usage:       "read CA private key from `FILE`",
+		Usage:       "read CA private key from `URI`",
 		Aliases:     []string{"ca-key"},
-		EnvVars:     []string{"CA_PRIVKEY", "CA_KEY", "KEY"},
+		Sources:     cli.EnvVars("CA_PRIVKEY", "CA_KEY", "KEY"),
 		TakesFile:   true,
 		Value:       "key.pem",
 		Destination: &caPrivKeyUri,
@@ -49,7 +50,7 @@ var (
 		Name:        "client-private-key",
 		Usage:       "read CA private key from `FILE`",
 		Aliases:     []string{"client-key"},
-		EnvVars:     []string{"CLIENT_PRIVKEY", "CLIENT_KEY"},
+		Sources:     cli.EnvVars("CLIENT_PRIVKEY", "CLIENT_KEY"),
 		TakesFile:   true,
 		Value:       "client-key.pem",
 		Destination: &clientPrivKeyUri,
@@ -60,7 +61,7 @@ var (
 		Name:        "not-before",
 		Usage:       "certificate valid from `TIMESPEC` (default: \"now\")",
 		Aliases:     []string{"before"},
-		EnvVars:     []string{"NOT_BEFORE"},
+		Sources:     cli.EnvVars("NOT_BEFORE"),
 		Destination: &notBeforeTime,
 	}
 	notAfterTime string
@@ -68,7 +69,7 @@ var (
 		Name:        "not-after",
 		Usage:       "certificate valid until `TIMESPEC` (default: \"+1h\")",
 		Aliases:     []string{"after"},
-		EnvVars:     []string{"NOT_AFTER"},
+		Sources:     cli.EnvVars("NOT_AFTER"),
 		Destination: &notAfterTime,
 	}
 

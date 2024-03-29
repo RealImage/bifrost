@@ -1,29 +1,29 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"runtime/debug"
 	"time"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 func main() {
 	rev, t := getBuildInfo()
 	version := rev + " (" + t.String() + ")"
 
-	app := &cli.App{
-		Name:     "bf",
-		HelpName: "bifrost",
-		Version:  version,
+	app := &cli.Command{
+		Name:    "bf",
+		Version: version,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "log-level",
 				Aliases: []string{"l"},
-				EnvVars: []string{"LOG_LEVEL"},
+				Sources: cli.EnvVars("LOG_LEVEL"),
 				Value:   slog.LevelInfo.String(),
-				Action: func(_ *cli.Context, l string) error {
+				Action: func(_ context.Context, _ *cli.Command, l string) error {
 					logLevel := new(slog.LevelVar)
 					if err := logLevel.UnmarshalText([]byte(l)); err != nil {
 						return err
@@ -34,16 +34,15 @@ func main() {
 				},
 			},
 		},
-		DefaultCommand: "ca",
 		Commands: []*cli.Command{
-			newCmd,
 			caCmd,
 			idCmd,
-			issueCmd,
-			idProxyCmd,
+			proxyCmd,
+			newCmd,
 		},
+		DefaultCommand: "ca",
 	}
-	if err := app.Run(os.Args); err != nil {
+	if err := app.Run(context.Background(), os.Args); err != nil {
 		panic(err)
 	}
 }

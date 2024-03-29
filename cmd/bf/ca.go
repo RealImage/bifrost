@@ -1,6 +1,11 @@
 package main
 
 import (
+	"context"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -9,113 +14,184 @@ import (
 	"github.com/RealImage/bifrost/cafiles"
 	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/RealImage/bifrost/tinyca"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
+var caCmd = &cli.Command{
+	Name:    "certificate-authority",
+	Aliases: []string{"ca"},
+	Flags: []cli.Flag{
+		caCertFlag,
+		caPrivKeyFlag,
+	},
+	Commands:       []*cli.Command{caServeCmd, caIssueCmd},
+	DefaultCommand: "serve",
+}
+
+// caServeCmd flags
 var (
 	caHost        string
-	caPort        int
+	caPort        int64
 	webEnabled    bool
 	webStaticPath string
 	exposeMetrics bool
-	caCmd         = &cli.Command{
-		Name:    "certificate-authority",
-		Aliases: []string{"ca"},
-		Flags: []cli.Flag{
-			caCertFlag,
-			caPrivKeyFlag,
-			&cli.StringFlag{
-				Name:        "host",
-				Usage:       "listen on `HOST`",
-				Aliases:     []string{"H"},
-				EnvVars:     []string{"HOST"},
-				Value:       "localhost",
-				Destination: &caHost,
-				Action: func(_ *cli.Context, h string) error {
-					if h == "" {
-						return errors.New("host cannot be empty")
-					}
-					return nil
-				},
-			},
-			&cli.IntFlag{
-				Name:        "port",
-				Usage:       "listen on `PORT`",
-				Aliases:     []string{"p"},
-				EnvVars:     []string{"PORT"},
-				Value:       8008,
-				Destination: &caPort,
-				Action: func(_ *cli.Context, p int) error {
-					if p < 1 || p > 65535 {
-						return errors.New("port must be between 1 and 65535")
-					}
-					return nil
-				},
-			},
-			&cli.BoolFlag{
-				Name:        "web",
-				Usage:       "enable web interface",
-				Aliases:     []string{"w"},
-				EnvVars:     []string{"WEB"},
-				Destination: &webEnabled,
-			},
-			&cli.PathFlag{
-				Name:        "web-static-path",
-				Usage:       "read web static files from `PATH`",
-				EnvVars:     []string{"WEB_STATIC_PATH"},
-				Destination: &webStaticPath,
-			},
-			&cli.BoolFlag{
-				Name:        "metrics",
-				Usage:       "expose Prometheus metrics",
-				EnvVars:     []string{"METRICS"},
-				Value:       false,
-				Destination: &exposeMetrics,
-			},
-		},
-
-		Action: func(cliCtx *cli.Context) error {
-			ctx := cliCtx.Context
-			cert, key, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
-			if err != nil {
-				return cli.Exit(fmt.Sprintf("Error reading cert/key: %s", err), 1)
-			}
-
-			mux := http.NewServeMux()
-
-			if exposeMetrics {
-				slog.DebugContext(ctx, "metrics enabled")
-				mux.HandleFunc("GET /metrics", webapp.MetricsHandler)
-			}
-
-			ca, err := tinyca.New(cert, key)
-			if err != nil {
-				return cli.Exit(fmt.Sprintf("Error creating CA: %s", err), 1)
-			}
-
-			mux.Handle("POST /issue", ca)
-
-			nss := cert.Namespace.String()
-			mux.HandleFunc("GET /namespace", func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprint(w, nss)
-			})
-
-			if webEnabled {
-				slog.DebugContext(ctx, "web enabled", "staticFiles", webStaticPath)
-				webapp.AddRoutes(mux, webStaticPath, cert.Namespace)
-			}
-
-			hdlr := webapp.RequestLogHandler(mux)
-
-			addr := fmt.Sprintf("%s:%d", caHost, caPort)
-			slog.InfoContext(ctx, "starting server", "address", addr, "namespace", nss)
-
-			server := http.Server{Addr: addr, Handler: hdlr}
-			if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				return cli.Exit(fmt.Sprintf("Error starting server: %s", err), 1)
-			}
-
-			return nil
-		},
-	}
 )
+
+var caServeCmd = &cli.Command{
+	Name: "serve",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:        "host",
+			Usage:       "listen on `HOST`",
+			Aliases:     []string{"H"},
+			Sources:     cli.EnvVars("HOST"),
+			Value:       "localhost",
+			Destination: &caHost,
+			Action: func(_ context.Context, _ *cli.Command, h string) error {
+				if h == "" {
+					return errors.New("host cannot be empty")
+				}
+				return nil
+			},
+		},
+		&cli.IntFlag{
+			Name:        "port",
+			Usage:       "listen on `PORT`",
+			Aliases:     []string{"p"},
+			Sources:     cli.EnvVars("PORT"),
+			Value:       8008,
+			Destination: &caPort,
+			Action: func(_ context.Context, _ *cli.Command, p int64) error {
+				if p < 1 || p > 65535 {
+					return errors.New("port must be between 1 and 65535")
+				}
+				return nil
+			},
+		},
+		&cli.BoolFlag{
+			Name:        "web",
+			Usage:       "enable web interface",
+			Aliases:     []string{"w"},
+			Sources:     cli.EnvVars("WEB"),
+			Destination: &webEnabled,
+		},
+		&cli.StringFlag{
+			Name:        "web-static-path",
+			Usage:       "read web static files from `PATH`",
+			Sources:     cli.EnvVars("WEB_STATIC_PATH"),
+			Destination: &webStaticPath,
+		},
+		&cli.BoolFlag{
+			Name:        "metrics",
+			Usage:       "expose Prometheus metrics",
+			Sources:     cli.EnvVars("METRICS"),
+			Value:       false,
+			Destination: &exposeMetrics,
+		},
+	},
+	Action: func(ctx context.Context, _ *cli.Command) error {
+		cert, key, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
+		if err != nil {
+			return cli.Exit(fmt.Sprintf("Error reading cert/key: %s", err), 1)
+		}
+
+		mux := http.NewServeMux()
+
+		if exposeMetrics {
+			slog.DebugContext(ctx, "metrics enabled")
+			mux.HandleFunc("GET /metrics", webapp.MetricsHandler)
+		}
+
+		ca, err := tinyca.New(cert, key)
+		if err != nil {
+			return cli.Exit(fmt.Sprintf("Error creating CA: %s", err), 1)
+		}
+
+		mux.Handle("POST /issue", ca)
+
+		nss := cert.Namespace.String()
+		mux.HandleFunc("GET /namespace", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, nss)
+		})
+
+		if webEnabled {
+			slog.DebugContext(ctx, "web enabled", "staticFiles", webStaticPath)
+			webapp.AddRoutes(mux, webStaticPath, cert.Namespace)
+		}
+
+		hdlr := webapp.RequestLogHandler(mux)
+
+		addr := fmt.Sprintf("%s:%d", caHost, caPort)
+		slog.InfoContext(ctx, "starting server", "address", addr, "namespace", nss)
+
+		server := http.Server{Addr: addr, Handler: hdlr}
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return cli.Exit(fmt.Sprintf("Error starting server: %s", err), 1)
+		}
+
+		return nil
+	},
+}
+
+var caIssueCmd = &cli.Command{
+	Name: "issue",
+	Flags: []cli.Flag{
+		clientPrivKeyFlag,
+		notBeforeFlag,
+		notAfterFlag,
+		outputFlag,
+	},
+
+	Action: func(ctx context.Context, _ *cli.Command) error {
+		caCert, caKey, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
+		if err != nil {
+			return cli.Exit(fmt.Sprintf("Error reading cert/key: %s", err), 1)
+		}
+
+		ca, err := tinyca.New(caCert, caKey)
+		if err != nil {
+			return cli.Exit(fmt.Sprintf("Error creating CA: %s", err), 1)
+		}
+
+		clientKey, err := cafiles.GetPrivateKey(ctx, clientPrivKeyUri)
+		if err != nil {
+			return cli.Exit(fmt.Sprintf("Error reading client key: %s", err), 1)
+		}
+
+		csr, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
+			Subject: pkix.Name{
+				Organization: []string{caCert.Namespace.String()},
+				CommonName:   clientKey.UUID(caCert.Namespace).String(),
+			},
+		}, clientKey)
+		if err != nil {
+			return cli.Exit(fmt.Sprintf("Error creating certificate request: %s", err), 1)
+		}
+
+		notBefore, notAfter, err := tinyca.ParseValidity(notBeforeTime, notAfterTime)
+		if err != nil {
+			return cli.Exit(fmt.Sprintf("Error parsing validity: %s", err), 1)
+		}
+
+		template := tinyca.TLSClientCertTemplate(notBefore, notAfter)
+
+		cert, err := ca.IssueCertificate(csr, template)
+		if err != nil {
+			return cli.Exit(fmt.Sprintf("Error issuing certificate: %s", err), 1)
+		}
+
+		out, err := getOutputWriter()
+		if err != nil {
+			return cli.Exit(fmt.Sprintf("Error getting output writer: %s", err), 1)
+		}
+
+		block := &pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert,
+		}
+
+		fmt.Fprint(out, string(pem.EncodeToMemory(block)))
+
+		return nil
+	},
+}

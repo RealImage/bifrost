@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -11,14 +12,14 @@ import (
 	"github.com/RealImage/bifrost/cafiles"
 	"github.com/RealImage/bifrost/tinyca"
 	"github.com/google/uuid"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 var newCmd = &cli.Command{
 	Name:    "new",
 	Aliases: []string{"n"},
 	Usage:   "Create a new Bifrost namespace, identity, or certificate authority",
-	Subcommands: []*cli.Command{
+	Commands: []*cli.Command{
 		{
 			Name:    "namespace",
 			Aliases: []string{"ns"},
@@ -26,7 +27,7 @@ var newCmd = &cli.Command{
 			Flags: []cli.Flag{
 				outputFlag,
 			},
-			Action: func(c *cli.Context) error {
+			Action: func(_ context.Context, _ *cli.Command) error {
 				out, err := getOutputWriter()
 				if err != nil {
 					return err
@@ -43,7 +44,7 @@ var newCmd = &cli.Command{
 			Flags: []cli.Flag{
 				outputFlag,
 			},
-			Action: func(c *cli.Context) error {
+			Action: func(_ context.Context, _ *cli.Command) error {
 				key, err := bifrost.NewPrivateKey()
 				if err != nil {
 					return err
@@ -74,12 +75,12 @@ var newCmd = &cli.Command{
 				outputFlag,
 			},
 			Usage: "Create a new certificate request",
-			Action: func(c *cli.Context) error {
+			Action: func(ctx context.Context, _ *cli.Command) error {
 				if namespace == uuid.Nil {
 					return fmt.Errorf("namespace is required")
 				}
 
-				key, err := cafiles.GetPrivateKey(c.Context, clientPrivKeyUri)
+				key, err := cafiles.GetPrivateKey(ctx, clientPrivKeyUri)
 				if err != nil {
 					return err
 				}
@@ -119,12 +120,12 @@ var newCmd = &cli.Command{
 				notAfterFlag,
 			},
 			Usage: "Create a new certificate authority signing certificate",
-			Action: func(c *cli.Context) error {
+			Action: func(ctx context.Context, _ *cli.Command) error {
 				if namespace == uuid.Nil {
 					return fmt.Errorf("namespace is required")
 				}
 
-				key, err := cafiles.GetPrivateKey(c.Context, caPrivKeyUri)
+				key, err := cafiles.GetPrivateKey(ctx, caPrivKeyUri)
 				if err != nil {
 					return err
 				}

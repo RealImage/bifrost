@@ -15,7 +15,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/google/uuid v1.4.0
 	github.com/timewasted/go-accept-headers v0.0.0-20130320203746-c78f304b1b09
-	github.com/urfave/cli/v2 v2.27.1
+	github.com/urfave/cli/v3 v3.0.0-alpha9
 	golang.org/x/net v0.18.0
 )
 
@@ -36,8 +36,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.21.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.26.6 // indirect
 	github.com/aws/smithy-go v1.19.0 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
-	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/valyala/histogram v1.2.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
