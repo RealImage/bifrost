@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/RealImage/bifrost"
 	"github.com/google/uuid"
@@ -37,10 +38,21 @@ func Heimdallr(h HeaderName, ns uuid.UUID) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
-			certPEM := r.Header.Get(h.String())
-			if certPEM == "" {
+			certHeader := r.Header.Get(h.String())
+			if certHeader == "" {
 				slog.ErrorContext(ctx, "missing authorization header")
 				http.Error(w, "missing authorization header", http.StatusUnauthorized)
+				return
+			}
+
+			certPEM, err := url.QueryUnescape(certHeader)
+			if err != nil {
+				slog.ErrorContext(
+					ctx, "error decoding header",
+					"headerName", h.String(),
+					"headerValue", certHeader,
+				)
+				http.Error(w, "invalid authorization header", http.StatusUnauthorized)
 				return
 			}
 
