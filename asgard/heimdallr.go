@@ -45,7 +45,7 @@ func Heimdallr(h HeaderName, ns uuid.UUID) func(http.Handler) http.Handler {
 				return
 			}
 
-			certPEM, err := url.QueryUnescape(certHeader)
+			certPEM, err := url.PathUnescape(certHeader)
 			if err != nil {
 				slog.ErrorContext(
 					ctx, "error decoding header",
