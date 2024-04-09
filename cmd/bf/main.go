@@ -35,12 +35,13 @@ func main() {
 			},
 		},
 		Commands: []*cli.Command{
-			caCmd,
+			caServeCmd,
+			caIssueCmd,
 			idCmd,
 			proxyCmd,
 			newCmd,
 		},
-		DefaultCommand: "certificate-authority",
+		DefaultCommand: "serve",
 	}
 	if err := cli.Run(context.Background(), os.Args); err != nil {
 		panic(err)

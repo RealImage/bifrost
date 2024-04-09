@@ -17,17 +17,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var caCmd = &cli.Command{
-	Name:    "certificate-authority",
-	Aliases: []string{"ca"},
-	Flags: []cli.Flag{
-		caCertFlag,
-		caPrivKeyFlag,
-	},
-	Commands:       []*cli.Command{caServeCmd, caIssueCmd},
-	DefaultCommand: "serve",
-}
-
 // caServeCmd flags
 var (
 	caHost        string
@@ -38,8 +27,11 @@ var (
 )
 
 var caServeCmd = &cli.Command{
-	Name: "serve",
+	Name:    "serve",
+	Aliases: []string{"ca"},
 	Flags: []cli.Flag{
+		caCertFlag,
+		caPrivKeyFlag,
 		&cli.StringFlag{
 			Name:        "host",
 			Usage:       "listen on `HOST`",
@@ -136,6 +128,8 @@ var caServeCmd = &cli.Command{
 var caIssueCmd = &cli.Command{
 	Name: "issue",
 	Flags: []cli.Flag{
+		caCertFlag,
+		caPrivKeyFlag,
 		clientPrivKeyFlag,
 		notBeforeFlag,
 		notAfterFlag,
