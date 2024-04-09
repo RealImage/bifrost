@@ -3,10 +3,8 @@ package tinyca
 import (
 	"bytes"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/pem"
 	"io"
-	"math/big"
 	"math/rand"
 	"mime"
 	"net/http"
@@ -219,25 +217,17 @@ func TestCA_ServeHTTP(t *testing.T) {
 
 	id := bifrost.UUID(testns, key.PublicKey())
 
-	// Create root certificate.
-	template := x509.Certificate{
-		SerialNumber: big.NewInt(2),
-		Subject: pkix.Name{
-			CommonName:   id.String(),
-			Organization: []string{testns.String()},
-		},
-		NotBefore:      time.Now(),
-		NotAfter:       time.Now().Add(time.Hour * 24),
-		KeyUsage:       x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		IsCA:           true,
-		MaxPathLenZero: true,
+	notBefore := time.Now()
+	notAfter := notBefore.Add(time.Hour * 24)
+	template, err := CACertTemplate(notBefore, notAfter, testns, id)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	certDer, err := x509.CreateCertificate(
 		randReader,
-		&template,
-		&template,
+		template,
+		template,
 		key.PublicKey().PublicKey,
 		key,
 	)

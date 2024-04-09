@@ -14,7 +14,7 @@ func main() {
 	rev, t := getBuildInfo()
 	version := rev + " (" + t.String() + ")"
 
-	app := &cli.Command{
+	cli := &cli.Command{
 		Name:    "bf",
 		Version: version,
 		Flags: []cli.Flag{
@@ -40,9 +40,9 @@ func main() {
 			proxyCmd,
 			newCmd,
 		},
-		DefaultCommand: "ca",
+		DefaultCommand: "certificate-authority",
 	}
-	if err := app.Run(context.Background(), os.Args); err != nil {
+	if err := cli.Run(context.Background(), os.Args); err != nil {
 		panic(err)
 	}
 }

@@ -1,8 +1,12 @@
 package tinyca
 
 import (
+	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"fmt"
+	"math"
+	"math/big"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,8 +22,13 @@ func TLSClientCertTemplate(nb, na time.Time) *x509.Certificate {
 	}
 }
 
-func CACertTemplate(nb, na time.Time, ns, id uuid.UUID) *x509.Certificate {
+func CACertTemplate(nb, na time.Time, ns, id uuid.UUID) (*x509.Certificate, error) {
+	serialNumber, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
+	if err != nil {
+		return nil, fmt.Errorf("bifrost: unexpected error generating certificate serial: %w", err)
+	}
 	return &x509.Certificate{
+		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			Organization: []string{ns.String()},
 			CommonName:   id.String(),
@@ -28,5 +37,5 @@ func CACertTemplate(nb, na time.Time, ns, id uuid.UUID) *x509.Certificate {
 		BasicConstraintsValid: true,
 		IsCA:                  true,
 		MaxPathLenZero:        true,
-	}
+	}, nil
 }
