@@ -53,7 +53,7 @@ var heimdallrTestCases = []struct {
 	},
 	{
 		headerValue:  "invalid json",
-		expectedCode: http.StatusUnauthorized,
+		expectedCode: http.StatusServiceUnavailable,
 	},
 }
 
