@@ -10,10 +10,13 @@ import (
 	"encoding/pem"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/RealImage/bifrost"
 	"github.com/google/uuid"
 )
+
+const errBadAuthHeader = "missing or invalid authorization information, server is misconfigured"
 
 type keyClientCert struct{}
 
@@ -37,10 +40,21 @@ func Heimdallr(h HeaderName, ns uuid.UUID) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
-			certPEM := r.Header.Get(h.String())
-			if certPEM == "" {
+			certHeader := r.Header.Get(h.String())
+			if certHeader == "" {
 				slog.ErrorContext(ctx, "missing authorization header")
-				http.Error(w, "missing authorization header", http.StatusUnauthorized)
+				http.Error(w, errBadAuthHeader, http.StatusServiceUnavailable)
+				return
+			}
+
+			certPEM, err := url.PathUnescape(certHeader)
+			if err != nil {
+				slog.ErrorContext(
+					ctx, "error decoding header",
+					"headerName", h.String(),
+					"headerValue", certHeader,
+				)
+				http.Error(w, errBadAuthHeader, http.StatusServiceUnavailable)
 				return
 			}
 
@@ -51,14 +65,14 @@ func Heimdallr(h HeaderName, ns uuid.UUID) func(http.Handler) http.Handler {
 					"headerName", h.String(),
 					"headerValue", certPEM,
 				)
-				http.Error(w, "invalid authorization header", http.StatusUnauthorized)
+				http.Error(w, errBadAuthHeader, http.StatusServiceUnavailable)
 				return
 			}
 
 			cert, err := bifrost.ParseCertificate(block.Bytes)
 			if err != nil {
 				slog.ErrorContext(ctx, "error parsing client certificate", "error", err)
-				http.Error(w, "invalid authorization header", http.StatusUnauthorized)
+				http.Error(w, errBadAuthHeader, http.StatusServiceUnavailable)
 				return
 			}
 
