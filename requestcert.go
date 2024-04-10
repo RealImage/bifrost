@@ -42,7 +42,7 @@ func Template(ns uuid.UUID, key *PublicKey) *x509.CertificateRequest {
 // RequestCertificate sends a certificate request to url and returns the signed certificate.
 func RequestCertificate(
 	ctx context.Context,
-	url string,
+	caUrl string,
 	ns uuid.UUID,
 	key *PrivateKey,
 ) (*Certificate, error) {
@@ -52,7 +52,7 @@ func RequestCertificate(
 		return nil, fmt.Errorf("bifrost: error creating certificate request: %w", err)
 	}
 
-	resp, err := http.Post(url+"/issue", "application/octet-stream", bytes.NewReader(csr))
+	resp, err := http.Post(caUrl+"/issue", "application/octet-stream", bytes.NewReader(csr))
 	if err != nil || resp == nil {
 		return nil, fmt.Errorf("bifrost: error creating certificate request: %w", err)
 	}
