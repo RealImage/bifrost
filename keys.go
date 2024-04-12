@@ -12,6 +12,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -32,25 +33,10 @@ const (
 var StatsForNerds = metrics.NewSet()
 
 // PublicKey is a wrapper around an ECDSA public key.
-// It implements the Marshaler and Unmarshaler interfaces for JSON and DynamoDB.
+// It implements the Marshaler and Unmarshaler interfaces for binary, text, JSON, and DynamoDB.
+// Keys are serialsed in PKIX, ASN.1 DER form.
 type PublicKey struct {
 	*ecdsa.PublicKey
-}
-
-// MarshalPKIXPublicKey marshals a public key to PKIX, ASN.1 DER form.
-func MarshalPKIXPublicKey(p *PublicKey) ([]byte, error) {
-	return x509.MarshalPKIXPublicKey(p.PublicKey)
-}
-
-// ParsePKIXPublicKey parses a public key in PKIX, ASN.1 DER form.
-func ParsePKIXPublicKey(asn1Data []byte) (*PublicKey, error) {
-	pub, err := x509.ParsePKIXPublicKey(asn1Data)
-	if err != nil {
-		return nil, err
-	}
-	return &PublicKey{
-		PublicKey: pub.(*ecdsa.PublicKey),
-	}, nil
 }
 
 func (p *PublicKey) Equal(other *PublicKey) bool {
@@ -65,35 +51,72 @@ func (p PublicKey) UUID(ns uuid.UUID) uuid.UUID {
 	return UUID(ns, &p)
 }
 
-// MarshalJSON marshals the public key to PEM encoded PKIX, ASN.1 DER form.
-func (p PublicKey) MarshalJSON() ([]byte, error) {
-	keyDer, err := MarshalPKIXPublicKey(&p)
-	if err != nil {
-		return nil, err
-	}
-	return pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: keyDer,
-	}), nil
+// MarshalBinary marshals a public key to PKIX, ASN.1 DER form.
+func (p PublicKey) MarshalBinary() ([]byte, error) {
+	return x509.MarshalPKIXPublicKey(p.PublicKey)
 }
 
-// UnmarshalJSON unmarshals the public key from PEM encoded PKIX, ASN.1 DER form.
-func (p *PublicKey) UnmarshalJSON(data []byte) error {
-	block, _ := pem.Decode(data)
-	if block == nil {
-		return errors.New("bifrost: invalid PEM block")
-	}
-	pkey, err := ParsePKIXPublicKey(block.Bytes)
+// UnmarshalBinary unmarshals a public key from PKIX, ASN.1 DER form.
+func (p *PublicKey) UnmarshalBinary(data []byte) error {
+	pub, err := x509.ParsePKIXPublicKey(data)
 	if err != nil {
 		return err
 	}
-	*p = *pkey
+	pk, ok := pub.(*ecdsa.PublicKey)
+	if !ok {
+		return fmt.Errorf("bifrost: unexpected key type %T", pub)
+	}
+	*p = PublicKey{
+		PublicKey: pk,
+	}
 	return nil
+}
+
+// MarshalText marshals the public key to a PEM encoded PKIX Public Key in ASN.1 DER form.
+func (p PublicKey) MarshalText() ([]byte, error) {
+	keyDer, err := p.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	block := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: keyDer,
+	}
+	return pem.EncodeToMemory(block), nil
+}
+
+// UnmarshalText unmarshals the public key from a PEM encoded PKIX Public Key in ASN.1 DER form.
+func (p *PublicKey) UnmarshalText(text []byte) error {
+	block, _ := pem.Decode(text)
+	if block == nil {
+		return errors.New("bifrost: invalid PEM block")
+	}
+	return p.UnmarshalBinary(block.Bytes)
+}
+
+// MarshalJSON marshals the public key to a JSON string
+// containing PEM encoded PKIX, ASN.1 DER form.
+func (p PublicKey) MarshalJSON() ([]byte, error) {
+	keyText, err := p.MarshalText()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(string(keyText))
+}
+
+// UnmarshalJSON unmarshals the public key as a JSON string
+// containing PEM encoded PKIX Public Key, ASN.1 DER form.
+func (p *PublicKey) UnmarshalJSON(data []byte) error {
+	var keyString string
+	if err := json.Unmarshal(data, &keyString); err != nil {
+		return err
+	}
+	return p.UnmarshalText([]byte(keyString))
 }
 
 // MarshalDynamoDBAttributeValue marshals the public key to PKIX, ASN.1 DER form.
 func (p PublicKey) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
-	keyDer, err := MarshalPKIXPublicKey(&p)
+	keyDer, err := p.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -106,59 +129,15 @@ func (p *PublicKey) UnmarshalDynamoDBAttributeValue(av types.AttributeValue) err
 	if err := attributevalue.Unmarshal(av, &keyDer); err != nil {
 		return err
 	}
-	pub, err := ParsePKIXPublicKey(keyDer)
-	if err != nil {
-		return err
-	}
-	*p = *pub
-	return nil
+	return p.UnmarshalBinary(keyDer)
 }
 
 // PrivateKey is a wrapper around an ECDSA private key.
-// PrivateKey implements the Marshaler and Unmarshaler interfaces for JSON and DynamoDB.
-// By default, PrivateKey's MarshalJSON method marshals the corresponding public key.
-// This is equivalent to calling the PublicKey method and marshaling the result.
-// Use WithJSONMarshalPrivateKey to marshal the private key instead.
+// PrivateKey implements the Marshaler and Unmarshaler interfaces for binary, text, JSON, and DynamoDB.
+// Keys are generated using the P-256 elliptic curve.
+// Keys are serialised in PKCS #8, ASN.1 DER form.
 type PrivateKey struct {
 	*ecdsa.PrivateKey
-
-	jsonMarshalPrivateKey bool
-}
-
-// MarshalECPrivateKey converts an EC Private Key to SEC 1, ASN.1 DER form.
-func MarshalECPrivateKey(p *PrivateKey) ([]byte, error) {
-	return x509.MarshalECPrivateKey(p.PrivateKey)
-}
-
-// ParseECPrivateKey parses an EC Private Key in SEC 1, ASN.1 DER form.
-func ParseECPrivateKey(asn1Data []byte) (*PrivateKey, error) {
-	priv, err := x509.ParseECPrivateKey(asn1Data)
-	if err != nil {
-		return nil, err
-	}
-	return &PrivateKey{
-		PrivateKey: priv,
-	}, nil
-}
-
-// MarshalPKCS8PrivateKey converts a private key to PKCS #8, ASN.1 DER form.
-func MarshalPKCS8PrivateKey(p *PrivateKey) ([]byte, error) {
-	return x509.MarshalPKCS8PrivateKey(p.PrivateKey)
-}
-
-// ParsePKCS8PrivateKey parses an unencrypted private key in PKCS #8, ASN.1 DER form.
-func ParsePKCS8PrivateKey(asn1Data []byte) (*PrivateKey, error) {
-	priv, err := x509.ParsePKCS8PrivateKey(asn1Data)
-	if err != nil {
-		return nil, err
-	}
-	k, ok := priv.(*ecdsa.PrivateKey)
-	if !ok {
-		return nil, fmt.Errorf("bifrost: unexpected key type %T", priv)
-	}
-	return &PrivateKey{
-		PrivateKey: k,
-	}, nil
 }
 
 // NewPrivateKey generates a new bifrost private key.
@@ -169,49 +148,75 @@ func NewPrivateKey() (*PrivateKey, error) {
 	}, err
 }
 
-// WithJSONMarshalPrivateKey configures the private key to be marshaled as a JSON object.
-func (p *PrivateKey) WithJSONMarshalPrivateKey() *PrivateKey {
-	p.jsonMarshalPrivateKey = true
-	return p
-}
-
 // PublicKey returns the public key corresponding to p.
 func (p PrivateKey) PublicKey() *PublicKey {
 	return &PublicKey{&p.PrivateKey.PublicKey}
 }
 
-// MarshalJSON marshals the private key to PEM encoded PKCS #8, ASN.1 DER form.
-func (p PrivateKey) MarshalJSON() ([]byte, error) {
-	if !p.jsonMarshalPrivateKey {
-		return p.PublicKey().MarshalJSON()
+// MarshalBinary converts a private key to PKCS #8, ASN.1 DER form.
+func (p PrivateKey) MarshalBinary() ([]byte, error) {
+	return x509.MarshalPKCS8PrivateKey(p.PrivateKey)
+}
+
+// UnmarshalBinary parses an unencrypted private key in PKCS #8, ASN.1 DER form.
+func (p *PrivateKey) UnmarshalBinary(data []byte) error {
+	priv, err := x509.ParsePKCS8PrivateKey(data)
+	if err != nil {
+		return err
 	}
-	keyDer, err := MarshalECPrivateKey(&p)
+	k, ok := priv.(*ecdsa.PrivateKey)
+	if !ok {
+		return fmt.Errorf("bifrost: unexpected key type %T", priv)
+	}
+	*p = PrivateKey{
+		PrivateKey: k,
+	}
+	return nil
+}
+
+// MarshalText marshals the key to a PEM encoded PKCS #8, ASN.1 DER form.
+func (p PrivateKey) MarshalText() ([]byte, error) {
+	keyDer, err := p.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	return pem.EncodeToMemory(&pem.Block{
+	block := &pem.Block{
 		Type:  "PRIVATE KEY",
 		Bytes: keyDer,
-	}), nil
+	}
+	return pem.EncodeToMemory(block), nil
+}
+
+// UnmarshalText unmarshals the private key from PEM encoded PKCS #8, ASN.1 DER form.
+func (p *PrivateKey) UnmarshalText(text []byte) error {
+	block, _ := pem.Decode(text)
+	if block == nil {
+		return errors.New("bifrost: invalid PEM block")
+	}
+	return p.UnmarshalBinary(block.Bytes)
+}
+
+// MarshalJSON marshals the key to a JSON string containing PEM encoded PKCS #8, ASN.1 DER form.
+func (p PrivateKey) MarshalJSON() ([]byte, error) {
+	keyText, err := p.MarshalText()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(string(keyText))
 }
 
 // UnmarshalJSON unmarshals the private key from PEM encoded PKCS #8, ASN.1 DER form.
 func (p *PrivateKey) UnmarshalJSON(data []byte) error {
-	block, _ := pem.Decode(data)
-	if block == nil {
-		return errors.New("bifrost: invalid PEM block")
-	}
-	priv, err := ParseECPrivateKey(block.Bytes)
-	if err != nil {
+	var keyString string
+	if err := json.Unmarshal(data, &keyString); err != nil {
 		return err
 	}
-	*p = *priv
-	return nil
+	return p.UnmarshalText([]byte(keyString))
 }
 
 // MarshalDynamoDBAttributeValue marshals the private key to PKCS #8, ASN.1 DER form.
 func (p PrivateKey) MarshalDynamoDBAttributeValue() (types.AttributeValue, error) {
-	keyDer, err := MarshalECPrivateKey(&p)
+	keyDer, err := p.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -224,12 +229,7 @@ func (p *PrivateKey) UnmarshalDynamoDBAttributeValue(av types.AttributeValue) er
 	if err := attributevalue.Unmarshal(av, &keyDer); err != nil {
 		return err
 	}
-	priv, err := ParseECPrivateKey(keyDer)
-	if err != nil {
-		return err
-	}
-	*p = *priv
-	return nil
+	return p.UnmarshalBinary(keyDer)
 }
 
 // UUID returns the bifrost identifier for p in the given namespace.

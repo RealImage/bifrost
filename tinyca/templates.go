@@ -33,6 +33,8 @@ func CACertTemplate(nb, na time.Time, ns, id uuid.UUID) (*x509.Certificate, erro
 			Organization: []string{ns.String()},
 			CommonName:   id.String(),
 		},
+		NotBefore:             nb,
+		NotAfter:              na,
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 		BasicConstraintsValid: true,
 		IsCA:                  true,

@@ -52,7 +52,7 @@ var (
 		Aliases:     []string{"client-key"},
 		Sources:     cli.EnvVars("CLIENT_PRIVKEY", "CLIENT_KEY"),
 		TakesFile:   true,
-		Value:       "client-key.pem",
+		Value:       "clientkey.pem",
 		Destination: &clientPrivKeyUri,
 	}
 

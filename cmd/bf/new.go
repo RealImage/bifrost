@@ -32,7 +32,6 @@ var newCmd = &cli.Command{
 				if err != nil {
 					return err
 				}
-
 				fmt.Fprintln(out, uuid.New())
 				return nil
 			},
@@ -49,20 +48,15 @@ var newCmd = &cli.Command{
 				if err != nil {
 					return err
 				}
-				asn1Der, err := bifrost.MarshalECPrivateKey(key)
+				keyText, err := key.MarshalText()
 				if err != nil {
 					return err
 				}
-				block := &pem.Block{
-					Type:  "EC PRIVATE KEY",
-					Bytes: asn1Der,
-				}
-
 				out, err := getOutputWriter()
 				if err != nil {
 					return err
 				}
-				fmt.Fprint(out, string(pem.EncodeToMemory(block)))
+				fmt.Fprint(out, string(keyText))
 				return nil
 			},
 		},

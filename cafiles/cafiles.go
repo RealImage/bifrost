@@ -4,6 +4,7 @@ package cafiles
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -45,14 +46,34 @@ func GetCertificate(ctx context.Context, uri string) (*bifrost.Certificate, erro
 // GetPrivateKey retrieves a PEM encoded private key from uri.
 // uri can be one of a relative or absolute file path, file://... uri, s3://... uri,
 // or an AWS S3 or AWS Secrets Manager ARN.
+// The private key can either be PEM encoded PKCS#8 or SEC1, ASN.1 DER form.
 func GetPrivateKey(ctx context.Context, uri string) (*bifrost.PrivateKey, error) {
 	ctx, cancel := context.WithTimeout(ctx, fetchTimeout)
 	defer cancel()
-	keyPem, err := getPemFile(ctx, uri)
+	pemBlock, err := getPemFile(ctx, uri)
 	if err != nil {
 		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
 	}
-	return bifrost.ParseECPrivateKey(keyPem.Bytes)
+
+	var key bifrost.PrivateKey
+	switch pemBlock.Type {
+	case "PRIVATE KEY":
+		if err := key.UnmarshalBinary(pemBlock.Bytes); err != nil {
+			return nil, fmt.Errorf("error parsing PKCS#8 private key: %w", err)
+		}
+	case "EC PRIVATE KEY":
+		// Read EC private keys too because we used to generate private keys in SEC.1 originally.
+		// New keys are generated in PKCS#8 format from now on.
+		ecKey, err := x509.ParseECPrivateKey(pemBlock.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing EC private key: %w", err)
+		}
+		key = bifrost.PrivateKey{PrivateKey: ecKey}
+	default:
+		return nil, fmt.Errorf("unsupported PEM block type %s", pemBlock.Type)
+	}
+
+	return &key, nil
 }
 
 func getPemFile(ctx context.Context, uri string) (*pem.Block, error) {

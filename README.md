@@ -88,15 +88,11 @@ Set up server key material and start the CA and TLS reverse-proxy.
 
 1. Generate a new client identity key:
 
-    `bf new id -out clientkey.pem`
+    `bf new key -o clientkey.pem`
 
 2. Create a Certificate Signing Request with the client private key:
 
-   ```console
-   openssl req -new -key clientkey.pem -sha256 \
-     -subj "/CN=$(bf id -ns "$BF_NS" clientkey.pem)/O=$BF_NS" \
-     -out csr.pem
-   ```
+    `bf new csr clientkey.pem -o csr.pem`
 
 3. Fetch signed certificate from the CA:
 
@@ -162,4 +158,4 @@ Your results may vary.
 
 Bifrost is available under the terms of the MIT License.
 
-Qube Cinema © 2023
+Qube Cinema © 2023, 2024

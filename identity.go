@@ -1,6 +1,7 @@
 package bifrost
 
 import (
+	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -38,28 +39,31 @@ func ParseIdentity(data []byte) (*Identity, error) {
 	// Parse the key or certificate.
 	switch block.Type {
 	case "PRIVATE KEY":
-		privkey, err := ParsePKCS8PrivateKey(block.Bytes)
-		if err != nil {
+		var privkey PrivateKey
+		if err := privkey.UnmarshalBinary(block.Bytes); err != nil {
 			return nil, err
 		}
 		return &Identity{
 			PublicKey: privkey.PublicKey(),
 		}, nil
 	case "EC PRIVATE KEY":
-		privkey, err := ParseECPrivateKey(block.Bytes)
+		pk, err := x509.ParseECPrivateKey(block.Bytes)
 		if err != nil {
 			return nil, err
 		}
+		pubkey := PublicKey{
+			PublicKey: &pk.PublicKey,
+		}
 		return &Identity{
-			PublicKey: privkey.PublicKey(),
+			PublicKey: &pubkey,
 		}, nil
 	case "PUBLIC KEY":
-		pubkey, err := ParsePKIXPublicKey(block.Bytes)
-		if err != nil {
+		var pubkey PublicKey
+		if err := pubkey.UnmarshalBinary(block.Bytes); err != nil {
 			return nil, err
 		}
 		return &Identity{
-			PublicKey: pubkey,
+			PublicKey: &pubkey,
 		}, nil
 	case "CERTIFICATE":
 		cert, err := ParseCertificate(block.Bytes)
