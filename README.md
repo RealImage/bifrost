@@ -1,8 +1,10 @@
 # ![Bifrost](docs/bifrost.png) Bifrost
 
-[![CI 🏗](https://github.com/RealImage/bifrost/actions/workflows/ci.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/RealImage/bifrost.svg)](https://pkg.go.dev/github.com/RealImage/bifrost)
 
 A simple mTLS authentication toolkit.
+
+[![CI 🏗](https://github.com/RealImage/bifrost/actions/workflows/ci.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yml)
 
 Bifrost consists of a Certificate Authority (CA) server that issues X.509 certificates,
 a Go package to fetch such certificates, and a Go package with HTTP middleware
