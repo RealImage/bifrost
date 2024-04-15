@@ -4,7 +4,6 @@ package cafiles
 
 import (
 	"context"
-	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -34,8 +33,12 @@ func GetCertificate(ctx context.Context, uri string) (*bifrost.Certificate, erro
 	if err != nil {
 		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
 	}
+	block, _ := pem.Decode(certPem)
+	if block == nil {
+		return nil, fmt.Errorf("expected PEM block")
+	}
 
-	cert, err := bifrost.ParseCertificate(certPem.Bytes)
+	cert, err := bifrost.ParseCertificate(block.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("error validating certificate: %w", err)
 	}
@@ -50,33 +53,19 @@ func GetCertificate(ctx context.Context, uri string) (*bifrost.Certificate, erro
 func GetPrivateKey(ctx context.Context, uri string) (*bifrost.PrivateKey, error) {
 	ctx, cancel := context.WithTimeout(ctx, fetchTimeout)
 	defer cancel()
-	pemBlock, err := getPemFile(ctx, uri)
+	pemData, err := getPemFile(ctx, uri)
 	if err != nil {
 		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
 	}
 
 	var key bifrost.PrivateKey
-	switch pemBlock.Type {
-	case "PRIVATE KEY":
-		if err := key.UnmarshalBinary(pemBlock.Bytes); err != nil {
-			return nil, fmt.Errorf("error parsing PKCS#8 private key: %w", err)
-		}
-	case "EC PRIVATE KEY":
-		// Read EC private keys too because we used to generate private keys in SEC.1 originally.
-		// New keys are generated in PKCS#8 format from now on.
-		ecKey, err := x509.ParseECPrivateKey(pemBlock.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing EC private key: %w", err)
-		}
-		key = bifrost.PrivateKey{PrivateKey: ecKey}
-	default:
-		return nil, fmt.Errorf("unsupported PEM block type %s", pemBlock.Type)
+	if err := key.UnmarshalText(pemData); err != nil {
+		return nil, fmt.Errorf("error parsing private key: %w", err)
 	}
-
 	return &key, nil
 }
 
-func getPemFile(ctx context.Context, uri string) (*pem.Block, error) {
+func getPemFile(ctx context.Context, uri string) ([]byte, error) {
 	url, err := url.Parse(uri)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing file uri %w", err)
@@ -111,11 +100,7 @@ func getPemFile(ctx context.Context, uri string) (*pem.Block, error) {
 		return nil, fmt.Errorf("error fetching pem file: %w", err)
 	}
 
-	block, _ := pem.Decode(pemData)
-	if block == nil {
-		return nil, fmt.Errorf("no pem data found")
-	}
-	return block, nil
+	return pemData, nil
 }
 
 func getS3Key(ctx context.Context, bucket, key string) ([]byte, error) {

@@ -157,9 +157,15 @@ func (p PrivateKey) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary parses an unencrypted private key in PKCS #8, ASN.1 DER form.
+// Unmarshal also supports private keys in SEC.1, ASN.1 DER form for backward compatibility.
 func (p *PrivateKey) UnmarshalBinary(data []byte) error {
 	priv, err := x509.ParsePKCS8PrivateKey(data)
 	if err != nil {
+		// Try to parse as an EC private key for backward compatibility.
+		if priv, err := x509.ParseECPrivateKey(data); err == nil {
+			p.PrivateKey = priv
+			return nil
+		}
 		return err
 	}
 	k, ok := priv.(*ecdsa.PrivateKey)
