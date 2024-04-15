@@ -66,9 +66,7 @@ func (p *PublicKey) UnmarshalBinary(data []byte) error {
 	if !ok {
 		return fmt.Errorf("bifrost: unexpected key type %T", pub)
 	}
-	*p = PublicKey{
-		PublicKey: pk,
-	}
+	p.PublicKey = pk
 	return nil
 }
 
@@ -168,9 +166,7 @@ func (p *PrivateKey) UnmarshalBinary(data []byte) error {
 	if !ok {
 		return fmt.Errorf("bifrost: unexpected key type %T", priv)
 	}
-	*p = PrivateKey{
-		PrivateKey: k,
-	}
+	p.PrivateKey = k
 	return nil
 }
 
@@ -188,12 +184,25 @@ func (p PrivateKey) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText unmarshals the private key from PEM encoded PKCS #8, ASN.1 DER form.
+// Unmarshal also supports EC PRIVATE KEY PEM blocks for backward compatibility.
 func (p *PrivateKey) UnmarshalText(text []byte) error {
 	block, _ := pem.Decode(text)
 	if block == nil {
 		return errors.New("bifrost: invalid PEM block")
 	}
-	return p.UnmarshalBinary(block.Bytes)
+	switch block.Type {
+	case "PRIVATE KEY":
+		return p.UnmarshalBinary(block.Bytes)
+	case "EC PRIVATE KEY":
+		pk, err := x509.ParseECPrivateKey(block.Bytes)
+		if err != nil {
+			return err
+		}
+		p.PrivateKey = pk
+		return nil
+	default:
+		return fmt.Errorf("bifrost: unsupported PEM block type %q", block.Type)
+	}
 }
 
 // MarshalJSON marshals the key to a JSON string containing PEM encoded PKCS #8, ASN.1 DER form.
