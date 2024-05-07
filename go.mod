@@ -16,7 +16,7 @@ require (
 	github.com/google/uuid v1.4.0
 	github.com/timewasted/go-accept-headers v0.0.0-20130320203746-c78f304b1b09
 	github.com/urfave/cli/v3 v3.0.0-alpha9
-	golang.org/x/net v0.18.0
+	golang.org/x/net v0.23.0
 )
 
 require (
@@ -39,5 +39,5 @@ require (
 	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/valyala/histogram v1.2.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
-	golang.org/x/sys v0.14.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 )
