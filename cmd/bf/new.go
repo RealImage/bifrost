@@ -130,10 +130,12 @@ var newCmd = &cli.Command{
 					return err
 				}
 
-				template, err := tinyca.CACertTemplate(notBefore, notAfter, namespace, id)
+				template, err := tinyca.CACertTemplate( namespace, id)
 				if err != nil {
 					return err
 				}
+				template.NotBefore = notBefore
+				template.NotAfter = notAfter
 
 				certDer, err := x509.CreateCertificate(
 					rand.Reader,

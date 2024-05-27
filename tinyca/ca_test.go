@@ -217,12 +217,15 @@ func TestCA_ServeHTTP(t *testing.T) {
 
 	id := bifrost.UUID(testns, key.PublicKey())
 
-	notBefore := time.Now()
-	notAfter := notBefore.Add(time.Hour * 24)
-	template, err := CACertTemplate(notBefore, notAfter, testns, id)
+	template, err := CACertTemplate(testns, id)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	notBefore := time.Now()
+	notAfter := notBefore.Add(time.Hour * 24)
+	template.NotBefore = notBefore
+	template.NotAfter = notAfter
 
 	certDer, err := x509.CreateCertificate(
 		randReader,
@@ -244,7 +247,7 @@ func TestCA_ServeHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ca, err := New(bfCert, key)
+	ca, err := New(bfCert, key, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

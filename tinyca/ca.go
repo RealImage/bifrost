@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -28,8 +27,9 @@ import (
 // The only supported operation is to issue client certificates.
 // Client certificates are signed by the configured root certificate and private key.
 type CA struct {
-	cert *bifrost.Certificate
-	key  *bifrost.PrivateKey
+	cert  *bifrost.Certificate
+	key   *bifrost.PrivateKey
+	tmplr Templater
 
 	// metrics
 	issuedTotal      *metrics.Counter
@@ -39,7 +39,11 @@ type CA struct {
 
 // New returns a new CA.
 // The CA issues certificates for the given namespace.
-func New(cert *bifrost.Certificate, key *bifrost.PrivateKey) (*CA, error) {
+func New(
+	cert *bifrost.Certificate,
+	key *bifrost.PrivateKey,
+	tmplr Templater,
+) (*CA, error) {
 	iss := bfMetricName("issued_certs_total", cert.Namespace)
 	rt := bfMetricName("requests_total", cert.Namespace)
 	rd := bfMetricName("requests_duration_seconds", cert.Namespace)
@@ -49,8 +53,9 @@ func New(cert *bifrost.Certificate, key *bifrost.PrivateKey) (*CA, error) {
 	}
 
 	return &CA{
-		cert: cert,
-		key:  key,
+		cert:  cert,
+		key:   key,
+		tmplr: tmplr,
 
 		issuedTotal:      bifrost.StatsForNerds.NewCounter(iss),
 		requestsTotal:    bifrost.StatsForNerds.NewCounter(rt),
@@ -106,9 +111,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	template := TLSClientCertTemplate(notBefore, notAfter)
-
-	cert, err := ca.IssueCertificate(csr, template)
+	cert, err := ca.IssueCertificate(csr, notBefore, notAfter)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
 		if errors.Is(err, bifrost.ErrCertificateRequestInvalid) {
@@ -161,7 +164,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // The certificate is issued with the Subject Common Name set to the
 // UUID of the client public key and the Subject Organization
 // set to the identity namespace UUID.
-func (ca CA) IssueCertificate(asn1CSR []byte, template *x509.Certificate) ([]byte, error) {
+func (ca CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([]byte, error) {
 	csr, err := bifrost.ParseCertificateRequest(asn1CSR)
 	if err != nil {
 		return nil, err
@@ -171,30 +174,32 @@ func (ca CA) IssueCertificate(asn1CSR []byte, template *x509.Certificate) ([]byt
 		return nil, bifrost.ErrNamespaceMismatch
 	}
 
-	if t := template; t.NotBefore.IsZero() || t.NotAfter.IsZero() ||
-		t.NotAfter.Before(t.NotBefore) {
+	if notBefore.IsZero() || notAfter.IsZero() || notAfter.Before(notBefore) {
 		return nil, fmt.Errorf(
 			"bifrost: %w invalid validity period",
 			bifrost.ErrCertificateRequestInvalid,
 		)
 	}
 
-	serialNumber, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
-	if err != nil {
-		return nil, fmt.Errorf("bifrost: unexpected error generating certificate serial: %w", err)
-	}
+	template := ca.tmplr(csr)
+	template.NotBefore = notBefore
+	template.NotAfter = notAfter
 
-	// Override the fields we care about.
-	template.SerialNumber = serialNumber
-	template.SignatureAlgorithm = bifrost.SignatureAlgorithm
-	template.PublicKeyAlgorithm = bifrost.PublicKeyAlgorithm
-	template.Issuer = ca.cert.Issuer
-	template.Subject = pkix.Name{
-		Organization: []string{ca.cert.Namespace.String()},
-		CommonName:   csr.PublicKey.UUID(ca.cert.Namespace).String(),
+	// Overwrite the fields we care about.
+	if template.SerialNumber == nil {
+		sn, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
+		if err != nil {
+			return nil, fmt.Errorf(
+				"bifrost: unexpected error generating certificate serial: %w",
+				err,
+			)
+		}
+		template.SerialNumber = sn
 	}
-	template.PublicKey = csr.PublicKey.PublicKey
-	template.Signature = csr.Signature
+	template.SignatureAlgorithm = bifrost.SignatureAlgorithm
+	template.Issuer = ca.cert.Issuer
+	template.Subject.Organization = []string{ca.cert.Namespace.String()}
+	template.Subject.CommonName = csr.PublicKey.UUID(ca.cert.Namespace).String()
 	template.BasicConstraintsValid = true
 
 	certBytes, err := x509.CreateCertificate(

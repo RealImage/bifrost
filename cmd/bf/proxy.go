@@ -168,7 +168,14 @@ func issueTLSCert(
 	caCert *bifrost.Certificate,
 	caKey, serverKey *bifrost.PrivateKey,
 ) (*bifrost.Certificate, error) {
-	ca, err := tinyca.New(caCert, caKey)
+	ca, err := tinyca.New(caCert, caKey, func(_ *bifrost.CertificateRequest) *x509.Certificate {
+		// This is a server certificate template that can be used for TLS.
+		return &x509.Certificate{
+			KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			BasicConstraintsValid: true,
+		}
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -188,14 +195,10 @@ func issueTLSCert(
 		return nil, fmt.Errorf("error creating certificate request: %w", err)
 	}
 
-	template := &x509.Certificate{
-		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		NotBefore:   time.Now(),
-	}
-	template.NotAfter = template.NotBefore.AddDate(1, 0, 0)
+	notBefore := time.Now()
+	notAfter := notBefore.AddDate(0, 0, 15)
 
-	certBytes, err := ca.IssueCertificate(csrBytes, template)
+	certBytes, err := ca.IssueCertificate(csrBytes, notBefore, notAfter)
 	if err != nil {
 		return nil, fmt.Errorf("error issuing server certificate: %w", err)
 	}
