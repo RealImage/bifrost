@@ -181,7 +181,13 @@ func (ca CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([]
 		)
 	}
 
-	template := ca.tmplr(csr)
+	template := TLSClientCertTemplate()
+	if ca.tmplr != nil {
+		if t := ca.tmplr(csr); t != nil {
+			template = TLSClientCertTemplate()
+		}
+	}
+
 	template.NotBefore = notBefore
 	template.NotAfter = notAfter
 
