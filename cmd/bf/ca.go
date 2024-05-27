@@ -71,6 +71,7 @@ var caServeCmd = &cli.Command{
 			Name:        "web-static-path",
 			Usage:       "read web static files from `PATH`",
 			Sources:     cli.EnvVars("WEB_STATIC_PATH"),
+			Value:       "embed",
 			Destination: &webStaticPath,
 		},
 		&cli.BoolFlag{
@@ -86,11 +87,16 @@ var caServeCmd = &cli.Command{
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("Error reading cert/key: %s", err), 1)
 		}
+		slog.DebugContext(
+			ctx, "loaded CA certificate and private key",
+			"notBefore", cert.NotBefore,
+			"notAfter", cert.NotAfter,
+		)
 
 		mux := http.NewServeMux()
 
 		if exposeMetrics {
-			slog.DebugContext(ctx, "metrics enabled")
+			slog.InfoContext(ctx, "metrics enabled")
 			mux.HandleFunc("GET /metrics", webapp.MetricsHandler)
 		}
 
@@ -107,7 +113,7 @@ var caServeCmd = &cli.Command{
 		})
 
 		if webEnabled {
-			slog.DebugContext(ctx, "web enabled", "staticFiles", webStaticPath)
+			slog.InfoContext(ctx, "web interface enabled", "staticPath", webStaticPath)
 			webapp.AddRoutes(mux, webStaticPath, cert.Namespace)
 		}
 

@@ -13,9 +13,11 @@ import (
 // local filesystem. Otherwise, it will serve them from the embedded filesystem.
 func AddRoutes(mux *http.ServeMux, staticFilesPath string, ns uuid.UUID) {
 	index := Index(ns)
-	static := http.FileServer(http.FS(web.Static))
-	if staticFilesPath != "" {
-		static = http.FileServer(http.Dir("web/static"))
+	var static http.Handler
+	if staticFilesPath == "embed" {
+		static = http.FileServer(http.FS(web.Static))
+	} else {
+		static = http.FileServer(http.Dir(staticFilesPath))
 	}
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {

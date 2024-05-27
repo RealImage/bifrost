@@ -3,6 +3,7 @@
 package tinyca
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -73,33 +74,35 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	nb := r.URL.Query().Get("not-before")
 	na := r.URL.Query().Get("not-after")
 
+	ctx := r.Context()
+
 	notBefore, notAfter, err := ParseValidity(nb, na)
 	if err != nil {
-		writeHTTPError(w, err.Error(), http.StatusBadRequest)
+		writeHTTPError(ctx, w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	contentType, _, err := webapp.GetContentType(r.Header, webapp.MimeTypeText)
 	if err != nil {
 		msg := fmt.Sprintf("error parsing Content-Type header: %s", err)
-		writeHTTPError(w, msg, http.StatusBadRequest)
+		writeHTTPError(ctx, w, msg, http.StatusBadRequest)
 		return
 	}
 
 	if ct := contentType; ct != webapp.MimeTypeText && ct != webapp.MimeTypeBytes {
 		msg := fmt.Sprintf("unsupported Content-Type %s", ct)
-		writeHTTPError(w, msg, http.StatusUnsupportedMediaType)
+		writeHTTPError(ctx, w, msg, http.StatusUnsupportedMediaType)
 		return
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		writeHTTPError(w, err.Error(), http.StatusInternalServerError)
+		writeHTTPError(ctx, w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	csr, err := readCsr(contentType, body)
 	if err != nil {
-		writeHTTPError(w, err.Error(), http.StatusBadRequest)
+		writeHTTPError(ctx, w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -114,7 +117,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, bifrost.ErrNamespaceMismatch) {
 			statusCode = http.StatusForbidden
 		}
-		writeHTTPError(w, err.Error(), statusCode)
+		writeHTTPError(ctx, w, err.Error(), statusCode)
 		return
 	}
 
@@ -148,7 +151,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		slog.Error("error writing certificate response", "err", err)
+		slog.ErrorContext(ctx, "error writing certificate response", "err", err)
 	}
 
 	ca.requestsDuration.Update(time.Since(startTime).Seconds())
@@ -225,7 +228,7 @@ func readCsr(contentType string, body []byte) ([]byte, error) {
 	return asn1Data, nil
 }
 
-func writeHTTPError(w http.ResponseWriter, msg string, statusCode int) {
-	slog.Error(msg, "statusCode", statusCode)
+func writeHTTPError(ctx context.Context, w http.ResponseWriter, msg string, statusCode int) {
+	slog.ErrorContext(ctx, msg, "statusCode", statusCode)
 	http.Error(w, msg, statusCode)
 }
