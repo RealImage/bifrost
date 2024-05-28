@@ -12,6 +12,7 @@ import (
 
 // Certificate related errors.
 var (
+	ErrCertificateDenied         = errors.New("bifrost: certificate denied")
 	ErrCertificateInvalid        = errors.New("bifrost: certificate invalid")
 	ErrCertificateRequestInvalid = errors.New("bifrost: certificate request invalid")
 	ErrNamespaceMismatch         = errors.New("bifrost: namespace mismatch")
@@ -181,7 +182,7 @@ func NewCertificateRequest(cert *x509.CertificateRequest) (*CertificateRequest, 
 	// Parse identity namespace
 	if len(cert.Subject.Organization) != 1 {
 		return nil, fmt.Errorf(
-			"%w: missing identity namespace",
+			"%w, missing identity namespace",
 			ErrCertificateRequestInvalid,
 		)
 	}

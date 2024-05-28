@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"io"
 	"math/rand"
 	"mime"
@@ -23,6 +24,7 @@ var (
 
 	serveHTTPTests = []struct {
 		title         string
+		gauntlet      Gauntlet
 		accept        string
 		contentType   string
 		requestMethod string
@@ -141,7 +143,7 @@ l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 			contentType:  webapp.MimeTypeBytes,
 			expectedCode: http.StatusBadRequest,
 			expectedBody: []byte(
-				"bifrost: certificate request invalid: asn1: syntax error: sequence truncated",
+				"bifrost: certificate request invalid, asn1: syntax error: sequence truncated",
 			),
 		},
 		{
@@ -156,7 +158,7 @@ mgv/AEzrEMftJgIgJMVY2zEn/qS9M/yJb7IeSSWv9IbiHfP325aZsynerNg=
 -----END CERTIFICATE REQUEST-----`),
 			expectedCode: http.StatusBadRequest,
 			expectedBody: []byte(
-				"bifrost: certificate request invalid: unsupported signature algorithm 'ECDSA-SHA512'",
+				"bifrost: certificate request invalid, unsupported signature algorithm 'ECDSA-SHA512'",
 			),
 		},
 		{
@@ -171,7 +173,7 @@ h3/5fgf2oAAwCgYIKoZIzj0EAwIDSAAwRQIgeb1ei3tJ4OPnX3UXUs3zT9vXfX+1
 -----END CERTIFICATE REQUEST-----`),
 			expectedCode: http.StatusBadRequest,
 			expectedBody: []byte(
-				"bifrost: certificate request invalid: invalid identity namespace 00000000-0000-0000-0000-0000000000000: invalid UUID length: 37",
+				"bifrost: certificate request invalid, invalid identity namespace 00000000-0000-0000-0000-0000000000000: invalid UUID length: 37",
 			),
 		},
 		{
@@ -186,7 +188,7 @@ f/l+B/agADAKBggqhkjOPQQDAgNGADBDAh8n+tbz1NmD1YPuCVSpXv6F5+FGSC8n
 -----END CERTIFICATE REQUEST-----`),
 			expectedCode: http.StatusBadRequest,
 			expectedBody: []byte(
-				"bifrost: certificate request invalid: incorrect identity",
+				"bifrost: certificate request invalid, incorrect identity",
 			),
 		},
 		{
@@ -200,8 +202,24 @@ FOioc6+qkAh+Sv8CIQDxi4eJOHAg3+eSnryb3zgsDIoGWcw3NRWI12Kwwr9Upw==
 -----END CERTIFICATE REQUEST-----`),
 			expectedCode: http.StatusBadRequest,
 			expectedBody: []byte(
-				"bifrost: certificate request invalid: missing identity namespace",
+				"bifrost: certificate request invalid, missing identity namespace",
 			),
+		},
+		{
+			title: "gauntlet denied",
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
+OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
+OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
+f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
+l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
+-----END CERTIFICATE REQUEST-----`),
+			gauntlet: func(csr *bifrost.CertificateRequest) (*x509.Certificate, error) {
+				return nil, errors.New("boo")
+			},
+			expectedCode: http.StatusForbidden,
+			expectedBody: []byte("bifrost: certificate denied, boo"),
 		},
 	}
 )
@@ -247,13 +265,13 @@ func TestCA_ServeHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ca, err := New(bfCert, key, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	for _, tc := range serveHTTPTests {
 		t.Run(tc.title, func(t *testing.T) {
+			ca, err := New(bfCert, key, tc.gauntlet)
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			method := http.MethodPost
 			if tc.requestMethod != "" {
 				method = tc.requestMethod
@@ -272,6 +290,7 @@ func TestCA_ServeHTTP(t *testing.T) {
 			rr := httptest.NewRecorder()
 			ca.ServeHTTP(rr, req)
 			resp := rr.Result()
+
 			defer resp.Body.Close()
 
 			if resp.StatusCode != tc.expectedCode {
@@ -295,6 +314,7 @@ func TestCA_ServeHTTP(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error parsing Content-Type header %s: %s", ct, err)
 				}
+
 				switch contentType {
 				case "", webapp.MimeTypeText:
 					b, _ := pem.Decode(respBody)

@@ -33,9 +33,9 @@ import (
 // CA is a simple Certificate Authority.
 // The CA issues client certificates signed by a root certificate and private key.
 type CA struct {
-	cert  *bifrost.Certificate
-	key   *bifrost.PrivateKey
-	tmplr Templater
+	cert     *bifrost.Certificate
+	key      *bifrost.PrivateKey
+	gauntlet Gauntlet
 
 	// metrics
 	issuedTotal      *metrics.Counter
@@ -49,7 +49,7 @@ type CA struct {
 func New(
 	cert *bifrost.Certificate,
 	key *bifrost.PrivateKey,
-	tmplr Templater,
+	gauntlet Gauntlet,
 ) (*CA, error) {
 	issued := bfMetricName("issued_certs_total", cert.Namespace)
 	reqsTotal := bfMetricName("requests_total", cert.Namespace)
@@ -59,14 +59,20 @@ func New(
 		return nil, fmt.Errorf("bifrost: root certificate is not a valid CA")
 	}
 
-	return &CA{
-		cert:  cert,
-		key:   key,
-		tmplr: tmplr,
+	if gauntlet == nil {
+		gauntlet = func(csr *bifrost.CertificateRequest) (*x509.Certificate, error) {
+			return nil, nil
+		}
+	}
 
-		issuedTotal:      bifrost.StatsForNerds.NewCounter(issued),
-		requestsTotal:    bifrost.StatsForNerds.NewCounter(reqsTotal),
-		requestsDuration: bifrost.StatsForNerds.NewHistogram(reqsDur),
+	return &CA{
+		cert:     cert,
+		key:      key,
+		gauntlet: gauntlet,
+
+		issuedTotal:      bifrost.StatsForNerds.GetOrCreateCounter(issued),
+		requestsTotal:    bifrost.StatsForNerds.GetOrCreateCounter(reqsTotal),
+		requestsDuration: bifrost.StatsForNerds.GetOrCreateHistogram(reqsDur),
 	}, nil
 }
 
@@ -121,12 +127,15 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cert, err := ca.IssueCertificate(csr, notBefore, notAfter)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
-		if errors.Is(err, bifrost.ErrCertificateRequestInvalid) {
+
+		switch {
+		case errors.Is(err, bifrost.ErrCertificateRequestInvalid):
 			statusCode = http.StatusBadRequest
-		}
-		if errors.Is(err, bifrost.ErrNamespaceMismatch) {
+		case errors.Is(err, bifrost.ErrNamespaceMismatch),
+			errors.Is(err, bifrost.ErrCertificateDenied):
 			statusCode = http.StatusForbidden
 		}
+
 		writeHTTPError(ctx, w, err.Error(), statusCode)
 		return
 	}
@@ -185,11 +194,12 @@ func (ca CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([]
 		)
 	}
 
-	template := TLSClientCertTemplate()
-	if ca.tmplr != nil {
-		if t := ca.tmplr(csr); t != nil {
-			template = TLSClientCertTemplate()
-		}
+	template, err := ca.gauntlet(csr)
+	if err != nil {
+		return nil, fmt.Errorf("%w, %s", bifrost.ErrCertificateDenied, err)
+	}
+	if template == nil {
+		template = TLSClientCertTemplate()
 	}
 
 	template.NotBefore = notBefore
@@ -229,6 +239,7 @@ func (ca CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([]
 
 func readCsr(contentType string, body []byte) ([]byte, error) {
 	asn1Data := body
+
 	switch contentType {
 	case webapp.MimeTypeBytes:
 		// DER encoded

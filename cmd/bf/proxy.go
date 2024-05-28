@@ -168,14 +168,15 @@ func issueTLSCert(
 	caCert *bifrost.Certificate,
 	caKey, serverKey *bifrost.PrivateKey,
 ) (*bifrost.Certificate, error) {
-	ca, err := tinyca.New(caCert, caKey, func(_ *bifrost.CertificateRequest) *x509.Certificate {
-		// This is a server certificate template that can be used for TLS.
+	gauntlet := func(_ *bifrost.CertificateRequest) (*x509.Certificate, error) {
+		// Return a server certificate template that can be used for TLS.
 		return &x509.Certificate{
 			KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 			BasicConstraintsValid: true,
-		}
-	})
+		}, nil
+	}
+	ca, err := tinyca.New(caCert, caKey, gauntlet)
 	if err != nil {
 		return nil, err
 	}

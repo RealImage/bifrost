@@ -39,7 +39,7 @@ func Index(ns uuid.UUID) http.Handler {
 	})
 }
 
-// MetricsHandler is a HTTP handler that returns metrics from the ForNerds MetricsSet
+// MetricsHandler is a HTTP handler that returns metrics from the ForNerds MetricsSet.
 func MetricsHandler(w http.ResponseWriter, _ *http.Request) {
 	bifrost.StatsForNerds.WritePrometheus(w)
 }

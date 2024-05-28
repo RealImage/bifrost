@@ -23,7 +23,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Signature and Public Key Algorithms
+// Signature and Public Key Algorithms.
 const (
 	SignatureAlgorithm = x509.ECDSAWithSHA256
 	PublicKeyAlgorithm = x509.ECDSA

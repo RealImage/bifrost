@@ -12,9 +12,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// Templater returns a new x509.Certificate template for a CSR.
+// Gauntlet is the signature for a function that validates a certificate request.
+// If the second return value is non-nil, then the certificate request is denied.
+// If the first return value is nil, the default template TLSClientCertTemplate will be used.
 // The template will be used to issue a client certificate.
-// If the function returns nil, the default template TLSClientCertTemplate will be used.
 // Consult the x509 package for the full list of fields that can be set.
 // tinyca will overwrite the following template fields:
 //   - NotBefore
@@ -26,7 +27,7 @@ import (
 //   - BasicConstraintsValid
 //
 // If SerialNumber is nil, a random value will be generated.
-type Templater func(csr *bifrost.CertificateRequest) *x509.Certificate
+type Gauntlet func(csr *bifrost.CertificateRequest) (tmpl *x509.Certificate, err error)
 
 // TLSClientCertTemplate returns a new x509.Certificate template for a client certificate.
 func TLSClientCertTemplate() *x509.Certificate {

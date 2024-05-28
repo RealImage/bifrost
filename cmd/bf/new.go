@@ -130,7 +130,7 @@ var newCmd = &cli.Command{
 					return err
 				}
 
-				template, err := tinyca.CACertTemplate( namespace, id)
+				template, err := tinyca.CACertTemplate(namespace, id)
 				if err != nil {
 					return err
 				}
