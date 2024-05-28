@@ -1,5 +1,12 @@
-// Package tinyca implements a Certificate Authority that issues certificates
-// for client authentication.
+// Package tinyca implements a small and flexible Certificate Authority.
+// The CA issues client certificates signed by a root certificate and private key.
+//
+// tinyca exposes a simple HTTP API to issue certificates.
+// tinyca is primarily meant to issue client certificates for mTLS authentication.
+//
+// The CA also provides an interface to customize the certificate template.
+// This allows applications to add application-specific data to issued certificates,
+// along with the standard bifrost fields.
 package tinyca
 
 import (
@@ -24,8 +31,7 @@ import (
 )
 
 // CA is a simple Certificate Authority.
-// The only supported operation is to issue client certificates.
-// Client certificates are signed by the configured root certificate and private key.
+// The CA issues client certificates signed by a root certificate and private key.
 type CA struct {
 	cert  *bifrost.Certificate
 	key   *bifrost.PrivateKey
@@ -37,16 +43,17 @@ type CA struct {
 	requestsDuration *metrics.Histogram
 }
 
-// New returns a new CA.
-// The CA issues certificates for the given namespace.
+// New returns a new Certificate Authority.
+// CA signs client certificates with the provided root certificate and private key.
+// CA uses the provided Templater to customise issued certificates.
 func New(
 	cert *bifrost.Certificate,
 	key *bifrost.PrivateKey,
 	tmplr Templater,
 ) (*CA, error) {
-	iss := bfMetricName("issued_certs_total", cert.Namespace)
-	rt := bfMetricName("requests_total", cert.Namespace)
-	rd := bfMetricName("requests_duration_seconds", cert.Namespace)
+	issued := bfMetricName("issued_certs_total", cert.Namespace)
+	reqsTotal := bfMetricName("requests_total", cert.Namespace)
+	reqsDur := bfMetricName("requests_duration_seconds", cert.Namespace)
 
 	if !cert.IsCA() {
 		return nil, fmt.Errorf("bifrost: root certificate is not a valid CA")
@@ -57,9 +64,9 @@ func New(
 		key:   key,
 		tmplr: tmplr,
 
-		issuedTotal:      bifrost.StatsForNerds.NewCounter(iss),
-		requestsTotal:    bifrost.StatsForNerds.NewCounter(rt),
-		requestsDuration: bifrost.StatsForNerds.NewHistogram(rd),
+		issuedTotal:      bifrost.StatsForNerds.NewCounter(issued),
+		requestsTotal:    bifrost.StatsForNerds.NewCounter(reqsTotal),
+		requestsDuration: bifrost.StatsForNerds.NewHistogram(reqsDur),
 	}, nil
 }
 
@@ -160,10 +167,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ca.requestsDuration.Update(time.Since(startTime).Seconds())
 }
 
-// IssueCertificate issues a client certificate for a certificate request.
-// The certificate is issued with the Subject Common Name set to the
-// UUID of the client public key and the Subject Organization
-// set to the identity namespace UUID.
+// IssueCertificate issues a client certificate for a valid certificate request parsed from asn1CSR.
 func (ca CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([]byte, error) {
 	csr, err := bifrost.ParseCertificateRequest(asn1CSR)
 	if err != nil {
@@ -176,7 +180,7 @@ func (ca CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([]
 
 	if notBefore.IsZero() || notAfter.IsZero() || notAfter.Before(notBefore) {
 		return nil, fmt.Errorf(
-			"bifrost: %w invalid validity period",
+			"%w, invalid validity period",
 			bifrost.ErrCertificateRequestInvalid,
 		)
 	}
