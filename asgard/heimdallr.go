@@ -1,8 +1,9 @@
-// Package asgard provides middleware for use in HTTP API servers.
-// In Norse mythology, Heimdallr is the gatekeeper of Bifröst.
+// Package asgard provides middleware for use in HTTP API servers
+// that require client certificate (mTLS) authentication.
 //
-// Heimdallr returna a HTTP Handler middleware function that parses a header for
-// authentication information. On success, it stores an Identity in the request context.
+// In Norse mythology Heimdallr is the gatekeeper of the celestial bridge Bifröst.
+// Here Heimdallr returns a middleware that ensures that requests contain a valid
+// client certificate.
 package asgard
 
 import (
@@ -29,12 +30,9 @@ func ClientCert(ctx context.Context) (*bifrost.Certificate, bool) {
 	return cert, ok
 }
 
-// Heimdallr returns a HTTP Handler middleware function that parses an AuthorizedRequestContext
-// from the request context header. If namespace does not match the parsed one, the
-// request is forbidden. The AuthorizedRequestContext is stored in the request context.
-//
-// If Heimdallr is used in an AWS Lambda Web Adapter powered API server, Bouncer Lambda Authorizer
-// must be configured as an authorizer for the API Gateway method.
+// Heimdallr returns a middleware that parses a client certificate from the h request header.
+// If a certificate is not found or is invalid, the middleware responds with a 503 Service Unavailable.
+// If the certificate namespace does not match ns, the middleware responds with a 403 Forbidden.
 func Heimdallr(h HeaderName, ns uuid.UUID) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

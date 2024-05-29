@@ -10,11 +10,19 @@ import (
 	"github.com/google/uuid"
 )
 
-// Errors
+// Errors.
 var (
-	ErrCertificateInvalid        = errors.New("bifrost: certificate invalid")
-	ErrNamespaceMismatch         = errors.New("bifrost: namespace mismatch")
-	ErrCertificateRequestDenied  = errors.New("bifrost: certificate request denied")
+	// ErrCertificateInvalid is returned when an invalid certificate is parsed.
+	ErrCertificateInvalid = errors.New("bifrost: certificate invalid")
+
+	// ErrNamespaceMismatch is returned when the namespace in the certificate
+	// request does not match the namespace of the CA.
+	ErrNamespaceMismatch = errors.New("bifrost: namespace mismatch")
+
+	// ErrCertificateRequestDenied is returned when a certificate request is denied by the CA Gauntlet.
+	ErrCertificateRequestDenied = errors.New("bifrost: certificate request denied")
+
+	// ErrCertificateRequestInvalid is returned when an invalid certificate request is parsed.
 	ErrCertificateRequestInvalid = errors.New("bifrost: certificate request invalid")
 )
 
@@ -28,6 +36,7 @@ type Certificate struct {
 	PublicKey *PublicKey
 }
 
+// IsCA returns true if the certificate can be used as a certificate authority.
 func (c Certificate) IsCA() bool {
 	return c.Certificate.BasicConstraintsValid &&
 		c.Certificate.IsCA &&
