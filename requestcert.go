@@ -9,27 +9,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/google/uuid"
 )
 
-var nsMetricsMap = sync.Map{}
-
-func getNsMetrics(namespace uuid.UUID) *metrics.Counter {
-	m, ok := nsMetricsMap.Load(namespace)
-	if !ok {
-		m = metrics.NewCounter(
-			fmt.Sprintf(`bifrost_certificate_requests_total{namespace="%s"}`, namespace),
-		)
-		nsMetricsMap.Store(namespace, m)
-	}
-	return m.(*metrics.Counter)
-}
-
-// Template returns a bifrost certificate template for the given namespace and public key.
-func Template(ns uuid.UUID, key *PublicKey) *x509.CertificateRequest {
+// CertificateRequestTemplate returns a bifrost certificate request template for a namespace and public key.
+func CertificateRequestTemplate(ns uuid.UUID, key *PublicKey) *x509.CertificateRequest {
 	return &x509.CertificateRequest{
 		Subject: pkix.Name{
 			CommonName:   key.UUID(ns).String(),
@@ -39,14 +25,14 @@ func Template(ns uuid.UUID, key *PublicKey) *x509.CertificateRequest {
 	}
 }
 
-// RequestCertificate sends a certificate request to url and returns the signed certificate.
+// RequestCertificate sends a certificate request over HTTP to url and returns the signed certificate.
 func RequestCertificate(
 	ctx context.Context,
 	caUrl string,
-	ns uuid.UUID,
+	namespace uuid.UUID,
 	key *PrivateKey,
 ) (*Certificate, error) {
-	template := Template(ns, key.PublicKey())
+	template := CertificateRequestTemplate(namespace, key.PublicKey())
 	csr, err := x509.CreateCertificateRequest(rand.Reader, template, key)
 	if err != nil {
 		return nil, fmt.Errorf("bifrost: error creating certificate request: %w", err)
@@ -75,7 +61,9 @@ func RequestCertificate(
 		return nil, fmt.Errorf("bifrost: error parsing certificate: %w", err)
 	}
 
-	getNsMetrics(ns).Inc()
+	metrics.GetOrCreateCounter(
+		fmt.Sprintf(`bifrost_certificate_requests_total{namespace="%s"}`, namespace),
+	).Inc()
 
 	return cert, nil
 }

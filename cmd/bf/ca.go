@@ -100,7 +100,7 @@ var caServeCmd = &cli.Command{
 			mux.HandleFunc("GET /metrics", webapp.MetricsHandler)
 		}
 
-		ca, err := tinyca.New(cert, key)
+		ca, err := tinyca.New(cert, key, nil)
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("Error creating CA: %s", err), 1)
 		}
@@ -148,7 +148,7 @@ var caIssueCmd = &cli.Command{
 			return cli.Exit(fmt.Sprintf("Error reading cert/key: %s", err), 1)
 		}
 
-		ca, err := tinyca.New(caCert, caKey)
+		ca, err := tinyca.New(caCert, caKey, nil)
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("Error creating CA: %s", err), 1)
 		}
@@ -173,9 +173,7 @@ var caIssueCmd = &cli.Command{
 			return cli.Exit(fmt.Sprintf("Error parsing validity: %s", err), 1)
 		}
 
-		template := tinyca.TLSClientCertTemplate(notBefore, notAfter)
-
-		cert, err := ca.IssueCertificate(csr, template)
+		cert, err := ca.IssueCertificate(csr, notBefore, notAfter)
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("Error issuing certificate: %s", err), 1)
 		}

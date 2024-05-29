@@ -7,22 +7,39 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"time"
 
+	"github.com/RealImage/bifrost"
 	"github.com/google/uuid"
 )
 
-func TLSClientCertTemplate(nb, na time.Time) *x509.Certificate {
+// Gauntlet is the signature for a function that validates a certificate request.
+// If the second return value is non-nil, then the certificate request is denied.
+// If the first return value is nil, the default template TLSClientCertTemplate will be used.
+// The template will be used to issue a client certificate.
+// Consult the x509 package for the full list of fields that can be set.
+// tinyca will overwrite the following template fields:
+//   - NotBefore
+//   - NotAfter
+//   - SignatureAlgorithm
+//   - Issuer
+//   - Subject.Organization
+//   - Subject.CommonName
+//   - BasicConstraintsValid
+//
+// If SerialNumber is nil, a random value will be generated.
+type Gauntlet func(csr *bifrost.CertificateRequest) (tmpl *x509.Certificate, err error)
+
+// TLSClientCertTemplate returns a new x509.Certificate template for a client certificate.
+func TLSClientCertTemplate() *x509.Certificate {
 	return &x509.Certificate{
-		NotBefore:             nb,
-		NotAfter:              na,
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,
 	}
 }
 
-func CACertTemplate(nb, na time.Time, ns, id uuid.UUID) (*x509.Certificate, error) {
+// CACertTemplate returns a new x509.Certificate template for a CA certificate.
+func CACertTemplate(ns, id uuid.UUID) (*x509.Certificate, error) {
 	serialNumber, err := rand.Int(rand.Reader, big.NewInt(int64(math.MaxInt64)))
 	if err != nil {
 		return nil, fmt.Errorf("bifrost: unexpected error generating certificate serial: %w", err)
@@ -33,8 +50,6 @@ func CACertTemplate(nb, na time.Time, ns, id uuid.UUID) (*x509.Certificate, erro
 			Organization: []string{ns.String()},
 			CommonName:   id.String(),
 		},
-		NotBefore:             nb,
-		NotAfter:              na,
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 		BasicConstraintsValid: true,
 		IsCA:                  true,

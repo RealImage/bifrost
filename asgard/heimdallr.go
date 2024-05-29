@@ -1,8 +1,13 @@
-// Package asgard provides middleware for use in HTTP API servers.
-// In Norse mythology, Heimdallr is the gatekeeper of Bifröst.
+// Package asgard provides middleware for use in HTTP API servers
+// that require client certificate (mTLS) authentication.
 //
-// Heimdallr returna a HTTP Handler middleware function that parses a header for
-// authentication information. On success, it stores an Identity in the request context.
+// In Norse mythology Heimdallr is the gatekeeper of the celestial bridge, the Bifröst.
+// Hofund is Heimdallr's sword. No mythical significance, just a cool name.
+//
+// Here Heimdallr returns a middleware that parses client certs from a request header.
+// Hofund returns a middleware that parses client certs from the TLS connection.
+// Use Heimdallr if you have a reverse proxy that terminates TLS connections.
+// Use Hofund if you are directly serving TLS connections.
 package asgard
 
 import (
@@ -29,12 +34,16 @@ func ClientCert(ctx context.Context) (*bifrost.Certificate, bool) {
 	return cert, ok
 }
 
-// Heimdallr returns a HTTP Handler middleware function that parses an AuthorizedRequestContext
-// from the request context header. If namespace does not match the parsed one, the
-// request is forbidden. The AuthorizedRequestContext is stored in the request context.
+// Heimdallr returns a middleware that parses a client certificate from the
+// h request header.
 //
-// If Heimdallr is used in an AWS Lambda Web Adapter powered API server, Bouncer Lambda Authorizer
-// must be configured as an authorizer for the API Gateway method.
+// If a certificate is not found or is invalid, the middleware responds
+// with a 503 Service Unavailable.
+// If the certificate namespace does not match ns, the middleware
+// responds with a 403 Forbidden.
+//
+// Use this if you have a reverse proxy that terminates TLS connections and
+// passes the client certificate in a request header.
 func Heimdallr(h HeaderName, ns uuid.UUID) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
