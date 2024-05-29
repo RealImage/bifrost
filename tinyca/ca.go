@@ -132,7 +132,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, bifrost.ErrCertificateRequestInvalid):
 			statusCode = http.StatusBadRequest
 		case errors.Is(err, bifrost.ErrNamespaceMismatch),
-			errors.Is(err, bifrost.ErrCertificateDenied):
+			errors.Is(err, bifrost.ErrCertificateRequestDenied):
 			statusCode = http.StatusForbidden
 		}
 
@@ -196,7 +196,7 @@ func (ca CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([]
 
 	template, err := ca.gauntlet(csr)
 	if err != nil {
-		return nil, fmt.Errorf("%w, %s", bifrost.ErrCertificateDenied, err)
+		return nil, fmt.Errorf("%w, %s", bifrost.ErrCertificateRequestDenied, err)
 	}
 	if template == nil {
 		template = TLSClientCertTemplate()

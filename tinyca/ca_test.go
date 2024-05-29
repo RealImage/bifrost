@@ -219,7 +219,7 @@ l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 				return nil, errors.New("boo")
 			},
 			expectedCode: http.StatusForbidden,
-			expectedBody: []byte("bifrost: certificate denied, boo"),
+			expectedBody: []byte("bifrost: certificate request denied, boo"),
 		},
 	}
 )

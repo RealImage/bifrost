@@ -6,40 +6,43 @@ import (
 	"time"
 )
 
-// ParseValidity parses the notBefore and notAfter strings into time.Time values.
-// The notBefore and notAfter strings can be in RFC3339 format, or a duration
-// from the current time.
-// Durations are prefixed with either '+' or '-'.
-// If notBefore is empty, it defaults to the current time.
-// If notAfter is empty, it defaults to one hour from the current time.
-// If notBefore is "now", it is set to the current time.
-// The minimum validity period is one minute.
-func ParseValidity(nb string, na string) (time.Time, time.Time, error) {
+// MaxIssueValidity is the maximum validity period for issued certificates.
+const MaxIssueValidity = 30 * 24 * time.Hour
+
+// ParseValidity parses notBefore and notAfter into time.Time values.
+// notBefore and notAfter can either be in RFC3339 format or a duration
+// offset from the current time.
+// Offset durations are parsed using time.ParseDuration.
+// If notBefore is empty or set to "now", it defaults to the current time.
+// If notAfter is empty, it behaves as if it is set to "+1h".
+// Negative validity periods are not allowed.
+func ParseValidity(notBefore string, notAfter string) (time.Time, time.Time, error) {
 	now := time.Now()
-	notBefore := now
-	if nb != "" && nb != "now" {
+	nbf := now
+	if notBefore != "" && notBefore != "now" {
 		var err error
-		if notBefore, err = parseTimeOrOffset(nb); err != nil {
-			return time.Time{}, time.Time{}, err
-		}
-	}
-	notAfter := notBefore.Add(time.Hour)
-	if na != "" {
-		var err error
-		if notAfter, err = parseTimeOrOffset(na); err != nil {
+		if nbf, err = parseTimeOrOffset(notBefore); err != nil {
 			return time.Time{}, time.Time{}, err
 		}
 	}
 
-	if notBefore.After(notAfter) {
+	naf := nbf.Add(time.Hour)
+	if notAfter != "" {
+		var err error
+		if naf, err = parseTimeOrOffset(notAfter); err != nil {
+			return time.Time{}, time.Time{}, err
+		}
+	}
+
+	if nbf.After(naf) {
 		return time.Time{}, time.Time{}, errors.New("negative validity period")
 	}
 
-	if notAfter.Sub(notBefore) < time.Minute {
-		return time.Time{}, time.Time{}, errors.New("validity period is too short")
+	if naf.Sub(nbf) > MaxIssueValidity {
+		return time.Time{}, time.Time{}, errors.New("validity period is too long")
 	}
 
-	return notBefore, notAfter, nil
+	return nbf, naf, nil
 }
 
 func parseTimeOrOffset(t string) (time.Time, error) {

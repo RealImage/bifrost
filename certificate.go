@@ -10,12 +10,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// Certificate related errors.
+// Errors
 var (
-	ErrCertificateDenied         = errors.New("bifrost: certificate denied")
 	ErrCertificateInvalid        = errors.New("bifrost: certificate invalid")
-	ErrCertificateRequestInvalid = errors.New("bifrost: certificate request invalid")
 	ErrNamespaceMismatch         = errors.New("bifrost: namespace mismatch")
+	ErrCertificateRequestDenied  = errors.New("bifrost: certificate request denied")
+	ErrCertificateRequestInvalid = errors.New("bifrost: certificate request invalid")
 )
 
 // Certificate is a bifrost certificate.
