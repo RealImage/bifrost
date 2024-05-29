@@ -1,9 +1,13 @@
 // Package asgard provides middleware for use in HTTP API servers
 // that require client certificate (mTLS) authentication.
 //
-// In Norse mythology Heimdallr is the gatekeeper of the celestial bridge Bifröst.
-// Here Heimdallr returns a middleware that ensures that requests contain a valid
-// client certificate.
+// In Norse mythology Heimdallr is the gatekeeper of the celestial bridge, the Bifröst.
+// Hofund is Heimdallr's sword. No mythical significance, just a cool name.
+//
+// Here Heimdallr returns a middleware that parses client certs from a request header.
+// Hofund returns a middleware that parses client certs from the TLS connection.
+// Use Heimdallr if you have a reverse proxy that terminates TLS connections.
+// Use Hofund if you are directly serving TLS connections.
 package asgard
 
 import (
@@ -30,9 +34,16 @@ func ClientCert(ctx context.Context) (*bifrost.Certificate, bool) {
 	return cert, ok
 }
 
-// Heimdallr returns a middleware that parses a client certificate from the h request header.
-// If a certificate is not found or is invalid, the middleware responds with a 503 Service Unavailable.
-// If the certificate namespace does not match ns, the middleware responds with a 403 Forbidden.
+// Heimdallr returns a middleware that parses a client certificate from the
+// h request header.
+//
+// If a certificate is not found or is invalid, the middleware responds
+// with a 503 Service Unavailable.
+// If the certificate namespace does not match ns, the middleware
+// responds with a 403 Forbidden.
+//
+// Use this if you have a reverse proxy that terminates TLS connections and
+// passes the client certificate in a request header.
 func Heimdallr(h HeaderName, ns uuid.UUID) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

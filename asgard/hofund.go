@@ -10,6 +10,15 @@ import (
 	"github.com/google/uuid"
 )
 
+// Hofund returns a middleware that validates a client certificate
+// and sets the certificate in the h request header.
+//
+// If a certificate is not found or is invalid, the middleware responds
+// with a 401 Unauthorized.
+// If the certificate namespace does not match ns, the middleware
+// responds with a 403 Forbidden.
+//
+// Use this if you are directly serving TLS connections.
 func Hofund(h HeaderName, ns uuid.UUID) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
