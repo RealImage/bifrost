@@ -45,7 +45,7 @@ type CA struct {
 
 // New returns a new Certificate Authority.
 // CA signs client certificates with the provided root certificate and private key.
-// CA uses the provided Templater to customise issued certificates.
+// CA uses the provided gauntlet func to customise issued certificates.
 func New(
 	cert *bifrost.Certificate,
 	key *bifrost.PrivateKey,
