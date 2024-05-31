@@ -1,4 +1,5 @@
-*.pem
 /bin
+/bf*
+*.pem
 ssllog.txt
 coverage.txt

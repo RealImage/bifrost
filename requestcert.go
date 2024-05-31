@@ -26,6 +26,8 @@ func CertificateRequestTemplate(ns uuid.UUID, key *PublicKey) *x509.CertificateR
 }
 
 // RequestCertificate sends a certificate request over HTTP to url and returns the signed certificate.
+// The returned error wraps ErrCertificateRequestInvalid or ErrCertificateRequestDenied
+// if the request is invalid or denied.
 func RequestCertificate(
 	ctx context.Context,
 	caUrl string,
@@ -48,7 +50,14 @@ func RequestCertificate(
 	if err != nil {
 		return nil, fmt.Errorf("bifrost: unexpected error reading response body: %w", err)
 	}
-	if resp.StatusCode != http.StatusOK {
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+	case http.StatusBadRequest:
+		return nil, fmt.Errorf("%w, response: %s", ErrCertificateRequestInvalid, body)
+	case http.StatusForbidden:
+		return nil, fmt.Errorf("%w, response: %s", ErrCertificateRequestDenied, body)
+	default:
 		return nil, fmt.Errorf(
 			"bifrost: unexpected response status: %s, body: %s",
 			resp.Status,
