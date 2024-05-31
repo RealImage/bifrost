@@ -10,22 +10,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Errors.
-var (
-	// ErrCertificateInvalid is returned when an invalid certificate is parsed.
-	ErrCertificateInvalid = errors.New("bifrost: certificate invalid")
-
-	// ErrNamespaceMismatch is returned when the namespace in the certificate
-	// request does not match the namespace of the CA.
-	ErrNamespaceMismatch = errors.New("bifrost: namespace mismatch")
-
-	// ErrCertificateRequestDenied is returned when a certificate request is denied by the CA Gauntlet.
-	ErrCertificateRequestDenied = errors.New("bifrost: certificate request denied")
-
-	// ErrCertificateRequestInvalid is returned when an invalid certificate request is parsed.
-	ErrCertificateRequestInvalid = errors.New("bifrost: certificate request invalid")
-)
-
 // Certificate is a bifrost certificate.
 // It embeds the x509 certificate and adds the bifrost ID, namespace, and public key.
 type Certificate struct {

@@ -51,10 +51,6 @@ func New(
 	key *bifrost.PrivateKey,
 	gauntlet Gauntlet,
 ) (*CA, error) {
-	issued := bfMetricName("issued_certs_total", cert.Namespace)
-	reqsTotal := bfMetricName("requests_total", cert.Namespace)
-	reqsDur := bfMetricName("requests_duration_seconds", cert.Namespace)
-
 	if !cert.IsCA() {
 		return nil, fmt.Errorf("bifrost: root certificate is not a valid CA")
 	}
@@ -64,6 +60,10 @@ func New(
 			return nil, nil
 		}
 	}
+
+	issued := bfMetricName("issued_certs_total", cert.Namespace)
+	reqsTotal := bfMetricName("requests_total", cert.Namespace)
+	reqsDur := bfMetricName("requests_duration_seconds", cert.Namespace)
 
 	return &CA{
 		cert:     cert,
@@ -131,8 +131,7 @@ func (ca CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, bifrost.ErrCertificateRequestInvalid):
 			statusCode = http.StatusBadRequest
-		case errors.Is(err, bifrost.ErrNamespaceMismatch),
-			errors.Is(err, bifrost.ErrCertificateRequestDenied):
+		case errors.Is(err, bifrost.ErrCertificateRequestDenied):
 			statusCode = http.StatusForbidden
 		}
 
@@ -184,7 +183,7 @@ func (ca CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([]
 	}
 
 	if csr.Namespace != ca.cert.Namespace {
-		return nil, bifrost.ErrNamespaceMismatch
+		return nil, fmt.Errorf("%w, namespace mismatch", bifrost.ErrCertificateRequestInvalid)
 	}
 
 	if notBefore.IsZero() || notAfter.IsZero() || notAfter.Before(notBefore) {
@@ -216,6 +215,7 @@ func (ca CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([]
 		}
 		template.SerialNumber = sn
 	}
+
 	template.SignatureAlgorithm = bifrost.SignatureAlgorithm
 	template.Issuer = ca.cert.Issuer
 	template.Subject.Organization = []string{ca.cert.Namespace.String()}
@@ -251,6 +251,7 @@ func readCsr(contentType string, body []byte) ([]byte, error) {
 		}
 		asn1Data = block.Bytes
 	}
+
 	return asn1Data, nil
 }
 
