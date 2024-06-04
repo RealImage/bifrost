@@ -41,6 +41,7 @@ type CA struct {
 	requests      *metrics.Counter
 	issuedTotal   *metrics.Counter
 	issueDuration *metrics.Histogram
+	issueSize     *metrics.Histogram
 }
 
 // New returns a new Certificate Authority.
@@ -58,6 +59,7 @@ func New(
 	reqs := bfMetricName("requests_total", cert.Namespace)
 	issued := bfMetricName("issued_certs_total", cert.Namespace)
 	issueDuration := bfMetricName("issue_duration_seconds", cert.Namespace)
+	issueSize := bfMetricName("issue_size_bytes", cert.Namespace)
 
 	ca := CA{
 		cert: cert,
@@ -67,6 +69,7 @@ func New(
 		requests:      bifrost.StatsForNerds.GetOrCreateCounter(reqs),
 		issuedTotal:   bifrost.StatsForNerds.GetOrCreateCounter(issued),
 		issueDuration: bifrost.StatsForNerds.GetOrCreateHistogram(issueDuration),
+		issueSize:     bifrost.StatsForNerds.GetOrCreateHistogram(issueSize),
 	}
 
 	return &ca, nil
@@ -224,6 +227,7 @@ func (ca *CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([
 	}
 
 	ca.issueDuration.UpdateDuration(issueStart)
+	ca.issueSize.Update(float64(len(certBytes)))
 	ca.issuedTotal.Inc()
 
 	return certBytes, nil
