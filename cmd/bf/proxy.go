@@ -168,7 +168,7 @@ func issueTLSCert(
 	caCert *bifrost.Certificate,
 	caKey, serverKey *bifrost.PrivateKey,
 ) (*bifrost.Certificate, error) {
-	gauntlet := func(_ *bifrost.CertificateRequest) (*x509.Certificate, error) {
+	gauntlet := func(_ context.Context, _ *bifrost.CertificateRequest) (*x509.Certificate, error) {
 		// Return a server certificate template that can be used for TLS.
 		return &x509.Certificate{
 			KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,

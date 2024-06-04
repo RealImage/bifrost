@@ -54,9 +54,11 @@ func RequestCertificate(
 	switch resp.StatusCode {
 	case http.StatusOK:
 	case http.StatusBadRequest:
-		return nil, fmt.Errorf("%w, response: %s", ErrCertificateRequestInvalid, body)
+		return nil, fmt.Errorf("%w, response: %s", ErrRequestInvalid, body)
 	case http.StatusForbidden:
-		return nil, fmt.Errorf("%w, response: %s", ErrCertificateRequestDenied, body)
+		return nil, fmt.Errorf("%w, response: %s", ErrRequestDenied, body)
+	case http.StatusServiceUnavailable:
+		return nil, fmt.Errorf("%w, response: %s", ErrRequestAborted, body)
 	default:
 		return nil, fmt.Errorf(
 			"bifrost: unexpected response status: %s, body: %s",

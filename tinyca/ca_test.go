@@ -2,6 +2,7 @@ package tinyca
 
 import (
 	"bytes"
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -215,59 +216,41 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
 l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 -----END CERTIFICATE REQUEST-----`),
-			gauntlet: func(csr *bifrost.CertificateRequest) (*x509.Certificate, error) {
+			gauntlet: func(_ context.Context, _ *bifrost.CertificateRequest) (*x509.Certificate, error) {
 				return nil, errors.New("boo")
 			},
 			expectedCode: http.StatusForbidden,
 			expectedBody: []byte("bifrost: certificate request denied, boo"),
 		},
+		{
+			title: "gauntlet timeout",
+			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
+MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
+OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
+OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
+f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
+l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
+-----END CERTIFICATE REQUEST-----`),
+			gauntlet: func(ctx context.Context, _ *bifrost.CertificateRequest) (*x509.Certificate, error) {
+				<-ctx.Done()
+				return nil, nil
+			},
+			expectedCode: http.StatusServiceUnavailable,
+			expectedBody: []byte("bifrost: certificate request aborted, gauntlet timed out"),
+		},
 	}
 )
 
 func TestCA_ServeHTTP(t *testing.T) {
-	randReader := rand.New(rand.NewSource(42))
-
-	// Create new private key.
-	key, err := bifrost.NewPrivateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	id := bifrost.UUID(testns, key.PublicKey())
-
-	template, err := CACertTemplate(testns, id)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	notBefore := time.Now()
-	notAfter := notBefore.Add(time.Hour * 24)
-	template.NotBefore = notBefore
-	template.NotAfter = notAfter
-
-	certDer, err := x509.CreateCertificate(
-		randReader,
-		template,
-		template,
-		key.PublicKey().PublicKey,
-		key,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cert, err := x509.ParseCertificate(certDer)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bfCert, err := bifrost.NewCertificate(cert)
+	cert, key, err := createCACertKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for _, tc := range serveHTTPTests {
 		t.Run(tc.title, func(t *testing.T) {
-			ca, err := New(bfCert, key, tc.gauntlet)
+			ca, err := New(cert, key, tc.gauntlet)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -287,6 +270,7 @@ func TestCA_ServeHTTP(t *testing.T) {
 			if ct := tc.contentType; ct != "" {
 				req.Header.Set(webapp.HeaderNameContentType, ct)
 			}
+
 			rr := httptest.NewRecorder()
 			ca.ServeHTTP(rr, req)
 			resp := rr.Result()
@@ -349,4 +333,48 @@ func TestCA_ServeHTTP(t *testing.T) {
 			}
 		})
 	}
+}
+
+func createCACertKey() (*bifrost.Certificate, *bifrost.PrivateKey, error) {
+	randReader := rand.New(rand.NewSource(42))
+
+	// Create new private key.
+	key, err := bifrost.NewPrivateKey()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	id := bifrost.UUID(testns, key.PublicKey())
+
+	template, err := CACertTemplate(testns, id)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	notBefore := time.Now()
+	notAfter := notBefore.Add(time.Hour * 24)
+	template.NotBefore = notBefore
+	template.NotAfter = notAfter
+
+	certDer, err := x509.CreateCertificate(
+		randReader,
+		template,
+		template,
+		key.PublicKey().PublicKey,
+		key,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	cert, err := x509.ParseCertificate(certDer)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	bfCert, err := bifrost.NewCertificate(cert)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return bfCert, key, nil
 }
