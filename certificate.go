@@ -55,7 +55,7 @@ func NewCertificate(cert *x509.Certificate) (*Certificate, error) {
 	if cert.SignatureAlgorithm != SignatureAlgorithm {
 		return nil, fmt.Errorf(
 			"%w, unsupported signature algorithm '%s'",
-			ErrCertificateRequestInvalid,
+			ErrRequestInvalid,
 			cert.SignatureAlgorithm,
 		)
 	}
@@ -154,7 +154,7 @@ type CertificateRequest struct {
 func ParseCertificateRequest(asn1Data []byte) (*CertificateRequest, error) {
 	csr, err := x509.ParseCertificateRequest(asn1Data)
 	if err != nil {
-		return nil, fmt.Errorf("%w, %s", ErrCertificateRequestInvalid, err.Error())
+		return nil, fmt.Errorf("%w, %s", ErrRequestInvalid, err.Error())
 	}
 	return NewCertificateRequest(csr)
 }
@@ -167,7 +167,7 @@ func NewCertificateRequest(cert *x509.CertificateRequest) (*CertificateRequest, 
 	if cert.SignatureAlgorithm != SignatureAlgorithm {
 		return nil, fmt.Errorf(
 			"%w, unsupported signature algorithm '%s'",
-			ErrCertificateRequestInvalid,
+			ErrRequestInvalid,
 			cert.SignatureAlgorithm,
 		)
 	}
@@ -176,7 +176,7 @@ func NewCertificateRequest(cert *x509.CertificateRequest) (*CertificateRequest, 
 	if len(cert.Subject.Organization) != 1 {
 		return nil, fmt.Errorf(
 			"%w, missing identity namespace",
-			ErrCertificateRequestInvalid,
+			ErrRequestInvalid,
 		)
 	}
 	rawNS := cert.Subject.Organization[0]
@@ -184,7 +184,7 @@ func NewCertificateRequest(cert *x509.CertificateRequest) (*CertificateRequest, 
 	if err != nil {
 		return nil, fmt.Errorf(
 			"%w, invalid identity namespace %s: %w",
-			ErrCertificateRequestInvalid,
+			ErrRequestInvalid,
 			rawNS,
 			err,
 		)
@@ -194,7 +194,7 @@ func NewCertificateRequest(cert *x509.CertificateRequest) (*CertificateRequest, 
 	if !ok {
 		return nil, fmt.Errorf(
 			"%w, invalid public key type: '%T'",
-			ErrCertificateRequestInvalid,
+			ErrRequestInvalid,
 			cert.PublicKey,
 		)
 	}
@@ -208,10 +208,10 @@ func NewCertificateRequest(cert *x509.CertificateRequest) (*CertificateRequest, 
 	cid, err := uuid.Parse(cert.Subject.CommonName)
 	if err != nil {
 		return nil, fmt.Errorf("%w, invalid identity '%s', %s",
-			ErrCertificateRequestInvalid, cert.Subject.CommonName, err.Error())
+			ErrRequestInvalid, cert.Subject.CommonName, err.Error())
 	}
 	if cid != id {
-		return nil, fmt.Errorf("%w, incorrect identity", ErrCertificateRequestInvalid)
+		return nil, fmt.Errorf("%w, incorrect identity", ErrRequestInvalid)
 	}
 
 	bfReq := &CertificateRequest{

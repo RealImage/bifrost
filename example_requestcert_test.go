@@ -22,11 +22,11 @@ func ExampleRequestCertificate() {
 	}
 
 	cert, err := RequestCertificate(ctx, "https://bifrost-ca", exampleNS, key)
-	if errors.Is(err, ErrCertificateRequestInvalid) {
+	if errors.Is(err, ErrRequestInvalid) {
 		// This error is returned when the wrong namespace is used in the CSR,
 		// or if the CSR is invalid.
 		fmt.Println("namespace mismatch or invalid csr")
-	} else if errors.Is(err, ErrCertificateRequestDenied) {
+	} else if errors.Is(err, ErrRequestDenied) {
 		// This error is returned when the request is denied by the CA gauntlet function.
 		fmt.Println("csr denied")
 	}

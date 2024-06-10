@@ -1,20 +1,27 @@
 package tinyca
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
 	"math"
 	"math/big"
+	"time"
 
 	"github.com/RealImage/bifrost"
 	"github.com/google/uuid"
 )
 
+// GauntletTimeout is the maximum time the CA Gauntlet function is allowed to run.
+const GauntletTimeout = 100 * time.Millisecond
+
 // Gauntlet is the signature for a function that validates a certificate request.
 // If the second return value is non-nil, then the certificate request is denied.
 // If the first return value is nil, the default template TLSClientCertTemplate will be used.
+// If the function exceeds GauntletTimeout, ctx will be cancelled and the
+// request will be denied with an error.
 // The template will be used to issue a client certificate.
 // Consult the x509 package for the full list of fields that can be set.
 // tinyca will overwrite the following template fields:
@@ -27,7 +34,7 @@ import (
 //   - BasicConstraintsValid
 //
 // If SerialNumber is nil, a random value will be generated.
-type Gauntlet func(csr *bifrost.CertificateRequest) (tmpl *x509.Certificate, err error)
+type Gauntlet func(ctx context.Context, csr *bifrost.CertificateRequest) (tmpl *x509.Certificate, err error)
 
 // TLSClientCertTemplate returns a new x509.Certificate template for a client certificate.
 func TLSClientCertTemplate() *x509.Certificate {

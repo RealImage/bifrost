@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"time"
 
 	"github.com/RealImage/bifrost"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -19,16 +18,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 )
 
-const fetchTimeout = time.Minute
-
 // GetCertificate returns a namespace and a bifrost certificate from uri.
 // uri can be a relative or absolute file path, file://... uri, s3://... uri,
 // or an AWS S3 or AWS Secrets Manager ARN.
 // The certificate is validated before returning.
 func GetCertificate(ctx context.Context, uri string) (*bifrost.Certificate, error) {
-	ctx, cancel := context.WithTimeout(ctx, fetchTimeout)
-	defer cancel()
-
 	certPem, err := getPemFile(ctx, uri)
 	if err != nil {
 		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
@@ -51,8 +45,6 @@ func GetCertificate(ctx context.Context, uri string) (*bifrost.Certificate, erro
 // or an AWS S3 or AWS Secrets Manager ARN.
 // The private key can either be PEM encoded PKCS#8 or SEC1, ASN.1 DER form.
 func GetPrivateKey(ctx context.Context, uri string) (*bifrost.PrivateKey, error) {
-	ctx, cancel := context.WithTimeout(ctx, fetchTimeout)
-	defer cancel()
 	pemData, err := getPemFile(ctx, uri)
 	if err != nil {
 		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
@@ -70,6 +62,7 @@ func getPemFile(ctx context.Context, uri string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error parsing file uri %w", err)
 	}
+
 	var pemData []byte
 	switch s := url.Scheme; s {
 	case "s3":
@@ -155,10 +148,12 @@ func GetCertKey(
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cert: %w", err)
 	}
+
 	key, err := GetPrivateKey(ctx, keyUri)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting key: %w", err)
 	}
+
 	if !cert.IssuedTo(key.PublicKey()) {
 		return nil, nil, fmt.Errorf("certificate and key do not match")
 	}
