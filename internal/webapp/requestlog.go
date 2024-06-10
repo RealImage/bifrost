@@ -1,24 +1,37 @@
 package webapp
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/felixge/httpsnoop"
 )
 
-// RequestLogHandler logs the request method and uri to stdout.
-func RequestLogHandler(h http.Handler) http.Handler {
+// RequestLogger logs the request method and uri to stdout.
+func RequestLogger(h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		m := httpsnoop.CaptureMetrics(h, w, r)
-		slog.InfoContext(
-			r.Context(), "request",
-			"method", r.Method,
-			"uri", r.RequestURI,
-			"status", m.Code,
-			"duration", m.Duration,
-			"bytes", m.Written,
+
+		level := slog.LevelInfo
+
+		if m.Code >= 400 && m.Code < 500 {
+			level = slog.LevelWarn
+		} else if m.Code >= 500 {
+			level = slog.LevelError
+		}
+
+		slog.LogAttrs(
+			r.Context(),
+			level,
+			fmt.Sprintf("%s %s", r.Method, r.RequestURI),
+			slog.String("method", r.Method),
+			slog.String("uri", r.RequestURI),
+			slog.Int("status", m.Code),
+			slog.Duration("duration", m.Duration),
+			slog.Int64("bytes", m.Written),
 		)
 	}
+
 	return http.HandlerFunc(fn)
 }

@@ -235,6 +235,8 @@ func (ca *CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([
 	ca.issueSize.Update(float64(len(certBytes)))
 	ca.issuedTotal.Inc()
 
+	slog.Debug("certificate issued", "to", csr.ID, "duration", time.Since(issueStart))
+
 	return certBytes, nil
 }
 

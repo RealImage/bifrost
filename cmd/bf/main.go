@@ -14,6 +14,10 @@ func main() {
 	rev, t := getBuildInfo()
 	version := rev + " (" + t.String() + ")"
 
+	logLevel := new(slog.LevelVar)
+	hdlr := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})
+	slog.SetDefault(slog.New(hdlr))
+
 	cli := &cli.Command{
 		Name:    "bf",
 		Version: version,
@@ -23,14 +27,8 @@ func main() {
 				Aliases: []string{"l"},
 				Sources: cli.EnvVars("LOG_LEVEL"),
 				Value:   slog.LevelInfo.String(),
-				Action: func(_ context.Context, _ *cli.Command, l string) error {
-					logLevel := new(slog.LevelVar)
-					if err := logLevel.UnmarshalText([]byte(l)); err != nil {
-						return err
-					}
-					hdlr := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})
-					slog.SetDefault(slog.New(hdlr))
-					return nil
+				Action: func(_ context.Context, _ *cli.Command, level string) error {
+					return logLevel.UnmarshalText([]byte(level))
 				},
 			},
 		},

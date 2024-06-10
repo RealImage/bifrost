@@ -118,7 +118,7 @@ var caServeCmd = &cli.Command{
 			webapp.AddRoutes(mux, webStaticPath, cert.Namespace)
 		}
 
-		hdlr := webapp.RequestLogHandler(mux)
+		hdlr := webapp.RequestLogger(mux)
 
 		addr := fmt.Sprintf("%s:%d", caHost, caPort)
 		slog.InfoContext(ctx, "starting server", "address", addr, "namespace", nss)

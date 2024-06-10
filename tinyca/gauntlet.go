@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -65,6 +66,7 @@ func (gh *gauntletHolder) throw(csr *bifrost.CertificateRequest) (*x509.Certific
 		defer close(result)
 		defer func() {
 			if r := recover(); r != nil {
+				slog.ErrorContext(ctx, "gauntlet panic", "recovered", r)
 				cancel(fmt.Errorf("%w, gauntlet panic('%v')", bifrost.ErrRequestAborted, r))
 			}
 		}()
@@ -72,6 +74,7 @@ func (gh *gauntletHolder) throw(csr *bifrost.CertificateRequest) (*x509.Certific
 		start := time.Now()
 		template, err := gh.Gauntlet(ctx, csr)
 		gh.duration.UpdateDuration(start)
+		slog.DebugContext(ctx, "threw gauntlet", "duration", time.Since(start))
 
 		if err != nil {
 			cancel(fmt.Errorf("%w, %s", bifrost.ErrRequestDenied, err))

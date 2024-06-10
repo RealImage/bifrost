@@ -111,7 +111,7 @@ var (
 			}
 
 			hf := asgard.Hofund(asgard.HeaderNameClientCertLeaf, caCert.Namespace)
-			hdlr := webapp.RequestLogHandler(hf(reverseProxy))
+			hdlr := webapp.RequestLogger(hf(reverseProxy))
 
 			addr := fmt.Sprintf("%s:%d", proxyHost, proxyPort)
 			serverKey, err := bifrost.NewPrivateKey()
