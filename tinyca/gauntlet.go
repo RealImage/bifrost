@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/RealImage/bifrost"
@@ -15,6 +16,8 @@ import (
 type gauntletHolder struct {
 	Gauntlet
 
+	wg *sync.WaitGroup
+
 	// metrics
 	denied   *metrics.Counter
 	aborted  *metrics.Counter
@@ -23,7 +26,7 @@ type gauntletHolder struct {
 
 func newGauntletHolder(g Gauntlet, ns uuid.UUID) *gauntletHolder {
 	if g == nil {
-		return &gauntletHolder{}
+		return &gauntletHolder{wg: new(sync.WaitGroup)}
 	}
 
 	denied := bfMetricName("gauntlet_denied_total", ns)
@@ -32,6 +35,8 @@ func newGauntletHolder(g Gauntlet, ns uuid.UUID) *gauntletHolder {
 
 	return &gauntletHolder{
 		Gauntlet: g,
+
+		wg: new(sync.WaitGroup),
 
 		denied:   bifrost.StatsForNerds.GetOrCreateCounter(denied),
 		aborted:  bifrost.StatsForNerds.GetOrCreateCounter(aborted),
@@ -54,8 +59,15 @@ func (gh *gauntletHolder) throw(csr *bifrost.CertificateRequest) (*x509.Certific
 	}()
 
 	result := make(chan *x509.Certificate, 1)
+	gh.wg.Add(1)
 	go func() {
+		defer gh.wg.Done()
 		defer close(result)
+		defer func() {
+			if r := recover(); r != nil {
+				cancel(fmt.Errorf("%w, gauntlet panic('%v')", bifrost.ErrRequestAborted, r))
+			}
+		}()
 
 		start := time.Now()
 		template, err := gh.Gauntlet(ctx, csr)

@@ -104,6 +104,7 @@ var caServeCmd = &cli.Command{
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("Error creating CA: %s", err), 1)
 		}
+		defer ca.Close()
 
 		mux.Handle("POST /issue", ca)
 
@@ -152,6 +153,7 @@ var caIssueCmd = &cli.Command{
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("Error creating CA: %s", err), 1)
 		}
+		defer ca.Close()
 
 		clientKey, err := cafiles.GetPrivateKey(ctx, clientPrivKeyUri)
 		if err != nil {

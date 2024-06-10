@@ -32,7 +32,12 @@ import (
 
 // CA is a simple Certificate Authority.
 // The CA issues client certificates signed by a root certificate and private key.
+// The CA provides an HTTP handler to issue certificates.
+// The CA also provides a [Gauntlet] function to customize the certificate template.
+// Call Close to release resources when done.
 type CA struct {
+	io.Closer
+
 	cert *bifrost.Certificate
 	key  *bifrost.PrivateKey
 	gh   *gauntletHolder
@@ -231,6 +236,14 @@ func (ca *CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([
 	ca.issuedTotal.Inc()
 
 	return certBytes, nil
+}
+
+// Close releases resources held by the CA.
+// Multiple calls to Close are safe.
+func (ca *CA) Close() error {
+	ca.gh.wg.Wait()
+
+	return nil
 }
 
 func readCsr(contentType string, body []byte) ([]byte, error) {

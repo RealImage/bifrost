@@ -20,8 +20,17 @@ import (
 	"golang.org/x/net/html"
 )
 
+const validCsr = `-----BEGIN CERTIFICATE REQUEST-----
+MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
+OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
+OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
+aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
+f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
+l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
+-----END CERTIFICATE REQUEST-----`
+
 var (
-	testns = uuid.Must(uuid.Parse("80485314-6C73-40FF-86C5-A5942A0F514F"))
+	testNs = uuid.Must(uuid.Parse("80485314-6C73-40FF-86C5-A5942A0F514F"))
 
 	serveHTTPTests = []struct {
 		title         string
@@ -43,28 +52,14 @@ var (
 		//
 		// Good requests.
 		{
-			title: "ok",
-			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
-OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
-OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
-aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
-f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
-l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
------END CERTIFICATE REQUEST-----`),
+			title:        "ok",
+			requestBody:  []byte(validCsr),
 			expectedCode: http.StatusOK,
 		},
 		{
-			title:  "should return a binary DER encoded certificate",
-			accept: "application/octet-stream",
-			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
-OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
-OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
-aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
-f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
-l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
------END CERTIFICATE REQUEST-----`),
+			title:        "should return a binary DER encoded certificate",
+			accept:       "application/octet-stream",
+			requestBody:  []byte(validCsr),
 			expectedCode: http.StatusOK,
 		},
 		{
@@ -81,29 +76,15 @@ l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 			expectedCode: http.StatusOK,
 		},
 		{
-			title:  "should return a PEM encoded certificate HTML fragment",
-			accept: "text/html",
-			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
-OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
-OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
-aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
-f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
-l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
------END CERTIFICATE REQUEST-----`),
+			title:        "should return a PEM encoded certificate HTML fragment",
+			accept:       "text/html",
+			requestBody:  []byte(validCsr),
 			expectedCode: http.StatusOK,
 		},
 		{
-			title:  "should return a PEM encoded certificate",
-			accept: "*/*",
-			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
-OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
-OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
-aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
-f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
-l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
------END CERTIFICATE REQUEST-----`),
+			title:        "should return a PEM encoded certificate",
+			accept:       "*/*",
+			requestBody:  []byte(validCsr),
 			expectedCode: http.StatusOK,
 		},
 		// Bad.
@@ -125,14 +106,7 @@ a9rP0bn1HhVb/P8CIEMAqO2BWQ28M3Io0Wy+MTpqtX7/O1BAnSXT4BvZGUot
 			accept:        "application/json",
 			requestMethod: http.MethodPost,
 			expectedCode:  http.StatusNotAcceptable,
-			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
-OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
-OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
-aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
-f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
-l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
------END CERTIFICATE REQUEST-----`),
+			requestBody:   []byte(validCsr),
 		},
 		{
 			title:        "empty request",
@@ -207,15 +181,8 @@ FOioc6+qkAh+Sv8CIQDxi4eJOHAg3+eSnryb3zgsDIoGWcw3NRWI12Kwwr9Upw==
 			),
 		},
 		{
-			title: "gauntlet denied",
-			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
-OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
-OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
-aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
-f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
-l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
------END CERTIFICATE REQUEST-----`),
+			title:       "gauntlet denied",
+			requestBody: []byte(validCsr),
 			gauntlet: func(_ context.Context, _ *bifrost.CertificateRequest) (*x509.Certificate, error) {
 				return nil, errors.New("boo")
 			},
@@ -223,15 +190,8 @@ l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 			expectedBody: []byte("bifrost: certificate request denied, boo"),
 		},
 		{
-			title: "gauntlet timeout",
-			requestBody: []byte(`-----BEGIN CERTIFICATE REQUEST-----
-MIIBGjCBwAIBADBeMS0wKwYDVQQDDCQwZjljMmFjNC1iZDdmLTU5MjMtYTc4NS1h
-OGJjNGQ4ZTI4MzExLTArBgNVBAoMJDgwNDg1MzE0LTZDNzMtNDBGRi04NkM1LUE1
-OTQyQTBGNTE0RjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIRKO/ou3QfVp5Ym
-aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
-f/l+B/agADAKBggqhkjOPQQDAgNJADBGAiEAqvq1FkgO02cZp4Etg1T0KzimcO2Y
-l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
------END CERTIFICATE REQUEST-----`),
+			title:       "gauntlet timeout",
+			requestBody: []byte(validCsr),
 			gauntlet: func(ctx context.Context, _ *bifrost.CertificateRequest) (*x509.Certificate, error) {
 				<-ctx.Done()
 				return nil, nil
@@ -249,11 +209,16 @@ func TestCA_ServeHTTP(t *testing.T) {
 	}
 
 	for _, tc := range serveHTTPTests {
+		tc := tc
+
 		t.Run(tc.title, func(t *testing.T) {
+			t.Parallel()
+
 			ca, err := New(cert, key, tc.gauntlet)
 			if err != nil {
 				t.Fatal(err)
 			}
+			defer ca.Close()
 
 			method := http.MethodPost
 			if tc.requestMethod != "" {
@@ -288,7 +253,7 @@ func TestCA_ServeHTTP(t *testing.T) {
 			respBody, _ := io.ReadAll(resp.Body)
 			if exp := tc.expectedBody; len(exp) != 0 {
 				if !bytes.Equal(append(exp, "\n"...), respBody) {
-					t.Fatalf("expected body:\n```\n%s\n```\n\nactual body:\n```\n%s\n```\n",
+					t.Fatalf("\nexpected body:\n```\n%s\n```\n\nactual body:\n```\n%s\n```\n",
 						exp, string(respBody))
 				}
 			} else if resp.StatusCode < 300 {
@@ -310,16 +275,16 @@ func TestCA_ServeHTTP(t *testing.T) {
 					if err != nil {
 						t.Fatal("response body is not a valid bifrost certificate: ", err)
 					}
-					if cert.Namespace != testns {
-						t.Fatalf("expected namespace: %s, actual: %s\n", testns, cert.Namespace)
+					if cert.Namespace != testNs {
+						t.Fatalf("expected namespace: %s, actual: %s\n", testNs, cert.Namespace)
 					}
 				case webapp.MimeTypeBytes:
 					cert, err := bifrost.ParseCertificate(respBody)
 					if err != nil {
 						t.Fatal("response body is not a valid bifrost certificate: ", err)
 					}
-					if cert.Namespace != testns {
-						t.Fatalf("expected namespace: %s, actual: %s\n", testns, cert.Namespace)
+					if cert.Namespace != testNs {
+						t.Fatalf("expected namespace: %s, actual: %s\n", testNs, cert.Namespace)
 					}
 				case webapp.MimeTypeHtml:
 					_, err := html.Parse(resp.Body)
@@ -335,6 +300,45 @@ func TestCA_ServeHTTP(t *testing.T) {
 	}
 }
 
+func TestCA_gauntlet_panic(t *testing.T) {
+	cert, key, err := createCACertKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ca, err := New(
+		cert,
+		key,
+		func(_ context.Context, _ *bifrost.CertificateRequest) (*x509.Certificate, error) {
+			panic("boom")
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ca.Close()
+
+	rr := httptest.NewRecorder()
+	req, err := http.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte(validCsr)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ca.ServeHTTP(rr, req)
+	resp := rr.Result()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("expected code: %d, actual: %d\n", http.StatusInternalServerError, resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	expected := "bifrost: certificate request aborted, gauntlet panic('boom')\n"
+	if !bytes.Equal([]byte(expected), body) {
+		t.Fatalf("\nexpected body:\n```\n%s\n```\n\nactual body:\n```\n%s\n```\n", expected, body)
+	}
+}
+
 func createCACertKey() (*bifrost.Certificate, *bifrost.PrivateKey, error) {
 	randReader := rand.New(rand.NewSource(42))
 
@@ -344,9 +348,9 @@ func createCACertKey() (*bifrost.Certificate, *bifrost.PrivateKey, error) {
 		return nil, nil, err
 	}
 
-	id := bifrost.UUID(testns, key.PublicKey())
+	id := bifrost.UUID(testNs, key.PublicKey())
 
-	template, err := CACertTemplate(testns, id)
+	template, err := CACertTemplate(testNs, id)
 	if err != nil {
 		return nil, nil, err
 	}
