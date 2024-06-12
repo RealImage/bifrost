@@ -40,9 +40,20 @@ func RequestCertificate(
 		return nil, fmt.Errorf("bifrost: error creating certificate request: %w", err)
 	}
 
-	resp, err := http.Post(caUrl+"/issue", "application/octet-stream", bytes.NewReader(csr))
-	if err != nil || resp == nil {
-		return nil, fmt.Errorf("bifrost: error creating certificate request: %w", err)
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		caUrl+"/issue",
+		bytes.NewReader(csr),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("bifrost: error creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/octet-stream")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("bifrost: error sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -77,4 +88,34 @@ func RequestCertificate(
 	).Inc()
 
 	return cert, nil
+}
+
+// GetNamespace returns the namespace from the CA at url.
+func GetNamespace(ctx context.Context, caUrl string) (uuid.UUID, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, caUrl+"/namespace", nil)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("bifrost: error creating request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("bifrost: error sending request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return uuid.Nil, fmt.Errorf("bifrost: unexpected response status: %s", resp.Status)
+	}
+
+	var nss string
+	if _, err := fmt.Fscan(resp.Body, &nss); err != nil {
+		return uuid.Nil, fmt.Errorf("bifrost: error reading response body: %w", err)
+	}
+
+	ns, err := uuid.Parse(nss)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("bifrost: error parsing namespace: %w", err)
+	}
+
+	return ns, nil
 }

@@ -63,10 +63,10 @@ ko build --local ./cmd/bf
 Here's what you need to get started.
 
 1. Install all bifrost binaries by running `go install ./...`.
-2. Generate a new namespace UUID using `export BF_NS=$(bf new ns)`.
+2. Generate a new namespace UUID using `export NS=$(bf new ns)`.
 3. Ensure that python, curl, and openssl are available in your environment.
 
-### Start your engines
+### Start CA server and mTLS reverse proxy
 
 Set up server key material and start the CA and TLS reverse-proxy.
 
@@ -86,65 +86,62 @@ Set up server key material and start the CA and TLS reverse-proxy.
     python -m http.server 8080 &
     ```
 
-### Create a client identity
+### Request a client certificate
 
 1. Generate a new client identity key:
 
     `bf new key -o clientkey.pem`
 
-2. Create a Certificate Signing Request with the client private key:
-
-    `bf new csr clientkey.pem -o csr.pem`
-
-3. Fetch signed certificate from the CA:
+2. Fetch signed certificate from the CA:
 
    ```console
-   curl -X POST -H "Content-Type: text/plain" --data-binary "@csr.pem" \
-     "localhost:8888/issue" >clientcrt.pem`
+   bf request -o clientcrt.pem
    ```
 
-4. Make a request through the mTLS proxy to the python web server:
+3. Make a request through the mTLS proxy to the python web server:
 
     `curl --cert clientcrt.pem --key clientkey.pem -k https://localhost:8443`
 
-5. Admire your shiny new client certificate (optional):
+4. Admire your shiny new client certificate (optional):
 
    ```console
    $ openssl x509 -in clientcrt.pem -noout -text
-   Certificate:
-       Data:
-           Version: 3 (0x2)
-           Serial Number: 871355257622038992 (0xc17acfd7bbb09d0)
-           Signature Algorithm: ecdsa-with-SHA256
-           Issuer: CN = 46d6516e-715f-5a8a-8523-c2924b2a53d7, O = 00000000-0000-0000-0000-000000000000
-           Validity
-               Not Before: Jul 12 23:09:46 2023 GMT
-               Not After : Jul 13 00:09:46 2023 GMT
-           Subject: O = 00000000-0000-0000-0000-000000000000, CN = 8b9fca79-13e0-5157-b754-ff2e4e985c30
-           Subject Public Key Info:
-               Public Key Algorithm: id-ecPublicKey
-                   Public-Key: (256 bit)
-                   pub:
-                       04:84:4a:3b:fa:2e:dd:07:d5:a7:96:26:68:ac:81:
-                       16:8a:cb:57:02:0a:c7:ae:d3:b3:da:b5:b4:2d:a5:
-                       c8:65:c2:4d:88:45:00:5a:44:f3:30:52:ab:63:42:
-                       59:3d:50:68:50:45:e0:60:61:e1:57:b8:5c:dc:87:
-                       7f:f9:7e:07:f6
-                   ASN1 OID: prime256v1
-                   NIST CURVE: P-256
-           X509v3 extensions:
-               X509v3 Key Usage: critical
-                   Digital Signature
-               X509v3 Extended Key Usage: 
-                   TLS Web Client Authentication
-               X509v3 Authority Key Identifier: 
-                   CA:2F:94:0D:43:FB:6D:00:66:09:50:4C:8C:1F:A3:BC:C1:EF:98:F4
-       Signature Algorithm: ecdsa-with-SHA256
-       Signature Value:
-           30:45:02:21:00:a3:2a:99:6e:29:b6:97:61:55:ac:a5:96:9c:
-           ab:c3:86:44:4e:86:f5:1f:56:34:49:a7:36:b5:6c:db:72:65:
-           a6:02:20:14:a9:d2:07:d5:63:17:d5:e0:3b:e3:f7:ef:e7:d0:
-           65:86:c3:74:5e:b4:61:87:cd:af:6a:71:af:cd:cf:45:8b
+    Certificate:
+        Data:
+            Version: 3 (0x2)
+            Serial Number: 6573843113666499538 (0x5b3afb7b6f3d53d2)
+        Signature Algorithm: ecdsa-with-SHA256
+            Issuer: O=01881c8c-e2e1-4950-9dee-3a9558c6c741, CN=033fc353-f618-5c18-acd1-f9d4313cc052
+            Validity
+                Not Before: Jun 12 15:08:54 2024 GMT
+                Not After : Jun 12 16:08:54 2024 GMT
+            Subject: O=01881c8c-e2e1-4950-9dee-3a9558c6c741, CN=f6057aa6-6553-586a-9fda-319faa78958f
+            Subject Public Key Info:
+                Public Key Algorithm: id-ecPublicKey
+                    Public-Key: (256 bit)
+                    pub:
+                        04:7a:88:ce:51:88:ac:8e:75:a4:17:79:0b:fe:6c:
+                        ab:0c:89:be:fb:66:d7:e0:b2:b3:ec:e3:5d:02:4a:
+                        cc:04:24:36:1f:33:64:8f:4d:61:aa:0a:ef:44:c3:
+                        7b:60:7b:7d:48:ab:89:36:eb:d0:90:6e:d6:c1:78:
+                        e7:52:82:9e:7f
+                    ASN1 OID: prime256v1
+                    NIST CURVE: P-256
+            X509v3 extensions:
+                X509v3 Key Usage: critical
+                    Digital Signature, Key Encipherment
+                X509v3 Extended Key Usage:
+                    TLS Web Client Authentication
+                X509v3 Basic Constraints: critical
+                    CA:FALSE
+                X509v3 Authority Key Identifier:
+                    keyid:BD:BE:8A:D6:16:0A:08:46:01:27:71:25:42:04:60:DE:8C:23:8E:B3
+
+        Signature Algorithm: ecdsa-with-SHA256
+             30:45:02:21:00:f7:dd:97:18:ef:ec:95:e0:88:6e:d7:93:66:
+             74:ca:4f:96:fe:34:b1:f8:0b:90:65:c0:bc:08:a3:49:fc:8f:
+             37:02:20:6d:6a:fe:b5:d1:ab:77:59:3a:d1:94:6c:4c:f7:a2:
+             3d:7f:69:a8:5e:85:52:aa:6b:7e:35:c4:9f:7e:11:92:d2
    ```
 
 ## Fishy Benchmarks

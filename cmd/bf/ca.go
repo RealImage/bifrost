@@ -10,11 +10,19 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"time"
 
 	"github.com/RealImage/bifrost/cafiles"
 	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/RealImage/bifrost/tinyca"
 	"github.com/urfave/cli/v3"
+)
+
+const (
+	defaultCaHost = "localhost"
+	defaultCaPort = 8008
 )
 
 // caServeCmd flags
@@ -29,6 +37,7 @@ var (
 var caServeCmd = &cli.Command{
 	Name:    "serve",
 	Aliases: []string{"ca"},
+	Usage:   "Starts the Certificate Authority server",
 	Flags: []cli.Flag{
 		caCertFlag,
 		caPrivKeyFlag,
@@ -37,21 +46,15 @@ var caServeCmd = &cli.Command{
 			Usage:       "listen on `HOST`",
 			Aliases:     []string{"H"},
 			Sources:     cli.EnvVars("HOST"),
-			Value:       "localhost",
+			Value:       defaultCaHost,
 			Destination: &caHost,
-			Action: func(_ context.Context, _ *cli.Command, h string) error {
-				if h == "" {
-					return errors.New("host cannot be empty")
-				}
-				return nil
-			},
 		},
 		&cli.IntFlag{
 			Name:        "port",
 			Usage:       "listen on `PORT`",
 			Aliases:     []string{"p"},
 			Sources:     cli.EnvVars("PORT"),
-			Value:       8008,
+			Value:       defaultCaPort,
 			Destination: &caPort,
 			Action: func(_ context.Context, _ *cli.Command, p int64) error {
 				if p < 1 || p > 65535 {
@@ -85,10 +88,12 @@ var caServeCmd = &cli.Command{
 	Action: func(ctx context.Context, _ *cli.Command) error {
 		cert, key, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error reading cert/key: %s", err), 1)
+			slog.ErrorContext(ctx, "error reading cert/key", "error", err)
+			return cli.Exit("Error reading cert/key", 1)
 		}
 		slog.DebugContext(
 			ctx, "loaded CA certificate and private key",
+			"subject", cert.Subject,
 			"notBefore", cert.NotBefore,
 			"notAfter", cert.NotAfter,
 		)
@@ -102,7 +107,8 @@ var caServeCmd = &cli.Command{
 
 		ca, err := tinyca.New(cert, key, nil)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error creating CA: %s", err), 1)
+			slog.ErrorContext(ctx, "error creating CA", "error", err)
+			return cli.Exit("Error creating CA", 1)
 		}
 		defer ca.Close()
 
@@ -124,8 +130,26 @@ var caServeCmd = &cli.Command{
 		slog.InfoContext(ctx, "starting server", "address", addr, "namespace", nss)
 
 		server := http.Server{Addr: addr, Handler: hdlr}
+
+		ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+		defer cancel()
+
+		go func() {
+			<-ctx.Done()
+
+			const serverShutdownTimeout = 1 * time.Second
+			ctx, cancel := context.WithTimeout(context.Background(), serverShutdownTimeout)
+			defer cancel()
+			slog.DebugContext(ctx, "shutting down server")
+			if err := server.Shutdown(ctx); err != nil {
+				slog.Error("error shutting down server", "error", err)
+			}
+			slog.InfoContext(ctx, "server shut down")
+		}()
+
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			return cli.Exit(fmt.Sprintf("Error starting server: %s", err), 1)
+			slog.ErrorContext(ctx, "error starting server", "error", err)
+			return cli.Exit("Error starting server", 1)
 		}
 
 		return nil
@@ -133,7 +157,8 @@ var caServeCmd = &cli.Command{
 }
 
 var caIssueCmd = &cli.Command{
-	Name: "issue",
+	Name:  "issue",
+	Usage: "Issues a certificate from the Certificate Authority key",
 	Flags: []cli.Flag{
 		caCertFlag,
 		caPrivKeyFlag,
@@ -146,18 +171,21 @@ var caIssueCmd = &cli.Command{
 	Action: func(ctx context.Context, _ *cli.Command) error {
 		caCert, caKey, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error reading cert/key: %s", err), 1)
+			slog.ErrorContext(ctx, "error reading cert/key", "error", err)
+			return cli.Exit("Error reading cert/key", 1)
 		}
 
 		ca, err := tinyca.New(caCert, caKey, nil)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error creating CA: %s", err), 1)
+			slog.ErrorContext(ctx, "error creating CA", "error", err)
+			return cli.Exit("Error creating CA", 1)
 		}
 		defer ca.Close()
 
 		clientKey, err := cafiles.GetPrivateKey(ctx, clientPrivKeyUri)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error reading client key: %s", err), 1)
+			slog.ErrorContext(ctx, "error reading client key", "error", err)
+			return cli.Exit("Error reading client key", 1)
 		}
 
 		csr, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
@@ -167,22 +195,26 @@ var caIssueCmd = &cli.Command{
 			},
 		}, clientKey)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error creating certificate request: %s", err), 1)
+			slog.ErrorContext(ctx, "error creating certificate request", "error", err)
+			return cli.Exit("Error creating certificate request", 1)
 		}
 
 		notBefore, notAfter, err := tinyca.ParseValidity(notBeforeTime, notAfterTime)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error parsing validity: %s", err), 1)
+			slog.ErrorContext(ctx, "error parsing validity", "error", err)
+			return cli.Exit("Error parsing validity", 1)
 		}
 
 		cert, err := ca.IssueCertificate(csr, notBefore, notAfter)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error issuing certificate: %s", err), 1)
+			slog.ErrorContext(ctx, "error issuing certificate", "error", err)
+			return cli.Exit("Error issuing certificate", 1)
 		}
 
 		out, err := getOutputWriter()
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error getting output writer: %s", err), 1)
+			slog.ErrorContext(ctx, "error getting output writer", "error", err)
+			return cli.Exit("Error getting output writer", 1)
 		}
 
 		block := &pem.Block{
@@ -190,8 +222,6 @@ var caIssueCmd = &cli.Command{
 			Bytes: cert,
 		}
 
-		fmt.Fprint(out, string(pem.EncodeToMemory(block)))
-
-		return nil
+		return pem.Encode(out, block)
 	},
 }

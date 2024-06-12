@@ -18,7 +18,7 @@ import (
 var newCmd = &cli.Command{
 	Name:    "new",
 	Aliases: []string{"n"},
-	Usage:   "Create a new Bifrost namespace, identity, or certificate authority",
+	Usage:   "Creates a new namespace, private key, or Certificate Authority certificate",
 	Commands: []*cli.Command{
 		{
 			Name:    "namespace",
