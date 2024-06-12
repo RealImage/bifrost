@@ -21,6 +21,7 @@ func main() {
 	cli := &cli.Command{
 		Name:    "bf",
 		Version: version,
+		Usage:   "Bifrost is an mTLS Certificate Authority and Identity Proxy",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "log-level",
@@ -35,12 +36,14 @@ func main() {
 		Commands: []*cli.Command{
 			caServeCmd,
 			caIssueCmd,
+			requestCmd,
 			idCmd,
 			proxyCmd,
 			newCmd,
 		},
 		DefaultCommand: "serve",
 	}
+
 	if err := cli.Run(context.Background(), os.Args); err != nil {
 		panic(err)
 	}

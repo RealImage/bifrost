@@ -15,6 +15,7 @@ import (
 var idCmd = &cli.Command{
 	Name:    "identity",
 	Aliases: []string{"id"},
+	Usage:   "Parses a bifrost UUID from a pem file",
 	Flags: []cli.Flag{
 		nsFlag,
 	},
