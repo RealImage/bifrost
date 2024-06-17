@@ -14,6 +14,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/RealImage/bifrost"
@@ -142,26 +143,33 @@ var proxyCmd = &cli.Command{
 			},
 		}
 
-		go func() {
-			<-ctx.Done()
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-			defer cancel()
-			if err := server.Shutdown(ctx); err != nil {
-				panic(err)
-			}
-			slog.InfoContext(ctx, "shutting down server")
-		}()
-
 		slog.InfoContext(ctx, "proxying requests",
 			"from", "https://"+addr,
 			"to", backendUrl,
 			"namespace", caCert.Namespace.String(),
 		)
 
-		if err := server.ListenAndServeTLS("", ""); err != nil &&
-			!errors.Is(err, http.ErrServerClosed) {
-			return cli.Exit(fmt.Sprintf("Error starting server: %s", err), 1)
+		go func() {
+			if err := server.ListenAndServeTLS("", ""); err != nil &&
+				!errors.Is(err, http.ErrServerClosed) {
+				slog.ErrorContext(ctx, "error starting server", "error", err)
+				os.Exit(1)
+			}
+		}()
+
+		ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+		defer cancel()
+
+		<-ctx.Done()
+
+		ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+
+		if err := server.Shutdown(ctx); err != nil {
+			return err
 		}
+		slog.InfoContext(ctx, "shut down server")
+
 		return nil
 	},
 }

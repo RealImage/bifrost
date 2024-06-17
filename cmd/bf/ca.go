@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	defaultCaHost = "localhost"
-	defaultCaPort = 8008
+	defaultCaHost         = "localhost"
+	defaultCaPort         = 8008
+	serverShutdownTimeout = 1 * time.Second
 )
 
 // caServeCmd flags
@@ -124,26 +125,26 @@ var caServeCmd = &cli.Command{
 
 		server := http.Server{Addr: addr, Handler: hdlr}
 
+		go func() {
+			if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				slog.ErrorContext(ctx, "error starting server", "error", err)
+				os.Exit(1)
+			}
+		}()
+
 		ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 		defer cancel()
 
-		go func() {
-			<-ctx.Done()
+		<-ctx.Done()
 
-			const serverShutdownTimeout = 1 * time.Second
-			ctx, cancel := context.WithTimeout(context.Background(), serverShutdownTimeout)
-			defer cancel()
-			slog.DebugContext(ctx, "shutting down server")
-			if err := server.Shutdown(ctx); err != nil {
-				slog.Error("error shutting down server", "error", err)
-			}
-			slog.InfoContext(ctx, "server shut down")
-		}()
+		ctx, cancel = context.WithTimeout(context.Background(), serverShutdownTimeout)
+		defer cancel()
 
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.ErrorContext(ctx, "error starting server", "error", err)
-			return cli.Exit("Error starting server", 1)
+		slog.DebugContext(ctx, "shutting down server")
+		if err := server.Shutdown(ctx); err != nil {
+			return err
 		}
+		slog.InfoContext(ctx, "server shut down")
 
 		return nil
 	},
