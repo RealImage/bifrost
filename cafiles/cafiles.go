@@ -25,8 +25,9 @@ import (
 func GetCertificate(ctx context.Context, uri string) (*bifrost.Certificate, error) {
 	certPem, err := getPemFile(ctx, uri)
 	if err != nil {
-		return nil, fmt.Errorf("error getting file %s: %w", uri, err)
+		return nil, err
 	}
+
 	block, _ := pem.Decode(certPem)
 	if block == nil {
 		return nil, fmt.Errorf("expected PEM block")
@@ -67,12 +68,15 @@ func getPemFile(ctx context.Context, uri string) ([]byte, error) {
 	switch s := url.Scheme; s {
 	case "s3":
 		pemData, err = getS3Key(ctx, url.Host, url.Path[1:])
+	case "", "file":
+		pemData, err = os.ReadFile(url.Path)
 	case "arn":
 		// s3 and secretsmanager arns are supported
 		parsedArn, err := arn.Parse(uri)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing arn %w", err)
 		}
+
 		switch svc := parsedArn.Service; svc {
 		case "s3":
 			pemData, err = getS3Key(ctx, url.Host, url.Path[1:])
@@ -81,16 +85,16 @@ func getPemFile(ctx context.Context, uri string) ([]byte, error) {
 		default:
 			return nil, fmt.Errorf("cannot load pem file from %s", svc)
 		}
+
 		if err != nil {
-			return nil, fmt.Errorf("error fetching pem file: %w", err)
+			return nil, err
 		}
-	case "", "file":
-		pemData, err = os.ReadFile(url.Path)
 	default:
 		return nil, fmt.Errorf("unsupported uri scheme %s", s)
 	}
+
 	if err != nil {
-		return nil, fmt.Errorf("error fetching pem file: %w", err)
+		return nil, err
 	}
 
 	return pemData, nil
