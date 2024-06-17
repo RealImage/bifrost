@@ -98,13 +98,6 @@ var caServeCmd = &cli.Command{
 			"notAfter", cert.NotAfter,
 		)
 
-		mux := http.NewServeMux()
-
-		if exposeMetrics {
-			slog.InfoContext(ctx, "metrics enabled")
-			mux.HandleFunc("GET /metrics", webapp.MetricsHandler)
-		}
-
 		ca, err := tinyca.New(cert, key, nil)
 		if err != nil {
 			slog.ErrorContext(ctx, "error creating CA", "error", err)
@@ -112,12 +105,12 @@ var caServeCmd = &cli.Command{
 		}
 		defer ca.Close()
 
-		mux.Handle("POST /issue", ca)
+		mux := ca.ServeMux()
 
-		nss := cert.Namespace.String()
-		mux.HandleFunc("GET /namespace", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprint(w, nss)
-		})
+		if exposeMetrics {
+			slog.InfoContext(ctx, "metrics enabled")
+			mux.HandleFunc("GET /metrics", webapp.MetricsHandler)
+		}
 
 		if webEnabled {
 			slog.InfoContext(ctx, "web interface enabled", "staticPath", webStaticPath)
@@ -127,7 +120,7 @@ var caServeCmd = &cli.Command{
 		hdlr := webapp.RequestLogger(mux)
 
 		addr := fmt.Sprintf("%s:%d", caHost, caPort)
-		slog.InfoContext(ctx, "starting server", "address", addr, "namespace", nss)
+		slog.InfoContext(ctx, "starting server", "address", addr, "namespace", cert.Namespace)
 
 		server := http.Server{Addr: addr, Handler: hdlr}
 
