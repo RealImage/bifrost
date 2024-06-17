@@ -36,15 +36,20 @@ var idCmd = &cli.Command{
 
 		id, err := bifrost.ParseIdentity(data)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error parsing file: %s", err), 1)
+			slog.ErrorContext(ctx, "error parsing id file", "error", err)
+			return cli.Exit("Error parsing file", 1)
 		}
 
 		if id.Namespace == uuid.Nil && namespace == uuid.Nil {
-			return cli.Exit("Error: Namespace is required", 1)
+			return cli.Exit("Namespace is required", 1)
 		}
+
+		// Either we got a namespace from the file or the namespace flag is set
 		if id.Namespace != uuid.Nil && namespace != uuid.Nil && id.Namespace != namespace {
-			return cli.Exit("Error: Namespace mismatch", 1)
+			slog.ErrorContext(ctx, "namespace mismatch", "file", id.Namespace, "flag", namespace)
+			return cli.Exit("Namespace mismatch", 1)
 		}
+
 		if namespace != uuid.Nil {
 			id.Namespace = namespace
 		}

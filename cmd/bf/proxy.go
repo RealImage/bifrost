@@ -84,15 +84,18 @@ var proxyCmd = &cli.Command{
 	Action: func(ctx context.Context, _ *cli.Command) error {
 		caCert, caKey, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error reading cert/key: %s", err), 1)
+			slog.ErrorContext(ctx, "error reading cert/key", "error", err)
+			return cli.Exit("Error reading certificate/private key", 1)
 		}
 
+		// Create a client certificate pool and add the CA certificate.
 		clientCertPool := x509.NewCertPool()
 		clientCertPool.AddCert(caCert.Certificate)
 
 		burl, err := url.Parse(backendUrl)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error parsing backend URL: %s", err), 1)
+			slog.ErrorContext(ctx, "error parsing backend url", "error", err)
+			return cli.Exit("Error parsing backend URL", 1)
 		}
 		reverseProxy := &httputil.ReverseProxy{
 			Rewrite: func(r *httputil.ProxyRequest) {
@@ -103,12 +106,11 @@ var proxyCmd = &cli.Command{
 
 		var ssllog *os.File
 		if sslLogfile != "" {
-			ssllog, err = os.OpenFile(
+			if ssllog, err = os.OpenFile(
 				sslLogfile,
 				os.O_WRONLY|os.O_CREATE|os.O_APPEND,
 				0o600,
-			)
-			if err != nil {
+			); err != nil {
 				return err
 			}
 			defer ssllog.Close()
@@ -120,16 +122,20 @@ var proxyCmd = &cli.Command{
 		addr := fmt.Sprintf("%s:%d", proxyHost, proxyPort)
 		serverKey, err := bifrost.NewPrivateKey()
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error creating server key: %s", err), 1)
+			slog.ErrorContext(ctx, "error creating key", "error", err)
+			return cli.Exit("Error creating server key", 1)
 		}
+
 		serverCert, err := issueTLSCert(caCert, caKey, serverKey)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error creating server certificate: %s", err), 1)
+			slog.ErrorContext(ctx, "error creating certificate", "error", err)
+			return cli.Exit("Error creating server certificate", 1)
 		}
 
 		tlsCert, err := serverCert.ToTLSCertificate(*serverKey)
 		if err != nil {
-			return cli.Exit(fmt.Sprintf("Error converting server certificate: %s", err), 1)
+			slog.ErrorContext(ctx, "error converting certificate", "error", err)
+			return cli.Exit("Certificate error", 1)
 		}
 
 		server := http.Server{
