@@ -6,6 +6,8 @@ A simple mTLS authentication toolkit.
 
 [![CI 🏗](https://github.com/RealImage/bifrost/actions/workflows/ci.yml/badge.svg)](https://github.com/RealImage/bifrost/actions/workflows/ci.yml)
 
+Read an [introduction](https://coredump.blog/posts/bifrost/) to Bifrost.
+
 Bifrost consists of a Certificate Authority (CA) server that issues X.509 certificates,
 a Go package to fetch such certificates, and a Go package with HTTP middleware
 to identify and authenticate clients using such TLS certificates in requests.
