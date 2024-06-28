@@ -205,11 +205,12 @@ var caIssueCmd = &cli.Command{
 			return cli.Exit("Error issuing certificate", 1)
 		}
 
-		out, err := getOutputWriter()
+		out, cls, err := getOutputWriter()
 		if err != nil {
 			slog.ErrorContext(ctx, "error getting output writer", "error", err)
 			return cli.Exit("Error getting output writer", 1)
 		}
+		defer cls()
 
 		block := &pem.Block{
 			Type:  "CERTIFICATE",

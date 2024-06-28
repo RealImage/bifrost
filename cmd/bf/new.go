@@ -28,12 +28,14 @@ var newCmd = &cli.Command{
 				outputFlag,
 			},
 			Action: func(_ context.Context, _ *cli.Command) error {
-				out, err := getOutputWriter()
+				out, cls, err := getOutputWriter()
 				if err != nil {
 					return err
 				}
-				fmt.Fprintln(out, uuid.New())
-				return nil
+				defer cls()
+
+				_, err = out.Write([]byte(uuid.New().String() + "\n"))
+				return err
 			},
 		},
 		{
@@ -48,16 +50,20 @@ var newCmd = &cli.Command{
 				if err != nil {
 					return err
 				}
+
 				keyText, err := key.MarshalText()
 				if err != nil {
 					return err
 				}
-				out, err := getOutputWriter()
+
+				out, cls, err := getOutputWriter()
 				if err != nil {
 					return err
 				}
-				fmt.Fprint(out, string(keyText))
-				return nil
+				defer cls()
+
+				_, err = out.Write(keyText)
+				return err
 			},
 		},
 		{
@@ -89,18 +95,18 @@ var newCmd = &cli.Command{
 					return err
 				}
 
-				out, err := getOutputWriter()
+				out, cls, err := getOutputWriter()
 				if err != nil {
 					return err
 				}
+				defer cls()
 
 				block := &pem.Block{
 					Type:  "CERTIFICATE REQUEST",
 					Bytes: csr,
 				}
-				fmt.Fprint(out, string(pem.EncodeToMemory(block)))
-
-				return nil
+				_, err = out.Write(pem.EncodeToMemory(block))
+				return err
 			},
 		},
 		{
@@ -148,18 +154,19 @@ var newCmd = &cli.Command{
 					return err
 				}
 
-				out, err := getOutputWriter()
+				out, cls, err := getOutputWriter()
 				if err != nil {
 					return err
 				}
+				defer cls()
 
 				block := &pem.Block{
 					Type:  "CERTIFICATE",
 					Bytes: certDer,
 				}
-				fmt.Fprint(out, string(pem.EncodeToMemory(block)))
 
-				return nil
+				_, err = out.Write(pem.EncodeToMemory(block))
+				return err
 			},
 		},
 	},
