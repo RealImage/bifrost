@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
+	"crypto/x509"
 	"fmt"
 	"io"
 
 	"github.com/RealImage/bifrost"
+	"github.com/RealImage/bifrost/cafiles"
 	"github.com/google/uuid"
 )
 
@@ -16,12 +19,20 @@ func main() {
 		panic(err)
 	}
 
-	client, err := bifrost.HTTPClient("http://127.0.0.1:8008", namespace, key, nil, nil)
+	cert, err := cafiles.GetCertificate(context.Background(), "cert.pem")
 	if err != nil {
 		panic(err)
 	}
 
-	resp, err := client.Get("https://127.0.0.1:8443")
+	pool := x509.NewCertPool()
+	pool.AddCert(cert.Certificate)
+
+	client, err := bifrost.HTTPClient("http://127.0.0.1:8008", namespace, key, pool, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	resp, err := client.Get("https://localhost:8443")
 	if err != nil {
 		panic(err)
 	}
