@@ -210,7 +210,11 @@ var caIssueCmd = &cli.Command{
 			slog.ErrorContext(ctx, "error getting output writer", "error", err)
 			return cli.Exit("Error getting output writer", 1)
 		}
-		defer cls()
+		defer func() {
+			if err := cls(); err != nil {
+				slog.ErrorContext(ctx, "error closing output writer", "error", err)
+			}
+		}()
 
 		block := &pem.Block{
 			Type:  "CERTIFICATE",

@@ -7,6 +7,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"log/slog"
 
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/cafiles"
@@ -27,12 +28,16 @@ var newCmd = &cli.Command{
 			Flags: []cli.Flag{
 				outputFlag,
 			},
-			Action: func(_ context.Context, _ *cli.Command) error {
+			Action: func(ctx context.Context, _ *cli.Command) error {
 				out, cls, err := getOutputWriter()
 				if err != nil {
 					return err
 				}
-				defer cls()
+				defer func() {
+					if err := cls(); err != nil {
+						slog.ErrorContext(ctx, "error closing output writer", "error", err)
+					}
+				}()
 
 				_, err = out.Write([]byte(uuid.New().String() + "\n"))
 				return err
@@ -45,7 +50,7 @@ var newCmd = &cli.Command{
 			Flags: []cli.Flag{
 				outputFlag,
 			},
-			Action: func(_ context.Context, _ *cli.Command) error {
+			Action: func(ctx context.Context, _ *cli.Command) error {
 				key, err := bifrost.NewPrivateKey()
 				if err != nil {
 					return err
@@ -60,7 +65,11 @@ var newCmd = &cli.Command{
 				if err != nil {
 					return err
 				}
-				defer cls()
+				defer func() {
+					if err := cls(); err != nil {
+						slog.ErrorContext(ctx, "error closing output writer", "error", err)
+					}
+				}()
 
 				_, err = out.Write(keyText)
 				return err
@@ -99,7 +108,11 @@ var newCmd = &cli.Command{
 				if err != nil {
 					return err
 				}
-				defer cls()
+				defer func() {
+					if err := cls(); err != nil {
+						slog.ErrorContext(ctx, "error closing output writer", "error", err)
+					}
+				}()
 
 				block := &pem.Block{
 					Type:  "CERTIFICATE REQUEST",
@@ -158,7 +171,11 @@ var newCmd = &cli.Command{
 				if err != nil {
 					return err
 				}
-				defer cls()
+				defer func() {
+					if err := cls(); err != nil {
+						slog.ErrorContext(ctx, "error closing output writer", "error", err)
+					}
+				}()
 
 				block := &pem.Block{
 					Type:  "CERTIFICATE",

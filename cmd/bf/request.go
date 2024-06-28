@@ -61,7 +61,11 @@ var requestCmd = &cli.Command{
 			slog.ErrorContext(ctx, "error opening output file", "error", err)
 			return cli.Exit("Failed to open output file", 1)
 		}
-		defer cls()
+		defer func() {
+			if err := cls(); err != nil {
+				slog.ErrorContext(ctx, "error closing output writer", "error", err)
+			}
+		}()
 
 		if err := pem.Encode(out, block); err != nil {
 			slog.ErrorContext(ctx, "error writing certificate", "error", err)
