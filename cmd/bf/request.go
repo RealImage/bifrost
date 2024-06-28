@@ -56,11 +56,12 @@ var requestCmd = &cli.Command{
 			Bytes: cert.Raw,
 		}
 
-		out, err := getOutputWriter()
+		out, cls, err := getOutputWriter()
 		if err != nil {
 			slog.ErrorContext(ctx, "error opening output file", "error", err)
 			return cli.Exit("Failed to open output file", 1)
 		}
+		defer cls()
 
 		if err := pem.Encode(out, block); err != nil {
 			slog.ErrorContext(ctx, "error writing certificate", "error", err)

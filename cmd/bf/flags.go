@@ -84,9 +84,11 @@ var (
 	}
 )
 
-func getOutputWriter() (io.Writer, error) {
+func getOutputWriter() (io.WriteCloser, func() error, error) {
 	if outputFile == "" || outputFile == "-" {
-		return os.Stdout, nil
+		return os.Stdout, func() error { return nil }, nil
 	}
-	return os.Create(outputFile)
+
+	f, err := os.Create(outputFile)
+	return f, f.Close, err
 }
