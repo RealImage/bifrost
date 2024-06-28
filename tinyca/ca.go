@@ -231,7 +231,6 @@ func (ca *CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([
 	template.Issuer = ca.cert.Issuer
 	template.Subject.Organization = []string{ca.cert.Namespace.String()}
 	template.Subject.CommonName = csr.PublicKey.UUID(ca.cert.Namespace).String()
-	template.BasicConstraintsValid = true
 
 	certBytes, err := x509.CreateCertificate(
 		rand.Reader,
@@ -256,9 +255,7 @@ func (ca *CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([
 // Close releases resources held by the CA.
 // Multiple calls to Close are safe.
 func (ca *CA) Close() error {
-	ca.gh.wg.Wait()
-
-	return nil
+	return ca.gh.Close()
 }
 
 func readCsr(contentType string, body []byte) ([]byte, error) {

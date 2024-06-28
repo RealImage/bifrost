@@ -119,7 +119,6 @@ var proxyCmd = &cli.Command{
 		hf := asgard.Hofund(asgard.HeaderNameClientCertLeaf, caCert.Namespace)
 		hdlr := webapp.RequestLogger(hf(reverseProxy))
 
-		addr := fmt.Sprintf("%s:%d", proxyHost, proxyPort)
 		serverKey, err := bifrost.NewPrivateKey()
 		if err != nil {
 			slog.ErrorContext(ctx, "error creating key", "error", err)
@@ -138,6 +137,7 @@ var proxyCmd = &cli.Command{
 			return cli.Exit("Certificate error", 1)
 		}
 
+		addr := fmt.Sprintf("%s:%d", proxyHost, proxyPort)
 		server := http.Server{
 			Handler: hdlr,
 			Addr:    addr,

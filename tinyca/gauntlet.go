@@ -14,6 +14,27 @@ import (
 	"github.com/google/uuid"
 )
 
+// GauntletTimeout is the maximum time the CA Gauntlet function is allowed to run.
+const GauntletTimeout = 100 * time.Millisecond
+
+// Gauntlet is the signature for a function that validates a certificate request.
+// If the second return value is non-nil, then the certificate request is denied.
+// If the first return value is nil, the default template TLSClientCertTemplate will be used.
+// If the function exceeds GauntletTimeout, ctx will be cancelled and the
+// request will be denied with an error.
+// The template will be used to issue a client certificate.
+// Consult the x509 package for the full list of fields that can be set.
+// tinyca will overwrite the following template fields:
+//   - NotBefore
+//   - NotAfter
+//   - SignatureAlgorithm
+//   - Issuer
+//   - Subject.Organization
+//   - Subject.CommonName
+//
+// If SerialNumber is nil, a random value will be generated.
+type Gauntlet func(ctx context.Context, csr *bifrost.CertificateRequest) (tmpl *x509.Certificate, err error)
+
 type gauntletHolder struct {
 	Gauntlet
 
@@ -27,7 +48,7 @@ type gauntletHolder struct {
 
 func newGauntletHolder(g Gauntlet, ns uuid.UUID) *gauntletHolder {
 	if g == nil {
-		return &gauntletHolder{wg: new(sync.WaitGroup)}
+		return &gauntletHolder{}
 	}
 
 	denied := bfMetricName("gauntlet_denied_total", ns)
@@ -99,4 +120,12 @@ func (gh *gauntletHolder) throw(csr *bifrost.CertificateRequest) (*x509.Certific
 	case tmpl := <-result:
 		return tmpl, nil
 	}
+}
+
+func (gh *gauntletHolder) Close() error {
+	if gh.wg != nil {
+		gh.wg.Wait()
+	}
+
+	return nil
 }
