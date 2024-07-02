@@ -174,17 +174,17 @@ func (ca *CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ServeMux returns an http.ServeMux with the CA's HTTP handler registered at "POST /issue".
-// The ServeMux also provides a "GET /namespace" endpoint that returns the namespace of the CA.
-func (ca *CA) ServeMux() *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.Handle("POST /issue", ca)
+// AddRoutes adds the CA's HTTP handlers to the provided ServeMux.
+// The CA's HTTP handlers are:
+// - GET /namespace: returns the namespace of the CA.
+// - POST /issue: issues a certificate.
+func (ca *CA) AddRoutes(mux *http.ServeMux) {
 	nss := ca.cert.Namespace.String()
 	mux.HandleFunc("GET /namespace", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		fmt.Fprintln(w, nss)
 	})
-	return mux
+	mux.Handle("POST /issue", ca)
 }
 
 // IssueCertificate issues a client certificate for a valid certificate request parsed from asn1CSR.

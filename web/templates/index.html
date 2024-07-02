@@ -1,77 +1,54 @@
 <!doctype html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Bifrost Certificate Issuer</title>
 
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="manifest" href="/site.webmanifest" />
-    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5" />
-    <meta name="msapplication-TileColor" content="#603cba" />
-    <meta name="theme-color" content="#ffffff" />
+<head>
+  <meta charset="utf-8" />
+  <title>Bifrost Certificate Issuer</title>
 
-    <link rel="stylesheet" href="/index.css" />
-    <script defer src="/index.js"></script>
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5" />
+  <meta name="msapplication-TileColor" content="#603cba" />
+  <meta name="theme-color" content="#ffffff" />
 
-    <script type="x-tmpl-mustache" id="template-id-card">
-      <article class="card" id="id-{{`{{ uuid }}`}}">
-        <header>
-          <strong>{{`{{ uuid }}`}}</strong>
-          <button class="button">Download Private key</button>
-        </header>
-        <details>
-          <summary>Certificate Request</summary>
-          <peculiar-csr-viewer certificate="{{`{{ csrPem }}`}}" download="true"></peculiar-csr-viewer>
-        </details>
-        <section class="certificates">
-          <h4>Certificates</h4>
-        </section>
-        <footer>
-          <button class="button" hx-post="/issue" hx-target="#id-{{`{{ uuid }}`}}>.certificates" hx-swap="beforeend">
-            Request Certificate
-          </button>
-        </footer>
-      </article>
-    </script>
-  </head>
+  <link rel="stylesheet" href="/index.css" />
+  <script defer src="/index.js"></script>
 
-  <body>
-    <nav class="nav">
-      <div class="nav-left">
-        <a class="brand"><img src="/bifrost.webp" alt="Bifrost" />Bifrost</a>
-      </div>
-      <div class="nav-right">
-        <a>
-          <p>
-            <span>Namespace </span>
-            <strong class="text-primary">{{ .ns }}</strong>
-          </p>
-        </a>
-      </div>
-    </nav>
-    <header class="container">
-      <hgroup>
-        <h1>Certificate Issuer</h1>
-        <p>Hot off the presses!</p>
-      </hgroup>
-    </header>
-    <main class="container">
-      <section>
-        <h2>Keys</h2>
-        <button
-          class="button bg-primary text-white"
-          _="on click call alert('hello')"
-        >
-          Generate Key
-        </button>
-        <button class="button bg-dark text-white">Forget Keys</button>
-      </section>
-      <section>
-        <h2>Identities</h2>
-        <div class="row" id="identities"></div>
-      </section>
-    </main>
-  </body>
+<body>
+  <nav class="nav">
+    <div class="nav-left">
+      <a class="brand"><img src="/bifrost.webp" alt="Bifrost" />Bifrost</a>
+    </div>
+    <div class="nav-right">
+      <a>
+        <p>
+          <span>Namespace </span>
+          <strong class="text-primary">{{ .ns }}</strong>
+        </p>
+      </a>
+    </div>
+  </nav>
+  <header class="container">
+    <hgroup>
+      <h1>Certificate Issuer</h1>
+      <p>Hot off the presses!</p>
+    </hgroup>
+  </header>
+  <main class="container">
+    <section>
+      <h2>Keys</h2>
+      <button id="generate-key" class="button bg-primary text-white">
+        Generate Key
+      </button>
+      <button id="forget-keys" class="button bg-dark text-white">Forget Keys</button>
+    </section>
+    <section>
+      <h2>Identities</h2>
+      <div class="row" id="identities"></div>
+    </section>
+  </main>
+</body>
+
 </html>

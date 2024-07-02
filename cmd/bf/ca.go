@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 
 	"github.com/RealImage/bifrost/cafiles"
@@ -30,7 +31,6 @@ const (
 var (
 	caHost        string
 	caPort        int64
-	webEnabled    bool
 	webStaticPath string
 	exposeMetrics bool
 )
@@ -64,19 +64,18 @@ var caServeCmd = &cli.Command{
 				return nil
 			},
 		},
-		&cli.BoolFlag{
-			Name:        "web",
-			Usage:       "enable web interface",
-			Aliases:     []string{"w"},
-			Sources:     cli.EnvVars("WEB"),
-			Destination: &webEnabled,
-		},
 		&cli.StringFlag{
-			Name:        "web-static-path",
-			Usage:       "read web static files from `PATH`",
-			Sources:     cli.EnvVars("WEB_STATIC_PATH"),
-			Value:       "embed",
-			Destination: &webStaticPath,
+			Name:    "web",
+			Usage:   "enable web interface",
+			Aliases: []string{"w"},
+			Sources: cli.EnvVars("WEB"),
+			Action: func(_ context.Context, _ *cli.Command, w string) error {
+				if ok, err := strconv.ParseBool(w); w == "" || (ok && err == nil) {
+					w = "embed"
+				}
+				webStaticPath = w
+				return nil
+			},
 		},
 		&cli.BoolFlag{
 			Name:        "metrics",
@@ -106,14 +105,15 @@ var caServeCmd = &cli.Command{
 		}
 		defer ca.Close()
 
-		mux := ca.ServeMux()
+		mux := http.NewServeMux()
+		ca.AddRoutes(mux)
 
 		if exposeMetrics {
 			slog.InfoContext(ctx, "metrics enabled")
 			mux.HandleFunc("GET /metrics", webapp.MetricsHandler)
 		}
 
-		if webEnabled {
+		if webStaticPath != "" {
 			slog.InfoContext(ctx, "web interface enabled", "staticPath", webStaticPath)
 			webapp.AddRoutes(mux, webStaticPath, cert.Namespace)
 		}

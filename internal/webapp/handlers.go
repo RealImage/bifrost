@@ -1,6 +1,7 @@
 package webapp
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/RealImage/bifrost"
@@ -8,9 +9,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// AddRoutes adds web routes to the given mux.
-// If localStaticFiles is true, the webapp will serve static files from the
-// local filesystem. Otherwise, it will serve them from the embedded filesystem.
+// AddRoutes adds the webapp routes to the provided ServeMux.
+// The staticFilesPath can be a directory path or "embed" to use the embedded static files.
+// The webapp HTTP handlers are:
+// - GET /namespace.js: returns the namespace as a JavaScript module.
+// - GET /: returns the index page.
+// - GET /*: returns static files.
 func AddRoutes(mux *http.ServeMux, staticFilesPath string, ns uuid.UUID) {
 	index := Index(ns)
 	var static http.Handler
@@ -19,7 +23,16 @@ func AddRoutes(mux *http.ServeMux, staticFilesPath string, ns uuid.UUID) {
 	} else {
 		static = http.FileServer(http.Dir(staticFilesPath))
 	}
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+
+	nsJS := "export default '" + ns.String() + "';"
+	mux.HandleFunc("GET /namespace.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(HeaderNameContentType, MimeTypeJavascript)
+		if _, err := w.Write([]byte(nsJS)); err != nil {
+			slog.Error("error writing namespace.js", "error", err)
+		}
+	})
+
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			index.ServeHTTP(w, r)
 		} else {

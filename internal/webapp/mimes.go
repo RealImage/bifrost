@@ -10,6 +10,7 @@ import (
 const (
 	MimeTypeTextCharset = "text/plain; charset=utf-8"
 	MimeTypeHtmlCharset = "text/html; charset=utf-8"
+	MimeTypeJavascript  = "application/javascript"
 	MimeTypeText        = "text/plain"
 	MimeTypeBytes       = "application/octet-stream"
 	MimeTypeHtml        = "text/html"
