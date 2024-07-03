@@ -31,7 +31,7 @@ const (
 var (
 	caHost        string
 	caPort        int64
-	webStaticPath string
+	enableCORS    bool
 	exposeMetrics bool
 )
 
@@ -65,6 +65,13 @@ var caServeCmd = &cli.Command{
 			},
 		},
 		&cli.BoolFlag{
+			Name:        "cors",
+			Usage:       "enable CORS from all origins",
+			Sources:     cli.EnvVars("CORS"),
+			Value:       false,
+			Destination: &enableCORS,
+		},
+		&cli.BoolFlag{
 			Name:        "metrics",
 			Usage:       "expose Prometheus metrics",
 			Sources:     cli.EnvVars("METRICS"),
@@ -94,6 +101,8 @@ var caServeCmd = &cli.Command{
 
 		mux := http.NewServeMux()
 		ca.AddRoutes(mux)
+
+		// TODO: CORS middleware
 
 		if exposeMetrics {
 			slog.InfoContext(ctx, "metrics enabled")
