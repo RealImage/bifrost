@@ -12,9 +12,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"time"
 
+	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/cafiles"
 	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/RealImage/bifrost/tinyca"
@@ -64,19 +64,6 @@ var caServeCmd = &cli.Command{
 				return nil
 			},
 		},
-		&cli.StringFlag{
-			Name:    "web",
-			Usage:   "enable web interface",
-			Aliases: []string{"w"},
-			Sources: cli.EnvVars("WEB"),
-			Action: func(_ context.Context, _ *cli.Command, w string) error {
-				if ok, err := strconv.ParseBool(w); w == "" || (ok && err == nil) {
-					w = "embed"
-				}
-				webStaticPath = w
-				return nil
-			},
-		},
 		&cli.BoolFlag{
 			Name:        "metrics",
 			Usage:       "expose Prometheus metrics",
@@ -110,12 +97,9 @@ var caServeCmd = &cli.Command{
 
 		if exposeMetrics {
 			slog.InfoContext(ctx, "metrics enabled")
-			mux.HandleFunc("GET /metrics", webapp.MetricsHandler)
-		}
-
-		if webStaticPath != "" {
-			slog.InfoContext(ctx, "web interface enabled", "staticPath", webStaticPath)
-			webapp.AddRoutes(mux, webStaticPath, cert.Namespace)
+			mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
+				bifrost.StatsForNerds.WritePrometheus(w)
+			})
 		}
 
 		hdlr := webapp.RequestLogger(mux)

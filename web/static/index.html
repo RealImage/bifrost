@@ -25,7 +25,7 @@
       <a>
         <p>
           <span>Namespace </span>
-          <strong class="text-primary">{{ .ns }}</strong>
+          <strong id="namespace" class="text-primary"></strong>
         </p>
       </a>
     </div>
@@ -39,14 +39,14 @@
   <main class="container">
     <section>
       <h2>Keys</h2>
-      <button id="generate-key" class="button bg-primary text-white">
+      <button id="generate-key" class="button primary">
         Generate Key
       </button>
-      <button id="forget-keys" class="button bg-dark text-white">Forget Keys</button>
+      <button id="forget-keys" class="button error">Forget Keys</button>
     </section>
     <section>
       <h2>Identities</h2>
-      <div class="row" id="identities"></div>
+      <div id="identities"></div>
     </section>
   </main>
 </body>

@@ -9,19 +9,16 @@ import (
 
 const (
 	MimeTypeTextCharset = "text/plain; charset=utf-8"
-	MimeTypeHtmlCharset = "text/html; charset=utf-8"
-	MimeTypeJavascript  = "application/javascript"
 	MimeTypeText        = "text/plain"
 	MimeTypeBytes       = "application/octet-stream"
-	MimeTypeHtml        = "text/html"
 	MimeTypeAll         = "*/*"
 
 	HeaderNameAccept      = "accept"
 	HeaderNameContentType = "content-type"
-	HeaderNameHXRequest   = "hx-request"
 )
 
-// GetContentType returns the mime type and the parameters from the given content type.
+// GetContentType returns the content type and parameters from the header.
+// If the content type is not set, the defaultType is returned.
 func GetContentType(h http.Header, defaultType string) (string, map[string]string, error) {
 	contentType := h.Get(HeaderNameContentType)
 	if contentType == "" {
@@ -30,18 +27,24 @@ func GetContentType(h http.Header, defaultType string) (string, map[string]strin
 	return mime.ParseMediaType(contentType)
 }
 
-// GetResponseMimeType returns the mime type to be used for the response.
+// GetResponseMimeType returns the response content type based on the Accept header.
+// If the Accept header is not set, the defaultType is returned.
+// If the Accept header is set, the response content type is negotiated based on the mimeTypes.
 func GetResponseMimeType(h http.Header, defaultType string, mimeTypes ...string) (string, error) {
-	if h.Get(HeaderNameHXRequest) == "true" {
-		return MimeTypeHtmlCharset, nil
-	}
 	a := h.Get(HeaderNameAccept)
 	if a == "" {
 		return defaultType, nil
 	}
+
+	mimeTypes = append([]string{defaultType}, mimeTypes...)
 	respType, err := accept.Negotiate(a, mimeTypes...)
 	if err != nil {
 		return "", err
 	}
+
+	if respType == "" {
+		return defaultType, nil
+	}
+
 	return respType, nil
 }

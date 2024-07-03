@@ -5,9 +5,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "bundle": "esbuild index.js index.css --bundle --outdir=static --external:./namespace.js",
-    "build": "npm run bundle -- --minify",
-    "dev": "npm run bundle -- --watch"
+    "build": "node ./build.js",
+    "dev": "npm run build -- --serve"
   },
   "repository": {
     "type": "git",
@@ -27,7 +26,8 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "esbuild": "^0.19.5"
+    "esbuild": "^0.19.5",
+    "esbuild-plugin-elm": "^0.0.12"
   },
   "engine": {
     "node": ">=20.0.0"

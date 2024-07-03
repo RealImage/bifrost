@@ -25,7 +25,6 @@ import (
 
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/webapp"
-	"github.com/RealImage/bifrost/web"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/google/uuid"
 )
@@ -145,7 +144,6 @@ func (ca *CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		contentType,
 		webapp.MimeTypeText,
 		webapp.MimeTypeBytes,
-		webapp.MimeTypeHtml,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -159,11 +157,6 @@ func (ca *CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case webapp.MimeTypeBytes:
 		w.Header().Set(webapp.HeaderNameContentType, webapp.MimeTypeBytes)
 		_, err = w.Write(cert)
-	case webapp.MimeTypeHtml:
-		w.Header().Set(webapp.HeaderNameContentType, webapp.MimeTypeHtmlCharset)
-		certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert})
-		data := map[string]any{"certPem": string(certPem)}
-		err = web.Templates.ExecuteTemplate(w, "certificate.html", data)
 	default:
 		msg := fmt.Sprintf("media type %s unacceptable", responseType)
 		http.Error(w, msg, http.StatusNotAcceptable)
@@ -182,7 +175,9 @@ func (ca *CA) AddRoutes(mux *http.ServeMux) {
 	nss := ca.cert.Namespace.String()
 	mux.HandleFunc("GET /namespace", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintln(w, nss)
+		if _, err := w.Write([]byte(nss)); err != nil {
+			slog.Error("error writing namespace", "err", err)
+		}
 	})
 	mux.Handle("POST /issue", ca)
 }

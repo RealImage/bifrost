@@ -12,6 +12,17 @@ const hashAlg = "SHA-256";
 const signAlg = "ECDSA";
 
 /**
+ * @returns {Promise<string>}
+ * @example
+ * const namespace = await getNamespace()
+ *
+ */
+export async function getNamespace() {
+  const response = await fetch("/namespace");
+  return await response.text();
+}
+
+/**
  * @returns {Promise<CryptoKeyPair>}
  * @example
  * const keyPair = await generateKey()
@@ -29,31 +40,41 @@ export async function generateKey() {
 }
 
 /**
- * @returns {Promise<string>}
- * @example
- * const keyPem = await generateKey(keyPair)
- *
+ * @typedef {("pem"|"der")} OutputFormat
  */
-export async function exportKey(keyPair) {
+
+/**
+ * @param {CryptoKeyPair} keyPair
+ * @param {OutputFormat} [format="pem"]
+ * @returns {Promise<(string|ArrayBuffer)>}
+ * @example
+ * const keyPem = await generateKey(keyPair, 'pem')
+ * const keyDer = await generateKey(keyPair, 'der')
+ */
+export async function exportKey(keyPair, format = "pem") {
   const crypto = getWebCrypto();
-  return `-----BEGIN PRIVATE KEY-----\n${formatPEM(
-    toBase64(
-      arrayBufferToString(
-        await crypto.exportKey("pkcs8", keyPair.privateKey),
-      ),
-    ),
-  )}\n-----END PRIVATE KEY-----`
+  const key = await crypto.exportKey("pkcs8", keyPair.privateKey);
+
+  switch (format) {
+    case "der":
+      return key;
+    case "pem":
+      return formatPEM("PRIVATE KEY", key);
+    default:
+      throw new Error("invalid format");
+  }
 }
 
 /**
  * @param {string} namespace
  * @param {CryptoKeyPair} keyPair
- * @returns {Promise<string>}
+ * @param {OutputFormat} [format="pem"]
+ * @returns {Promise<(string|ArrayBuffer)>}
  * @example
  * const csrPem = await createCsr('ba64ca66-4f02-431d-8f31-e8ea8d0e8011', keyPair)
- *
+ * const csrDer = await createCsr('ba64ca66-4f02-431d-8f31-e8ea8d0e8011', keyPair, 'der')
  */
-export async function createCsr(namespace, keyPair) {
+export async function createCsr(namespace, keyPair, format = "pem") {
   const id = await bifrostId(namespace, keyPair.publicKey);
 
   const pkcs10 = new CertificationRequest();
@@ -78,11 +99,17 @@ export async function createCsr(namespace, keyPair) {
   // Signing final PKCS#10 request
   await pkcs10.sign(keyPair.privateKey, hashAlg);
 
-  const csr = pkcs10.toSchema().toBER(false);
+  const csr = pkcs10.toSchema(true).toBER();
 
-  return `-----BEGIN CERTIFICATE REQUEST-----\n${formatPEM(
-    toBase64(arrayBufferToString(csr)),
-  )}\n-----END CERTIFICATE REQUEST-----`;
+
+  switch (format) {
+    case "der":
+      return csr;
+    case "pem":
+      return formatPEM("CERTIFICATE REQUEST", csr);
+    default:
+      throw new Error("invalid format");
+  }
 }
 
 /**
@@ -99,9 +126,14 @@ export async function bifrostId(namespace, pubKey) {
   return uuidv5(new Uint8Array(xyBytes), namespace);
 }
 
-// Add line break every 64th character
-function formatPEM(pemString) {
-  return pemString.replace(/(.{64})/g, "$1\n");
+/**
+ * @param {string} type
+ * @param {ArrayBuffer} buffer
+ * @returns {string}
+ */
+function formatPEM(type, buffer) {
+  return `-----BEGIN ${type}-----\n${toBase64(
+    arrayBufferToString(buffer)).replace(/(.{64})/g, "$1\n")}\n-----END ${type}-----`;
 }
 
 function getWebCrypto() {
