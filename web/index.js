@@ -8,14 +8,16 @@ defineCustomElements();
 customElements.define("key-viewer", KeyViewer);
 
 document.addEventListener("DOMContentLoaded", async () => {
-  const namespace = await getNamespace();
+  const caUrl = "http://localhost:8008";
+
+  const namespace = await getNamespace(caUrl);
   document.getElementById("namespace").textContent = namespace;
 
   const ids = document.getElementById("identities");
 
   document.getElementById("generate-key").addEventListener("click", async () => {
     const viewer = document.createElement("key-viewer");
-    viewer.namespace = namespace;
+    viewer.caUrl = caUrl;
     ids.appendChild(viewer);
   });
 

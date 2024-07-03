@@ -21,7 +21,7 @@ const ctx = await esbuild.context({
 
 if (serve) {
   await ctx.watch()
-  const { host, port } = await ctx.serve({ host: 'localhost' })
+  const { host, port } = await ctx.serve({ host: 'localhost', servedir: 'static' })
   console.log(`Serving at http://${host}:${port}`)
 } else {
   await ctx.dispose()

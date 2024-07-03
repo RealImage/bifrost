@@ -1,71 +1,41 @@
 import { getNamespace, generateKey, bifrostId, createCsr, exportKey } from "./bifrost";
 
 export class KeyViewer extends HTMLElement {
-  static observedAttributes = ["namespace"];
+  static observedAttributes = ["ca-url"];
+
+  /**
+   * @returns {string}
+   * @public
+   */
+  get caUrl() {
+    return this.getAttribute("ca-url");
+  }
+
+  /**
+   * @param {string} value
+   * @public
+   */
+  set caUrl(value) {
+    this.setAttribute("ca-url", value);
+  }
+
+  /**
+   * @property {string} namespace
+   * @private
+   */
+  #namespace;
 
   /**
    * @property {CryptoKey} privateKey
+   * @private
    */
   #privateKey;
 
   /**
-   * @returns {CryptoKey}
-   * @readonly
-   */
-  get privateKey() {
-    return this.#privateKey;
-  }
-
-  /**
-   * @param {CryptoKey} value
-   * @returns {void}
+   * @property {string} id
    * @private
    */
-  set privateKey(value) {
-    this.#privateKey = value;
-    this.id = bifrostId(this.namespace, value.publicKey);
-    this.render();
-  }
-
   #id;
-
-  /**
-   * @returns {string}
-   * @readonly
-   */
-  get id() {
-    return this.#id;
-  }
-
-  /**
-   * @param {string} value
-   * @returns {void}
-   * @private
-   */
-  set id(value) {
-    this.#id = value;
-    this.render();
-  }
-
-  /**
-   * @returns {string}
-   * @readonly
-   */
-  get namespace() {
-    return this.getAttribute("namespace");
-  }
-
-  /**
-   * @param {string} value
-   * @returns {void}
-   */
-  set namespace(value) {
-    if (this.#privateKey) {
-      this.id = bifrostId(value, this.#privateKey.publicKey);
-    }
-    this.setAttribute("namespace", value);
-  }
-
 
   /**
    * @typedef {Object} Certificate
@@ -80,47 +50,32 @@ export class KeyViewer extends HTMLElement {
    */
   #certificates = [];
 
-  /**
-   * @returns {Certificate[]}
-   */
-  get certificates() {
-    return this.#certificates;
-  }
-
-  /**
-   * @param {Certificate[]} value
-   * @returns {void}
-   */
-  set certificates(value) {
-    this.#certificates = value;
-    this.render();
-  }
-
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
   }
 
-  async connectedCallback() {
+  async refresh() {
     if (!this.#privateKey) {
       this.#privateKey = await generateKey();
     }
 
-    if (!this.namespace) {
-      this.namespace = await getNamespace()
-    }
+    this.#namespace = await getNamespace(this.caUrl);
+    this.#id = await bifrostId(this.#namespace, this.#privateKey.publicKey);
 
-    if (!this.id) {
-      this.id = await bifrostId(this.namespace, this.#privateKey.publicKey);
-    }
+    await this.render();
+  }
+
+  async connectedCallback() {
+    await this.refresh();
 
     this.shadowRoot.addEventListener("click", async (event) => {
       if (event.target.id !== "request") {
         return;
       }
 
-      const csr = await createCsr(this.namespace, this.#privateKey);
-      const response = await fetch("/issue", {
+      const csr = await createCsr(this.#namespace, this.#privateKey);
+      const response = await fetch(this.caUrl + "/issue", {
         method: "POST",
         headers: {
           "Content-Type": "text/plain",
@@ -128,7 +83,9 @@ export class KeyViewer extends HTMLElement {
         body: csr,
       });
 
-      this.certificates = [...this.certificates, { value: await response.text() }];
+      this.#certificates = [...this.#certificates, { value: await response.text() }];
+
+      await this.render();
     });
   }
 
@@ -137,13 +94,9 @@ export class KeyViewer extends HTMLElement {
   }
 
   async attributeChangedCallback(name, oldValue, newValue) {
-    if (this.#privateKey) {
-      if (name === "namespace" && oldValue !== newValue) {
-        this.id = await bifrostId(newValue, this.#privateKey.publicKey);
-      }
+    if (name === "ca-url" && oldValue !== newValue) {
+      await this.refresh();
     }
-
-    await this.render();
   }
 
   async downloadKeyUrl(format) {
@@ -160,25 +113,24 @@ export class KeyViewer extends HTMLElement {
       return;
     }
 
-
     this.shadowRoot.innerHTML = `
       <link rel="stylesheet" href="/index.css">
       <div id="key-viewer" class="card">
         <header>
           <h4>Key</h4>
         </header>
-        <p><strong>ID</strong> ${this.id}</p>
+        <p><strong>ID</strong> ${this.#id}</p>
 
         <button id="request" class="button primary">Request Certificate</button>
         <details class="dropdown">
           <summary class="button dark">Private Key</summary>
           <div class="card">
             <a class="button outline primary"
-              download="${this.id}.pem"
+              download="${this.#id}.pem"
               href="${await this.downloadKeyUrl("pem")}"
             >Download PEM</a>
             <a class="button outline dark"
-              download="${this.id}.der"
+              download="${this.#id}.der"
               href="${await this.downloadKeyUrl("der")}"
             >Download DER</a>
           </div>
@@ -186,14 +138,15 @@ export class KeyViewer extends HTMLElement {
       </div>
     `;
 
-    if (this.certificates.length > 0) {
+    if (this.#certificates.length > 0) {
       const kv = this.shadowRoot.getElementById("key-viewer");
 
       const forgetCertsBtn = document.createElement("button");
       forgetCertsBtn.classList.add("button", "error");
       forgetCertsBtn.textContent = "Forget Certificates";
-      forgetCertsBtn.addEventListener("click", () => {
-        this.certificates = [];
+      forgetCertsBtn.addEventListener("click", async () => {
+        this.#certificates = [];
+        await this.render();
       });
 
       kv.appendChild(forgetCertsBtn);
@@ -206,7 +159,7 @@ export class KeyViewer extends HTMLElement {
         </header>
       `;
       const certsViewer = document.createElement("peculiar-certificates-viewer");
-      certsViewer.certificates = this.certificates;
+      certsViewer.certificates = this.#certificates;
       certsContainer.appendChild(certsViewer);
       kv.appendChild(certsContainer);
     }

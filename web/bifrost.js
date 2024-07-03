@@ -12,13 +12,17 @@ const hashAlg = "SHA-256";
 const signAlg = "ECDSA";
 
 /**
+ * @param {string} caUrl
  * @returns {Promise<string>}
  * @example
  * const namespace = await getNamespace()
  *
  */
-export async function getNamespace() {
-  const response = await fetch("/namespace");
+export async function getNamespace(caUrl) {
+  nsUrl = "/namespace";
+  if (caUrl) nsUrl = caUrl + nsUrl;
+
+  const response = await fetch(nsUrl);
   return await response.text();
 }
 
