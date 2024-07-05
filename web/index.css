@@ -10,3 +10,7 @@
     --color-darkGrey: #777;
   }
 }
+
+.container {
+  max-width: 800px;
+}

@@ -174,8 +174,16 @@ func (ca *CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (ca *CA) AddRoutes(mux *http.ServeMux) {
 	nss := ca.cert.Namespace.String()
 	mux.HandleFunc("GET /namespace", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		if _, err := w.Write([]byte(nss)); err != nil {
+		accept := r.Header.Get(webapp.HeaderNameAccept)
+		var err error
+		if accept == webapp.MimeTypeBytes {
+			w.Header().Set(webapp.HeaderNameContentType, webapp.MimeTypeBytes)
+			_, err = w.Write(ca.cert.Namespace[:])
+		} else {
+			w.Header().Set(webapp.HeaderNameContentType, webapp.MimeTypeTextCharset)
+			_, err = w.Write([]byte(nss))
+		}
+		if err != nil {
 			slog.Error("error writing namespace", "err", err)
 		}
 	})
