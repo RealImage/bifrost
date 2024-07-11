@@ -19,7 +19,7 @@ const signAlg = "ECDSA";
  *
  */
 export async function getNamespace(caUrl) {
-  nsUrl = "/namespace";
+  let nsUrl = "/namespace";
   if (caUrl) nsUrl = caUrl + nsUrl;
 
   const response = await fetch(nsUrl);
@@ -44,20 +44,18 @@ export async function generateKey() {
 }
 
 /**
- * @typedef {("pem"|"der")} OutputFormat
- */
-
-/**
- * @param {CryptoKeyPair} keyPair
- * @param {OutputFormat} [format="pem"]
+ * Export the private key in PEM or DER format.
+ *
+ * @param {CryptoKey} privateKey
+ * @param {("pem"|"der")} [format="pem"]
  * @returns {Promise<(string|ArrayBuffer)>}
  * @example
  * const keyPem = await generateKey(keyPair, 'pem')
  * const keyDer = await generateKey(keyPair, 'der')
  */
-export async function exportKey(keyPair, format = "pem") {
+export async function exportPrivateKey(privateKey, format = "pem") {
   const crypto = getWebCrypto();
-  const key = await crypto.exportKey("pkcs8", keyPair.privateKey);
+  const key = await crypto.exportKey("pkcs8", privateKey);
 
   switch (format) {
     case "der":
@@ -70,9 +68,25 @@ export async function exportKey(keyPair, format = "pem") {
 }
 
 /**
+ * Export the raw public key in compressed hex format.
+ *
+ * @param {CryptoKey} publicKey
+ * @returns {Promise<string>}
+ */
+export async function exportPublicKey(publicKey) {
+  const key = await crypto.subtle.exportKey("raw", publicKey);
+  let keyUncompressed = Array.from(new Uint8Array(key));
+  let keySize = (keyUncompressed.length - 1) / 2;
+  let keyCompressed = [];
+  keyCompressed.push(keyUncompressed[2 * keySize] % 2 ? 3 : 2);
+  keyCompressed.push(...keyUncompressed.slice(1, keySize + 1));
+  return arrayBufferToHex(new Uint8Array(keyCompressed).buffer);
+}
+
+/**
  * @param {string} namespace
  * @param {CryptoKeyPair} keyPair
- * @param {OutputFormat} [format="pem"]
+ * @param {("pem"|"der")} [format="pem"]
  * @returns {Promise<(string|ArrayBuffer)>}
  * @example
  * const csrPem = await createCsr('ba64ca66-4f02-431d-8f31-e8ea8d0e8011', keyPair)
@@ -104,7 +118,6 @@ export async function createCsr(namespace, keyPair, format = "pem") {
   await pkcs10.sign(keyPair.privateKey, hashAlg);
 
   const csr = pkcs10.toSchema(true).toBER();
-
 
   switch (format) {
     case "der":
@@ -138,6 +151,10 @@ export async function bifrostId(namespace, pubKey) {
 function formatPEM(type, buffer) {
   return `-----BEGIN ${type}-----\n${toBase64(
     arrayBufferToString(buffer)).replace(/(.{64})/g, "$1\n")}\n-----END ${type}-----`;
+}
+
+function arrayBufferToHex(ab) {
+  return Array.prototype.map.call(new Uint8Array(ab), x => ('00' + x.toString(16)).slice(-2)).join('');
 }
 
 function getWebCrypto() {

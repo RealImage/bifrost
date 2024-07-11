@@ -91,6 +91,8 @@ type Msg
     | ForgetKeys
     | GotServer String (Result Http.Error UUID)
     | DeleteFailedServers
+    | DeleteServer String
+    | UseServer Server
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -138,6 +140,30 @@ update msg model =
               }
             , Cmd.none
             )
+
+        DeleteServer url ->
+            let
+                deleteServer server =
+                    case server of
+                        RemoteData.Success s ->
+                            if s.url == url then
+                                Nothing
+
+                            else
+                                Just server
+
+                        _ ->
+                            Just server
+            in
+            ( { model
+                | activeServer = Nothing
+                , servers = model.servers |> List.filterMap deleteServer
+              }
+            , Cmd.none
+            )
+
+        UseServer server ->
+            ( { model | activeServer = Just server }, Cmd.none )
 
 
 {-| getServerNamespace validates server url by fetching the namespace from it.
@@ -191,7 +217,7 @@ view model =
         , main_ [ class "container" ]
             [ section []
                 [ h2 [] [ text "Servers" ]
-                , viewServers model.servers |> div [ class "servers" ]
+                , viewServers model.activeServer model.servers |> div [ class "servers" ]
                 ]
             , section []
                 [ h2 [] [ text "Keys" ]
@@ -230,14 +256,14 @@ viewNamespace namespace =
         |> a []
 
 
-viewServers : List (WebData Server) -> List (Html Msg)
-viewServers servers =
+viewServers : Maybe Server -> List (WebData Server) -> List (Html Msg)
+viewServers active servers =
     servers
-        |> List.filterMap viewServer
+        |> List.filterMap (viewServer active)
 
 
-viewServer : WebData Server -> Maybe (Html Msg)
-viewServer server =
+viewServer : Maybe Server -> WebData Server -> Maybe (Html Msg)
+viewServer active server =
     let
         body =
             case server of
@@ -277,11 +303,29 @@ viewServer server =
                         |> Just
 
                 RemoteData.Success s ->
+                    let
+                        useButton =
+                            button
+                                [ class "button primary", onClick (UseServer s) ]
+                                [ text "Use" ]
+
+                        useOrUsed =
+                            case active of
+                                Just a ->
+                                    if a.url == s.url then
+                                        button
+                                            [ class "button primary", disabled True ]
+                                            [ text "In Use" ]
+
+                                    else
+                                        useButton
+
+                                _ ->
+                                    useButton
+                    in
                     [ header []
-                        [ h4 [] [ s.namespace |> UUID.toString |> text ] ]
-                    , p []
                         [ a
-                            [ class "button outline primary"
+                            [ class "primary"
                             , href s.url
                             , target "_blank"
                             ]
@@ -289,9 +333,10 @@ viewServer server =
                         ]
                     , footer
                         [ class "is-right" ]
-                        [ button
-                            [ class "button icon-only outline primary" ]
-                            [ img [ src "/circle.svg", class "icon" ] [] ]
+                        [ useOrUsed
+                        , button
+                            [ class "button error", onClick (DeleteServer s.url) ]
+                            [ text "Delete" ]
                         ]
                     ]
                         |> Just

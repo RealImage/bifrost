@@ -1,4 +1,4 @@
-import { getNamespace, generateKey, bifrostId, createCsr, exportKey } from "./bifrost";
+import { getNamespace, generateKey, bifrostId, createCsr, exportPublicKey, exportPrivateKey } from "./bifrost";
 
 export class KeyViewer extends HTMLElement {
   static observedAttributes = ["ca-url"];
@@ -29,7 +29,7 @@ export class KeyViewer extends HTMLElement {
    * @property {CryptoKey} privateKey
    * @private
    */
-  #privateKey;
+  #keyPair;
 
   /**
    * @property {string} id
@@ -56,12 +56,19 @@ export class KeyViewer extends HTMLElement {
   }
 
   async refresh() {
-    if (!this.#privateKey) {
-      this.#privateKey = await generateKey();
+    if (!this.#keyPair) {
+      this.#keyPair = await generateKey();
     }
 
-    this.#namespace = await getNamespace(this.caUrl);
-    this.#id = await bifrostId(this.#namespace, this.#privateKey.publicKey);
+    if (this.caUrl) {
+      this.#namespace = await getNamespace(this.caUrl);
+      this.#id = await bifrostId(this.#namespace, this.#keyPair.publicKey);
+    } else {
+      this.#namespace = null;
+      this.#id = null;
+    }
+
+    this.#certificates = [];
 
     await this.render();
   }
@@ -74,7 +81,7 @@ export class KeyViewer extends HTMLElement {
         return;
       }
 
-      const csr = await createCsr(this.#namespace, this.#privateKey);
+      const csr = await createCsr(this.#namespace, this.#keyPair);
       const response = await fetch(this.caUrl + "/issue", {
         method: "POST",
         headers: {
@@ -101,14 +108,14 @@ export class KeyViewer extends HTMLElement {
 
   async downloadKeyUrl(format) {
     const type = format === "pem" ? "application/x-pem-file" : "application/octet-stream";
-    const blob = new Blob([await exportKey(this.#privateKey, format)], {
+    const blob = new Blob([await exportPrivateKey(this.#keyPair.privateKey, format)], {
       type: type,
     });
     return URL.createObjectURL(blob);
   }
 
   async render() {
-    if (!this.#privateKey) {
+    if (!this.#keyPair) {
       this.shadowRoot.innerHTML = "Loading...";
       return;
     }
@@ -117,24 +124,23 @@ export class KeyViewer extends HTMLElement {
       <link rel="stylesheet" href="/index.css">
       <div id="key-viewer" class="card">
         <header>
-          <h4>Key</h4>
+          <h4>Key ${await exportPublicKey(this.#keyPair.publicKey)} </h4>
+          ${this.caUrl ? `
+          <p><strong>ID</strong> ${this.#id}</p>
         </header>
-        <p><strong>ID</strong> ${this.#id}</p>
 
-        <button id="request" class="button primary">Request Certificate</button>
-        <details class="dropdown">
-          <summary class="button dark">Private Key</summary>
-          <div class="card">
-            <a class="button outline primary"
-              download="${this.#id}.pem"
-              href="${await this.downloadKeyUrl("pem")}"
-            >Download PEM</a>
-            <a class="button outline dark"
-              download="${this.#id}.der"
-              href="${await this.downloadKeyUrl("der")}"
-            >Download DER</a>
-          </div>
-        </details>
+        <footer class="is-right">
+          <button id="request" class="button primary">Request Certificate</button>
+          <a class="button outline primary"
+            download="${this.#id}.pem"
+            href="${await this.downloadKeyUrl("pem")}"
+          >Download PEM</a>
+          <a class="button outline dark"
+            download="${this.#id}.der"
+            href="${await this.downloadKeyUrl("der")}"
+          >Download DER</a>
+        </footer>
+        ` : ""}
       </div>
     `;
 
