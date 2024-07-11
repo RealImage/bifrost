@@ -14,7 +14,6 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/cafiles"
 	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/RealImage/bifrost/tinyca"
@@ -100,16 +99,7 @@ var caServeCmd = &cli.Command{
 		defer ca.Close()
 
 		mux := http.NewServeMux()
-		ca.AddRoutes(mux)
-
-		// TODO: CORS middleware
-
-		if exposeMetrics {
-			slog.InfoContext(ctx, "metrics enabled")
-			mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
-				bifrost.StatsForNerds.WritePrometheus(w)
-			})
-		}
+		ca.AddRoutes(mux, exposeMetrics, enableCORS)
 
 		hdlr := webapp.RequestLogger(mux)
 

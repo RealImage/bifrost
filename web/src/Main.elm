@@ -125,7 +125,7 @@ update msg model =
         GotServer _ (Err e) ->
             let
                 cmd =
-                    Process.sleep 5000 |> Task.perform (always DeleteFailedServers)
+                    Process.sleep 10000 |> Task.perform (always DeleteFailedServers)
             in
             ( { model | servers = RemoteData.Failure e :: model.servers }, cmd )
 
@@ -191,12 +191,16 @@ view model =
         , main_ [ class "container" ]
             [ section []
                 [ h2 [] [ text "Servers" ]
-                , viewServers model.servers |> select []
+                , viewServers model.servers |> div [ class "servers" ]
                 ]
             , section []
                 [ h2 [] [ text "Keys" ]
-                , button [ class "button primary", onClick GenerateKey ] [ text "Generate Key" ]
-                , button [ class "button error", onClick ForgetKeys ] [ text "Forget Keys" ]
+                , button
+                    [ class "button primary", onClick GenerateKey ]
+                    [ text "Generate Key" ]
+                , button
+                    [ class "button error", onClick ForgetKeys ]
+                    [ text "Forget Keys" ]
                 , viewIdentities model.keyViewers model.activeServer |> div []
                 ]
             ]
@@ -229,25 +233,70 @@ viewNamespace namespace =
 viewServers : List (WebData Server) -> List (Html Msg)
 viewServers servers =
     servers
-        |> List.map viewServer
+        |> List.filterMap viewServer
 
 
-viewServer : WebData Server -> Html Msg
+viewServer : WebData Server -> Maybe (Html Msg)
 viewServer server =
-    case server of
-        RemoteData.NotAsked ->
-            div [ class "server" ] [ text "Not Asked" ]
+    let
+        body =
+            case server of
+                RemoteData.NotAsked ->
+                    Nothing
 
-        RemoteData.Loading ->
-            div [ class "server" ] [ text "Loading" ]
+                RemoteData.Loading ->
+                    [ button
+                        [ class "button outline", disabled True ]
+                        [ "Loading" |> text ]
+                    ]
+                        |> Just
 
-        RemoteData.Failure _ ->
-            div [ class "server" ] [ text <| "Failed" ]
+                RemoteData.Failure err ->
+                    let
+                        errText =
+                            case err of
+                                Http.BadUrl u ->
+                                    "Bad URL: " ++ u
 
-        RemoteData.Success s ->
-            option
-                [ value s.url ]
-                [ s.url ++ " (" ++ UUID.toString s.namespace ++ ")" |> text ]
+                                Http.Timeout ->
+                                    "Timeout"
+
+                                Http.NetworkError ->
+                                    "Network Error"
+
+                                Http.BadStatus code ->
+                                    "Bad Status: " ++ String.fromInt code
+
+                                Http.BadBody b ->
+                                    "Bad Body: " ++ b
+                    in
+                    [ button
+                        [ class "button outline", disabled True ]
+                        [ errText |> text ]
+                    ]
+                        |> Just
+
+                RemoteData.Success s ->
+                    [ header []
+                        [ h4 [] [ s.namespace |> UUID.toString |> text ] ]
+                    , p []
+                        [ a
+                            [ class "button outline primary"
+                            , href s.url
+                            , target "_blank"
+                            ]
+                            [ text s.url ]
+                        ]
+                    , footer
+                        [ class "is-right" ]
+                        [ button
+                            [ class "button icon-only outline primary" ]
+                            [ img [ src "/circle.svg", class "icon" ] [] ]
+                        ]
+                    ]
+                        |> Just
+    in
+    body |> Maybe.map (div [ class "card server" ])
 
 
 viewIdentities : Int -> Maybe Server -> List (Html Msg)

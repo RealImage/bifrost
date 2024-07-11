@@ -14,3 +14,12 @@
 .container {
   max-width: 800px;
 }
+
+.servers {
+  max-width: 480px;
+}
+
+.icon {
+  width: 24px;
+  height: 24px;
+}
