@@ -1,6 +1,5 @@
 import * as asn1js from "asn1js";
 import {
-  getCrypto,
   getAlgorithmParameters,
   CertificationRequest,
   AttributeTypeAndValue,
@@ -33,10 +32,9 @@ export async function getNamespace(caUrl) {
  *
  */
 export async function generateKey() {
-  const crypto = getWebCrypto();
   const algorithm = getAlgorithm(signAlg, hashAlg);
 
-  return await crypto.generateKey(
+  return await crypto.subtle.generateKey(
     algorithm.algorithm,
     true,
     algorithm.usages,
@@ -54,8 +52,7 @@ export async function generateKey() {
  * const keyDer = await generateKey(keyPair, 'der')
  */
 export async function exportPrivateKey(privateKey, format = "pem") {
-  const crypto = getWebCrypto();
-  const key = await crypto.exportKey("pkcs8", privateKey);
+  const key = await crypto.subtle.exportKey("pkcs8", privateKey);
 
   switch (format) {
     case "der":
@@ -68,19 +65,18 @@ export async function exportPrivateKey(privateKey, format = "pem") {
 }
 
 /**
- * Export the raw public key in compressed hex format.
+ * Returns the sha256 fingerprint of the public key as a hex string.
  *
  * @param {CryptoKey} publicKey
  * @returns {Promise<string>}
  */
-export async function exportPublicKey(publicKey) {
+export async function publicKeyFingerprint(publicKey) {
   const key = await crypto.subtle.exportKey("raw", publicKey);
-  let keyUncompressed = Array.from(new Uint8Array(key));
-  let keySize = (keyUncompressed.length - 1) / 2;
-  let keyCompressed = [];
-  keyCompressed.push(keyUncompressed[2 * keySize] % 2 ? 3 : 2);
-  keyCompressed.push(...keyUncompressed.slice(1, keySize + 1));
-  return arrayBufferToHex(new Uint8Array(keyCompressed).buffer);
+  const msgBuffer = new TextEncoder().encode(key);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
 }
 
 /**
@@ -137,8 +133,7 @@ export async function createCsr(namespace, keyPair, format = "pem") {
  * const id = await bifrostId(keyPair.publicKey)
  */
 export async function bifrostId(namespace, pubKey) {
-  const crypto = getWebCrypto();
-  const rawKey = await crypto.exportKey("raw", pubKey);
+  const rawKey = await crypto.subtle.exportKey("raw", pubKey);
   const xyBytes = rawKey.slice(1, 65);
   return uuidv5(new Uint8Array(xyBytes), namespace);
 }
@@ -151,16 +146,6 @@ export async function bifrostId(namespace, pubKey) {
 function formatPEM(type, buffer) {
   return `-----BEGIN ${type}-----\n${toBase64(
     arrayBufferToString(buffer)).replace(/(.{64})/g, "$1\n")}\n-----END ${type}-----`;
-}
-
-function arrayBufferToHex(ab) {
-  return Array.prototype.map.call(new Uint8Array(ab), x => ('00' + x.toString(16)).slice(-2)).join('');
-}
-
-function getWebCrypto() {
-  const crypto = getCrypto();
-  if (typeof crypto === "undefined") throw "No WebCrypto extension found";
-  return crypto;
 }
 
 function getAlgorithm(signAlg, hashAlg) {

@@ -4,7 +4,7 @@ import Browser
 import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
 import Json.Decode as D
 import Json.Decode.Pipeline as Pipeline
@@ -40,6 +40,7 @@ type alias Model =
     , url : Url.Url
     , servers : List (WebData Server)
     , activeServer : Maybe Server
+    , serverInput : String
     , keyViewers : Int
     }
 
@@ -74,6 +75,7 @@ init flags url key =
       , url = url
       , servers = []
       , activeServer = Nothing
+      , serverInput = ""
       , keyViewers = 0
       }
     , getNsCmds
@@ -93,6 +95,8 @@ type Msg
     | DeleteFailedServers
     | DeleteServer String
     | UseServer Server
+    | ServerInput String
+    | SubmitServer
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -165,6 +169,12 @@ update msg model =
         UseServer server ->
             ( { model | activeServer = Just server }, Cmd.none )
 
+        ServerInput input ->
+            ( { model | serverInput = input }, Cmd.none )
+
+        SubmitServer ->
+            ( { model | serverInput = "" }, getServerNamespace model.serverInput )
+
 
 {-| getServerNamespace validates server url by fetching the namespace from it.
 -}
@@ -198,17 +208,17 @@ view : Model -> Browser.Document Msg
 view model =
     { title = "URL Interceptor"
     , body =
-        [ nav [ class "nav" ]
-            [ div [ class "nav-left" ]
-                [ a [ class "brand" ]
-                    [ img [ src "/bifrost.webp", alt "Bifrost" ] []
-                    , text "Bifrost"
+        [ header [ class "container" ]
+            [ nav [ class "nav" ]
+                [ div [ class "nav-left" ]
+                    [ a [ class "brand" ]
+                        [ img [ src "/bifrost.webp", alt "Bifrost" ] []
+                        , text "Bifrost"
+                        ]
                     ]
+                , viewNavRight model.activeServer |> div [ class "nav-right" ]
                 ]
-            , viewNavRight model.activeServer |> div [ class "nav-right" ]
-            ]
-        , header [ class "container" ]
-            [ node "hgroup"
+            , node "hgroup"
                 []
                 [ h1 [] [ text "Certificate Issuer" ]
                 , p [] [ text "Hot off the presses!" ]
@@ -217,6 +227,22 @@ view model =
         , main_ [ class "container" ]
             [ section []
                 [ h2 [] [ text "Servers" ]
+                , Html.form
+                    [ onSubmit SubmitServer ]
+                    [ p [ class "grouped" ]
+                        [ input
+                            [ type_ "text"
+                            , placeholder "Server URL"
+                            , value model.serverInput
+                            , onInput ServerInput
+                            , type_ "url"
+                            ]
+                            []
+                        , button
+                            [ class "button primary" ]
+                            [ text "Add Server" ]
+                        ]
+                    ]
                 , viewServers model.activeServer model.servers |> div [ class "servers" ]
                 ]
             , section []
@@ -236,24 +262,19 @@ view model =
 
 viewNavRight : Maybe Server -> List (Html Msg)
 viewNavRight activeServer =
-    case activeServer of
-        Nothing ->
-            []
-
-        Just server ->
-            [ viewNamespace server.namespace ]
+    activeServer
+        |> Maybe.map viewNamespace
+        |> Maybe.withDefault []
 
 
-viewNamespace : UUID -> Html Msg
-viewNamespace namespace =
-    [ p []
-        [ span [] [ text "Namespace " ]
-        , strong
+viewNamespace : Server -> List (Html Msg)
+viewNamespace server =
+    [ a [ server.url ++ "/namespace" |> href, target "_blank" ]
+        [ strong
             [ id "namespace", class "text-primary" ]
-            [ namespace |> UUID.toString |> text ]
+            [ server.namespace |> UUID.toString |> text ]
         ]
     ]
-        |> a []
 
 
 viewServers : Maybe Server -> List (WebData Server) -> List (Html Msg)

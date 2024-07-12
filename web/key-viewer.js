@@ -1,4 +1,4 @@
-import { getNamespace, generateKey, bifrostId, createCsr, exportPublicKey, exportPrivateKey } from "./bifrost";
+import { getNamespace, generateKey, bifrostId, createCsr, publicKeyFingerprint, exportPrivateKey } from "./bifrost";
 
 export class KeyViewer extends HTMLElement {
   static observedAttributes = ["ca-url"];
@@ -124,28 +124,40 @@ export class KeyViewer extends HTMLElement {
       <link rel="stylesheet" href="/index.css">
       <div id="key-viewer" class="card">
         <header>
-          <h4>Key ${await exportPublicKey(this.#keyPair.publicKey)} </h4>
-          ${this.caUrl ? `
-          <p><strong>ID</strong> ${this.#id}</p>
+          <h4>Key</h4>
         </header>
 
+        <p>
+          <strong>Public Key Fingerprint: </strong>
+          ${await publicKeyFingerprint(this.#keyPair.publicKey)}
+        </p>
+        ${this.caUrl ? `<p><strong>ID: </strong>${this.#id}</p>` : ""}
+
+        <details class="dropdown">
+          <summary class="button primary">Download Private Key</summary>
+          <div class="card">
+            <a class="button outline primary"
+              download="${await publicKeyFingerprint(this.#keyPair.publicKey)}.pem"
+              href="${await this.downloadKeyUrl("pem")}"
+            >Download PEM</a>
+            <a class="button outline dark"
+              download="${await publicKeyFingerprint(this.#keyPair.publicKey)}.der"
+              href="${await this.downloadKeyUrl("der")}"
+            >Download DER</a>
+          </div>
+        </details>
+
+        ${this.caUrl ? `
         <footer class="is-right">
           <button id="request" class="button primary">Request Certificate</button>
-          <a class="button outline primary"
-            download="${this.#id}.pem"
-            href="${await this.downloadKeyUrl("pem")}"
-          >Download PEM</a>
-          <a class="button outline dark"
-            download="${this.#id}.der"
-            href="${await this.downloadKeyUrl("der")}"
-          >Download DER</a>
         </footer>
-        ` : ""}
+        ` : ""
+      }
       </div>
-    `;
+  `;
 
     if (this.#certificates.length > 0) {
-      const kv = this.shadowRoot.getElementById("key-viewer");
+      const footer = this.shadowRoot.querySelector("#key-viewer>footer");
 
       const forgetCertsBtn = document.createElement("button");
       forgetCertsBtn.classList.add("button", "error");
@@ -155,7 +167,7 @@ export class KeyViewer extends HTMLElement {
         await this.render();
       });
 
-      kv.appendChild(forgetCertsBtn);
+      footer.appendChild(forgetCertsBtn);
 
       const certsContainer = document.createElement("div");
       certsContainer.classList.add("card");
@@ -167,7 +179,7 @@ export class KeyViewer extends HTMLElement {
       const certsViewer = document.createElement("peculiar-certificates-viewer");
       certsViewer.certificates = this.#certificates;
       certsContainer.appendChild(certsViewer);
-      kv.appendChild(certsContainer);
+      this.shadowRoot.getElementById("key-viewer").appendChild(certsContainer);
     }
   }
 }
