@@ -11,7 +11,7 @@ const ctx = await esbuild.context({
   minify: isProd,
   plugins: [
     ElmPlugin({
-      debug: true,
+      debug: !isProd,
       optimize: isProd,
       clearOnWatch: serve,
       verbose: true,
