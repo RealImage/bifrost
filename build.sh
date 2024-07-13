@@ -8,14 +8,13 @@ set -euo pipefail
 
 app="$(basename "$PWD")"
 
-
 pushd web
 npm ci
 popd
 
 go install golang.org/x/tools/cmd/stringer@latest
 
-version="${1:-$(git rev-parse --short HEAD)}"
+version="${1:-dev}"
 
 env VERSION="$version" go generate -x ./...
 
