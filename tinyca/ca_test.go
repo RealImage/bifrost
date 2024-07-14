@@ -17,7 +17,6 @@ import (
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/google/uuid"
-	"golang.org/x/net/html"
 )
 
 const validCsr = `-----BEGIN CERTIFICATE REQUEST-----
@@ -87,6 +86,13 @@ l83jqe9OFH2tJOwCIQDpQGF56BlTZG70I6mLhNGq1wVMNclYHq2cVUTPl6iMmg==
 			requestBody:  []byte(validCsr),
 			expectedCode: http.StatusOK,
 		},
+		{
+			title:         "return the default text/plain representation",
+			accept:        "application/json",
+			requestMethod: http.MethodPost,
+			expectedCode:  http.StatusOK,
+			requestBody:   []byte(validCsr),
+		},
 		// Bad.
 		{
 			title:        "we don't support JSON requests",
@@ -100,13 +106,6 @@ aKyBForLVwIKx67Ts9q1tC2lyGXCTYhFAFpE8zBSq2NCWT1QaFBF4GBh4Ve4XNyH
 f/l+B/agADAKBggqhkjOPQQDAgNIADBFAiEA9e4/Ntkgv8DB19EWs+BwLKnlA94V
 a9rP0bn1HhVb/P8CIEMAqO2BWQ28M3Io0Wy+MTpqtX7/O1BAnSXT4BvZGUot
 -----END CERTIFICATE REQUEST-----`),
-		},
-		{
-			title:         "we don't support JSON responses",
-			accept:        "application/json",
-			requestMethod: http.MethodPost,
-			expectedCode:  http.StatusNotAcceptable,
-			requestBody:   []byte(validCsr),
 		},
 		{
 			title:        "empty request",
@@ -286,12 +285,6 @@ func TestCA_ServeHTTP(t *testing.T) {
 					if cert.Namespace != testNs {
 						t.Fatalf("expected namespace: %s, actual: %s\n", testNs, cert.Namespace)
 					}
-				case webapp.MimeTypeHtml:
-					_, err := html.Parse(resp.Body)
-					if err != nil {
-						t.Fatal("response body is not a valid HTML document: ", err)
-					}
-					// TODO: Check that the document contains a pv-certificate-viewer element.
 				default:
 					t.Fatalf("unexpected Content-Type: %s\n", resp.Header.Get(webapp.HeaderNameContentType))
 				}
