@@ -121,7 +121,7 @@ export class KeyViewer extends HTMLElement {
     }
 
     this.shadowRoot.innerHTML = `
-      <link rel="stylesheet" href="/index.css">
+      <link rel="stylesheet" href="index.css">
       <div id="key-viewer" class="card">
         <header>
           <h4>Key</h4>
