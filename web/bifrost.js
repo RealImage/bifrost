@@ -1,6 +1,5 @@
 import * as asn1js from "asn1js";
 import {
-  getCrypto,
   getAlgorithmParameters,
   CertificationRequest,
   AttributeTypeAndValue,
@@ -12,16 +11,30 @@ const hashAlg = "SHA-256";
 const signAlg = "ECDSA";
 
 /**
+ * @param {string} caUrl
+ * @returns {Promise<string>}
+ * @example
+ * const namespace = await getNamespace()
+ *
+ */
+export async function getNamespace(caUrl) {
+  let nsUrl = "/namespace";
+  if (caUrl) nsUrl = caUrl + nsUrl;
+
+  const response = await fetch(nsUrl);
+  return await response.text();
+}
+
+/**
  * @returns {Promise<CryptoKeyPair>}
  * @example
  * const keyPair = await generateKey()
  *
  */
 export async function generateKey() {
-  const crypto = getWebCrypto();
   const algorithm = getAlgorithm(signAlg, hashAlg);
 
-  return await crypto.generateKey(
+  return await crypto.subtle.generateKey(
     algorithm.algorithm,
     true,
     algorithm.usages,
@@ -29,31 +42,53 @@ export async function generateKey() {
 }
 
 /**
- * @returns {Promise<string>}
- * @example
- * const keyPem = await generateKey(keyPair)
+ * Export the private key in PEM or DER format.
  *
+ * @param {CryptoKey} privateKey
+ * @param {("pem"|"der")} [format="pem"]
+ * @returns {Promise<(string|ArrayBuffer)>}
+ * @example
+ * const keyPem = await generateKey(keyPair, 'pem')
+ * const keyDer = await generateKey(keyPair, 'der')
  */
-export async function exportKey(keyPair) {
-  const crypto = getWebCrypto();
-  return `-----BEGIN PRIVATE KEY-----\n${formatPEM(
-    toBase64(
-      arrayBufferToString(
-        await crypto.exportKey("pkcs8", keyPair.privateKey),
-      ),
-    ),
-  )}\n-----END PRIVATE KEY-----`
+export async function exportPrivateKey(privateKey, format = "pem") {
+  const key = await crypto.subtle.exportKey("pkcs8", privateKey);
+
+  switch (format) {
+    case "der":
+      return key;
+    case "pem":
+      return formatPEM("PRIVATE KEY", key);
+    default:
+      throw new Error("invalid format");
+  }
+}
+
+/**
+ * Returns the sha256 fingerprint of the public key as a hex string.
+ *
+ * @param {CryptoKey} publicKey
+ * @returns {Promise<string>}
+ */
+export async function publicKeyFingerprint(publicKey) {
+  const key = await crypto.subtle.exportKey("raw", publicKey);
+  const msgBuffer = new TextEncoder().encode(key);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
 }
 
 /**
  * @param {string} namespace
  * @param {CryptoKeyPair} keyPair
- * @returns {Promise<string>}
+ * @param {("pem"|"der")} [format="pem"]
+ * @returns {Promise<(string|ArrayBuffer)>}
  * @example
  * const csrPem = await createCsr('ba64ca66-4f02-431d-8f31-e8ea8d0e8011', keyPair)
- *
+ * const csrDer = await createCsr('ba64ca66-4f02-431d-8f31-e8ea8d0e8011', keyPair, 'der')
  */
-export async function createCsr(namespace, keyPair) {
+export async function createCsr(namespace, keyPair, format = "pem") {
   const id = await bifrostId(namespace, keyPair.publicKey);
 
   const pkcs10 = new CertificationRequest();
@@ -78,11 +113,16 @@ export async function createCsr(namespace, keyPair) {
   // Signing final PKCS#10 request
   await pkcs10.sign(keyPair.privateKey, hashAlg);
 
-  const csr = pkcs10.toSchema().toBER(false);
+  const csr = pkcs10.toSchema(true).toBER();
 
-  return `-----BEGIN CERTIFICATE REQUEST-----\n${formatPEM(
-    toBase64(arrayBufferToString(csr)),
-  )}\n-----END CERTIFICATE REQUEST-----`;
+  switch (format) {
+    case "der":
+      return csr;
+    case "pem":
+      return formatPEM("CERTIFICATE REQUEST", csr);
+    default:
+      throw new Error("invalid format");
+  }
 }
 
 /**
@@ -93,21 +133,19 @@ export async function createCsr(namespace, keyPair) {
  * const id = await bifrostId(keyPair.publicKey)
  */
 export async function bifrostId(namespace, pubKey) {
-  const crypto = getWebCrypto();
-  const rawKey = await crypto.exportKey("raw", pubKey);
+  const rawKey = await crypto.subtle.exportKey("raw", pubKey);
   const xyBytes = rawKey.slice(1, 65);
   return uuidv5(new Uint8Array(xyBytes), namespace);
 }
 
-// Add line break every 64th character
-function formatPEM(pemString) {
-  return pemString.replace(/(.{64})/g, "$1\n");
-}
-
-function getWebCrypto() {
-  const crypto = getCrypto();
-  if (typeof crypto === "undefined") throw "No WebCrypto extension found";
-  return crypto;
+/**
+ * @param {string} type
+ * @param {ArrayBuffer} buffer
+ * @returns {string}
+ */
+function formatPEM(type, buffer) {
+  return `-----BEGIN ${type}-----\n${toBase64(
+    arrayBufferToString(buffer)).replace(/(.{64})/g, "$1\n")}\n-----END ${type}-----`;
 }
 
 function getAlgorithm(signAlg, hashAlg) {

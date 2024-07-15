@@ -1,21 +1,18 @@
 #!/bin/bash
 #
-# $1 - The version number to use for the build. If not provided, the current git
-#     commit hash will be used.
+# $1 - The version number to use for the build. Defaults to "dev".
+#    
 #
 
 set -euo pipefail
 
 app="$(basename "$PWD")"
 
-version="${1:-$(git rev-parse --short HEAD)}"
-
-pushd web
-npm ci
-popd
-
 go install golang.org/x/tools/cmd/stringer@latest
-go generate -x ./...
+
+version="${1:-dev}"
+
+env VERSION="$version" go generate -x ./...
 
 rm -rf bin
 mkdir -p bin

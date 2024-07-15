@@ -25,7 +25,6 @@ import (
 
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/internal/webapp"
-	"github.com/RealImage/bifrost/web"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/google/uuid"
 )
@@ -145,7 +144,6 @@ func (ca *CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		contentType,
 		webapp.MimeTypeText,
 		webapp.MimeTypeBytes,
-		webapp.MimeTypeHtml,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -159,11 +157,6 @@ func (ca *CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case webapp.MimeTypeBytes:
 		w.Header().Set(webapp.HeaderNameContentType, webapp.MimeTypeBytes)
 		_, err = w.Write(cert)
-	case webapp.MimeTypeHtml:
-		w.Header().Set(webapp.HeaderNameContentType, webapp.MimeTypeHtmlCharset)
-		certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert})
-		data := map[string]any{"certPem": string(certPem)}
-		err = web.Templates.ExecuteTemplate(w, "certificate.html", data)
 	default:
 		msg := fmt.Sprintf("media type %s unacceptable", responseType)
 		http.Error(w, msg, http.StatusNotAcceptable)
@@ -178,13 +171,17 @@ func (ca *CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // The CA's HTTP handlers are:
 // - GET /namespace: returns the namespace of the CA.
 // - POST /issue: issues a certificate.
-func (ca *CA) AddRoutes(mux *http.ServeMux) {
-	nss := ca.cert.Namespace.String()
-	mux.HandleFunc("GET /namespace", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintln(w, nss)
-	})
+func (ca *CA) AddRoutes(mux *http.ServeMux, metrics bool) {
+	nsHandler := getNamespaceHandler(ca.cert.Namespace)
+	mux.Handle("GET /namespace", nsHandler)
 	mux.Handle("POST /issue", ca)
+
+	if metrics {
+		slog.Info("metrics enabled")
+		mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
+			bifrost.StatsForNerds.WritePrometheus(w)
+		})
+	}
 }
 
 // IssueCertificate issues a client certificate for a valid certificate request parsed from asn1CSR.
@@ -274,6 +271,27 @@ func readCsr(contentType string, body []byte) ([]byte, error) {
 	}
 
 	return asn1Data, nil
+}
+
+func getNamespaceHandler(ns uuid.UUID) http.Handler {
+	nss := ns.String()
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		accept := r.Header.Get(webapp.HeaderNameAccept)
+
+		var err error
+		if accept == webapp.MimeTypeBytes {
+			w.Header().Set(webapp.HeaderNameContentType, webapp.MimeTypeBytes)
+			_, err = w.Write(ns[:])
+		} else {
+			w.Header().Set(webapp.HeaderNameContentType, webapp.MimeTypeTextCharset)
+			_, err = w.Write([]byte(nss))
+		}
+
+		if err != nil {
+			slog.Error("error writing namespace", "err", err)
+		}
+	})
 }
 
 func writeHTTPError(ctx context.Context, w http.ResponseWriter, msg string, statusCode int) {

@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  release:
+  release_binaries_and_images:
     name: Release binaries and container images
     runs-on: ubuntu-latest
 
@@ -23,14 +23,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - uses: ko-build/setup-ko@v0.6
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: web/package.json
-          cache: 'npm'
-          cache-dependency-path: |
-            web/package-lock.json
+      - uses: ko-build/setup-ko@v0.7
 
       - name: Build
         env:
@@ -42,17 +35,58 @@ jobs:
           export KO_DOCKER_REPO="ghcr.io/${GITHUB_REPOSITORY@L}"
           ko build --bare --platform=all --tags=$TAGS ./cmd/bf
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: bifrost
           path: |
             bin/*
             docs/ca-openapi.yml
 
-      - uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v2
         with:
           append_body: true
           generate_release_notes: true
           files: |
             bin/*
             docs/ca-openapi.yml
+
+  build_web:
+    runs-on: ubuntu-latest
+
+    env:
+      NODE_ENV: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: web/package.json
+          cache: 'npm'
+          cache-dependency-path: |
+            web/package-lock.json
+
+      - name: Build
+        working-directory: web
+        run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/static
+
+  release_web:
+    needs: build_web
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

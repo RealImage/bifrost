@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"time"
 
 	"github.com/RealImage/bifrost/cafiles"
@@ -31,7 +30,7 @@ const (
 var (
 	caHost        string
 	caPort        int64
-	webStaticPath string
+	enableCORS    bool
 	exposeMetrics bool
 )
 
@@ -64,18 +63,12 @@ var caServeCmd = &cli.Command{
 				return nil
 			},
 		},
-		&cli.StringFlag{
-			Name:    "web",
-			Usage:   "enable web interface",
-			Aliases: []string{"w"},
-			Sources: cli.EnvVars("WEB"),
-			Action: func(_ context.Context, _ *cli.Command, w string) error {
-				if ok, err := strconv.ParseBool(w); w == "" || (ok && err == nil) {
-					w = "embed"
-				}
-				webStaticPath = w
-				return nil
-			},
+		&cli.BoolFlag{
+			Name:        "cors",
+			Usage:       "enable CORS from all origins",
+			Sources:     cli.EnvVars("CORS"),
+			Value:       false,
+			Destination: &enableCORS,
 		},
 		&cli.BoolFlag{
 			Name:        "metrics",
@@ -106,19 +99,13 @@ var caServeCmd = &cli.Command{
 		defer ca.Close()
 
 		mux := http.NewServeMux()
-		ca.AddRoutes(mux)
-
-		if exposeMetrics {
-			slog.InfoContext(ctx, "metrics enabled")
-			mux.HandleFunc("GET /metrics", webapp.MetricsHandler)
-		}
-
-		if webStaticPath != "" {
-			slog.InfoContext(ctx, "web interface enabled", "staticPath", webStaticPath)
-			webapp.AddRoutes(mux, webStaticPath, cert.Namespace)
-		}
+		ca.AddRoutes(mux, exposeMetrics)
 
 		hdlr := webapp.RequestLogger(mux)
+
+		if enableCORS {
+			hdlr = corsMiddleware(hdlr)
+		}
 
 		addr := fmt.Sprintf("%s:%d", caHost, caPort)
 		slog.InfoContext(ctx, "starting server", "address", addr, "namespace", cert.Namespace)
@@ -148,6 +135,21 @@ var caServeCmd = &cli.Command{
 
 		return nil
 	},
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding")
+
+		if r.Method == http.MethodOptions {
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 var caIssueCmd = &cli.Command{
