@@ -212,7 +212,7 @@ view model =
             [ nav [ class "nav" ]
                 [ div [ class "nav-left" ]
                     [ a [ class "brand" ]
-                        [ img [ src "/bifrost.webp", alt "Bifrost" ] []
+                        [ img [ src "bifrost.webp", alt "Bifrost" ] []
                         , text "Bifrost"
                         ]
                     ]

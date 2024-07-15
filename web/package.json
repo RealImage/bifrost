@@ -29,7 +29,8 @@
     "esbuild": "^0.19.5",
     "esbuild-plugin-elm": "^0.0.12"
   },
-  "engine": {
-    "node": ">=20.0.0"
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=7.0.0"
   }
 }
