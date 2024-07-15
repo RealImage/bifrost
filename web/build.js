@@ -24,5 +24,6 @@ if (serve) {
   const { host, port } = await ctx.serve({ host: 'localhost', servedir: 'static' })
   console.log(`Serving at http://${host}:${port}`)
 } else {
+  await ctx.rebuild()
   await ctx.dispose()
 }
