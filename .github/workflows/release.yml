@@ -53,9 +53,6 @@ jobs:
   build_web:
     runs-on: ubuntu-latest
 
-    env:
-      NODE_ENV: production
-
     steps:
       - uses: actions/checkout@v4
 
@@ -70,7 +67,7 @@ jobs:
         working-directory: web
         run: |
           npm ci
-          npm run build
+          env NODE_ENV=production npm run build
 
       - uses: actions/upload-pages-artifact@v3
         with:
