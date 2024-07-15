@@ -63,7 +63,7 @@ jobs:
           cache-dependency-path: |
             web/package-lock.json
 
-      - uses: JorelAli/setup-elm
+      - uses: JorelAli/setup-elm@v6
         with:
           elm-version: 0.19.1
 
