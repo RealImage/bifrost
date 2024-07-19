@@ -6,9 +6,8 @@ import (
 	"crypto/x509"
 	"io"
 	"net/http"
+	"sync/atomic"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // HTTPClient returns a http.Client set up for TLS Client Authentication (mTLS).
@@ -17,14 +16,12 @@ import (
 // If ssllog is not nil, the client will log TLS key material to it.
 func HTTPClient(
 	caUrl string,
-	ns uuid.UUID,
 	privkey *PrivateKey,
 	roots *x509.CertPool,
 	ssllog io.Writer,
 ) (*http.Client, error) {
 	cr := &certRefresher{
 		url:     caUrl,
-		ns:      ns,
 		privkey: privkey,
 	}
 	if _, err := cr.GetClientCertificate(nil); err != nil {
@@ -44,9 +41,8 @@ func HTTPClient(
 
 type certRefresher struct {
 	url     string
-	ns      uuid.UUID
 	privkey *PrivateKey
-	cert    *Certificate
+	cert    atomic.Pointer[Certificate]
 }
 
 func (cr *certRefresher) GetClientCertificate(
@@ -56,16 +52,23 @@ func (cr *certRefresher) GetClientCertificate(
 	if info != nil {
 		ctx = info.Context()
 	}
+
 	// If the certificate is nil or is going to expire soon, request a new one.
-	if cr.cert == nil || cr.cert.NotAfter.Before(time.Now().Add(-time.Minute*10)) {
-		cert, err := RequestCertificate(ctx, cr.url, cr.ns, cr.privkey)
+	if cert := cr.cert.Load(); cert == nil || cert.NotAfter.Before(time.Now().Add(-time.Minute*10)) {
+		cert, err := RequestCertificate(ctx, cr.url, cr.privkey)
 		if err != nil {
 			return nil, err
 		}
-		cr.cert = cert
+
+		for {
+			oldCert := cr.cert.Load()
+			if cr.cert.CompareAndSwap(oldCert, cert) {
+				break
+			}
+		}
 	}
 
-	tlsCert := X509ToTLSCertificate(cr.cert.Certificate, cr.privkey.PrivateKey)
+	tlsCert := X509ToTLSCertificate(cr.cert.Load().Certificate, cr.privkey.PrivateKey)
 
 	if info != nil {
 		if err := info.SupportsCertificate(tlsCert); err != nil {

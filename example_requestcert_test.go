@@ -5,14 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 func ExampleRequestCertificate() {
 	const timeout = 5 * time.Second
 
-	exampleNS := uuid.MustParse("228b9676-998e-489a-8468-92d46a94a32d")
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -21,10 +18,9 @@ func ExampleRequestCertificate() {
 		panic(err)
 	}
 
-	cert, err := RequestCertificate(ctx, "https://bifrost-ca", exampleNS, key)
+	cert, err := RequestCertificate(ctx, "https://bifrost-ca", key)
 	if errors.Is(err, ErrRequestInvalid) {
-		// This error is returned when the wrong namespace is used in the CSR,
-		// or if the CSR is invalid.
+		// This error is returned if the CSR is invalid.
 		fmt.Println("namespace mismatch or invalid csr")
 	} else if errors.Is(err, ErrRequestDenied) {
 		// This error is returned when the request is denied by the CA gauntlet function.

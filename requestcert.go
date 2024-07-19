@@ -28,12 +28,12 @@ func CertificateRequestTemplate(ns uuid.UUID, key *PublicKey) *x509.CertificateR
 // RequestCertificate sends a certificate request over HTTP to url and returns the signed certificate.
 // The returned error wraps ErrCertificateRequestInvalid or ErrCertificateRequestDenied
 // if the request is invalid or denied.
-func RequestCertificate(
-	ctx context.Context,
-	caUrl string,
-	namespace uuid.UUID,
-	key *PrivateKey,
-) (*Certificate, error) {
+func RequestCertificate(ctx context.Context, caUrl string, key *PrivateKey) (*Certificate, error) {
+	namespace, err := GetNamespace(ctx, caUrl)
+	if err != nil {
+		return nil, fmt.Errorf("bifrost: error getting namespace: %w", err)
+	}
+
 	template := CertificateRequestTemplate(namespace, key.PublicKey())
 	csr, err := x509.CreateCertificateRequest(rand.Reader, template, key)
 	if err != nil {

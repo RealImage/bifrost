@@ -26,7 +26,6 @@ var requestCmd = &cli.Command{
 			Value:       fmt.Sprintf("http://%s:%d", defaultCaHost, defaultCaPort),
 			Destination: &caUrl,
 		},
-		nsFlag,
 		clientPrivKeyFlag,
 		outputFlag,
 	},
@@ -45,7 +44,7 @@ var requestCmd = &cli.Command{
 			return cli.Exit("Failed to read private key", 1)
 		}
 
-		cert, err := bifrost.RequestCertificate(ctx, caUrl, namespace, key)
+		cert, err := bifrost.RequestCertificate(ctx, caUrl, key)
 		if err != nil {
 			slog.ErrorContext(ctx, "error requesting certificate", "error", err)
 			return cli.Exit("Failed to request certificate", 1)
