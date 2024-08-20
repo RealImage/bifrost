@@ -1,3 +1,3 @@
 package bifrost
 
-const Version = `dev`
+const Version = `devel`

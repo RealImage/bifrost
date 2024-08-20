@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # $1 - The version number to use for the build. Defaults to "dev".
-#    
+#
 #
 
 set -euo pipefail
@@ -10,7 +10,7 @@ app="$(basename "$PWD")"
 
 go install golang.org/x/tools/cmd/stringer@latest
 
-version="${1:-dev}"
+version="${1:-devel}"
 
 env VERSION="$version" go generate -x ./...
 
