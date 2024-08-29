@@ -12,8 +12,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"plugin"
-	"strings"
 	"time"
 
 	"github.com/RealImage/bifrost/cafiles"
@@ -30,11 +28,11 @@ const (
 
 // caServeCmd flags
 var (
-	caHost            string
-	caPort            int64
-	enableCORS        bool
-	exposeMetrics     bool
-	interceptorPlugin string
+	caHost         string
+	caPort         int64
+	enableCORS     bool
+	exposeMetrics  bool
+	gauntletPlugin string
 )
 
 var caServeCmd = &cli.Command{
@@ -81,11 +79,11 @@ var caServeCmd = &cli.Command{
 			Destination: &exposeMetrics,
 		},
 		&cli.StringFlag{
-			Name:        "interceptor-plugin",
-			Aliases:     []string{"plugin"},
-			Sources:     cli.EnvVars("INTERCEPTOR_PLUGIN"),
-			Usage:       "path to an interceptor plugin file",
-			Destination: &interceptorPlugin,
+			Name:        "gauntlet-plugin",
+			Aliases:     []string{"g", "plugin"},
+			Sources:     cli.EnvVars("GAUNTLET_PLUGIN"),
+			Usage:       "path to a gauntlet plugin file",
+			Destination: &gauntletPlugin,
 		},
 	},
 	Action: func(ctx context.Context, _ *cli.Command) error {
@@ -101,13 +99,13 @@ var caServeCmd = &cli.Command{
 			"notAfter", cert.NotAfter,
 		)
 
-		interceptor, err := loadInterceptorPlugin()
+		gauntlet, err := tinyca.LoadGauntlet(gauntletPlugin)
 		if err != nil {
 			slog.ErrorContext(ctx, "error loading interceptor plugin", "error", err)
 			return cli.Exit("Error loading interceptor plugin", 1)
 		}
 
-		ca, err := tinyca.New(cert, key, interceptor)
+		ca, err := tinyca.New(cert, key, gauntlet)
 		if err != nil {
 			slog.ErrorContext(ctx, "error creating CA", "error", err)
 			return cli.Exit("Error creating CA", 1)
@@ -166,36 +164,6 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-// Load the interceptor plugin
-func loadInterceptorPlugin() (tinyca.Gauntlet, error) {
-	if interceptorPlugin == "" {
-		return nil, nil
-	}
-
-	if !strings.HasSuffix(interceptorPlugin, ".so") {
-		interceptorPlugin += ".so"
-	}
-	plug, err := plugin.Open(interceptorPlugin)
-	if err != nil {
-		return nil, fmt.Errorf("error opening plugin %s: %w", interceptorPlugin, err)
-	}
-
-	sym, err := plug.Lookup("Gauntlet")
-	if err != nil {
-		return nil, fmt.Errorf("error looking up Gauntlet symbol in plugin %s: %w", interceptorPlugin, err)
-	}
-
-	gauntlet, ok := sym.(*tinyca.Gauntlet)
-	if !ok {
-		return nil, fmt.Errorf("expected symbol *Gauntlet but got %T instead", sym)
-	}
-	if gauntlet == nil {
-		return nil, errors.New("Gauntlet symbol is nil")
-	}
-
-	return *gauntlet, nil
 }
 
 var caIssueCmd = &cli.Command{

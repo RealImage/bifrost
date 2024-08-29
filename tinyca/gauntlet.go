@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"plugin"
+	"strings"
 	"sync"
 	"time"
 
@@ -35,7 +37,41 @@ const GauntletTimeout = 100 * time.Millisecond
 // If SerialNumber is nil, a random value will be generated.
 type Gauntlet func(ctx context.Context, csr *bifrost.CertificateRequest) (tmpl *x509.Certificate, err error)
 
-type gauntletHolder struct {
+// LoadGaugelet loads the a Gauntlet function from the Go plugin
+// at the given path.
+// The plugin must export a symbol named "Gauntlet" of type *Gauntlet.
+// If the path is empty, LoadGauntlet returns nil.
+// If the path does not end with ".so", it will be appended.
+func LoadGauntlet(pluginPath string) (Gauntlet, error) {
+	if pluginPath == "" {
+		return nil, nil
+	}
+
+	if !strings.HasSuffix(pluginPath, ".so") {
+		pluginPath += ".so"
+	}
+	plug, err := plugin.Open(pluginPath)
+	if err != nil {
+		return nil, fmt.Errorf("error opening plugin %s: %w", pluginPath, err)
+	}
+
+	sym, err := plug.Lookup("Gauntlet")
+	if err != nil {
+		return nil, fmt.Errorf("error looking up Gauntlet symbol in plugin %s: %w", pluginPath, err)
+	}
+
+	gauntlet, ok := sym.(*Gauntlet)
+	if !ok {
+		return nil, fmt.Errorf("expected symbol *Gauntlet but got %T instead", sym)
+	}
+	if gauntlet == nil || *gauntlet == nil {
+		return nil, errors.New("Gauntlet symbol is nil")
+	}
+
+	return *gauntlet, nil
+}
+
+type gauntletThrower struct {
 	Gauntlet
 
 	wg *sync.WaitGroup
@@ -46,16 +82,16 @@ type gauntletHolder struct {
 	duration *metrics.Histogram
 }
 
-func newGauntletHolder(g Gauntlet, ns uuid.UUID) *gauntletHolder {
+func newGauntletThrower(g Gauntlet, ns uuid.UUID) *gauntletThrower {
 	if g == nil {
-		return &gauntletHolder{}
+		return &gauntletThrower{}
 	}
 
 	denied := bfMetricName("gauntlet_denied_total", ns)
 	aborted := bfMetricName("gauntlet_aborted_total", ns)
 	duration := bfMetricName("gauntlet_duration_seconds", ns)
 
-	return &gauntletHolder{
+	return &gauntletThrower{
 		Gauntlet: g,
 
 		wg: new(sync.WaitGroup),
@@ -66,7 +102,7 @@ func newGauntletHolder(g Gauntlet, ns uuid.UUID) *gauntletHolder {
 	}
 }
 
-func (gh *gauntletHolder) throw(csr *bifrost.CertificateRequest) (*x509.Certificate, error) {
+func (gh *gauntletThrower) throw(csr *bifrost.CertificateRequest) (*x509.Certificate, error) {
 	if gh.Gauntlet == nil {
 		return TLSClientCertTemplate(), nil
 	}
@@ -122,7 +158,7 @@ func (gh *gauntletHolder) throw(csr *bifrost.CertificateRequest) (*x509.Certific
 	}
 }
 
-func (gh *gauntletHolder) Close() error {
+func (gh *gauntletThrower) Close() error {
 	if gh.wg != nil {
 		gh.wg.Wait()
 	}

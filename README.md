@@ -41,6 +41,53 @@ In pseudo-code,
 
 `bifrostUUID = UUIDv5(sha1(NamespaceClientIdentity + PublicKey.X.Bytes() + PublicKey.Y.Bytes())`
 
+## Gauntlet Plugins
+
+Bifrost Certificate Authority supports plugins that validate certificate signing requests.
+
+A plugin is a Go package that exports a function named `Gauntlet` that implements
+the [`tinyca.Gauntlet`](https://pkg.go.dev/github.com/RealImage/bifrost/pkg/tinyca#Gauntlet)
+interface.
+
+For example, here's a plugin that checks the ID of the public key from the certificate
+signing request against a list of allowed IDs:
+
+```go
+package main
+
+import (
+    "crypto/x509"
+    "encoding/pem"
+    "errors"
+    "fmt"
+    "io/ioutil"
+
+    "github.com/RealImage/bifrost/pkg/tinyca"
+)
+
+func Gauntlet(ctx context.Context, csr *bifrost.CertificateRequest) (*x509.Certificate, error) {
+    // Check the public key ID against a list of allowed IDs
+    if !isAllowed(csr.UUID) {
+        return nil, errors.New("public key ID not allowed")
+    }
+
+    tmpl := tinyca.TLSClientCertTemplate()
+    tmpl.Subject.OrganizationalUnit = []string{"my-app")}
+
+    return tmpl, nil
+}
+
+func isAllowed(id uuid.UUID) bool {
+    // Implement your logic here
+    return true
+}
+```
+
+The `bf ca` command loads a gauntlet plugin from the path specified in
+the `GAUNTLET_PLUGIN` environment variable or in the `--gauntlet-plugin` flag.
+
+```console
+
 ## Build
 
 ### Native
