@@ -86,8 +86,6 @@ func isAllowed(id uuid.UUID) bool {
 The `bf ca` command loads a gauntlet plugin from the path specified in
 the `GAUNTLET_PLUGIN` environment variable or in the `--gauntlet-plugin` flag.
 
-```console
-
 ## Build
 
 ### Native
