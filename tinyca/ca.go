@@ -39,7 +39,7 @@ type CA struct {
 
 	cert *bifrost.Certificate
 	key  *bifrost.PrivateKey
-	gh   *gauntletHolder
+	gh   *gauntletThrower
 
 	// metrics
 	requests      *metrics.Counter
@@ -68,7 +68,7 @@ func New(
 	ca := CA{
 		cert: cert,
 		key:  key,
-		gh:   newGauntletHolder(gauntlet, cert.Namespace),
+		gh:   newGauntletThrower(gauntlet, cert.Namespace),
 
 		requests:      bifrost.StatsForNerds.GetOrCreateCounter(reqs),
 		issuedTotal:   bifrost.StatsForNerds.GetOrCreateCounter(issued),

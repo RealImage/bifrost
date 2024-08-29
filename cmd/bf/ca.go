@@ -28,10 +28,11 @@ const (
 
 // caServeCmd flags
 var (
-	caHost        string
-	caPort        int64
-	enableCORS    bool
-	exposeMetrics bool
+	caHost         string
+	caPort         int64
+	enableCORS     bool
+	exposeMetrics  bool
+	gauntletPlugin string
 )
 
 var caServeCmd = &cli.Command{
@@ -77,6 +78,13 @@ var caServeCmd = &cli.Command{
 			Value:       false,
 			Destination: &exposeMetrics,
 		},
+		&cli.StringFlag{
+			Name:        "gauntlet-plugin",
+			Aliases:     []string{"g", "plugin"},
+			Sources:     cli.EnvVars("GAUNTLET_PLUGIN"),
+			Usage:       "path to a gauntlet plugin file",
+			Destination: &gauntletPlugin,
+		},
 	},
 	Action: func(ctx context.Context, _ *cli.Command) error {
 		cert, key, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
@@ -91,7 +99,13 @@ var caServeCmd = &cli.Command{
 			"notAfter", cert.NotAfter,
 		)
 
-		ca, err := tinyca.New(cert, key, nil)
+		gauntlet, err := tinyca.LoadGauntlet(gauntletPlugin)
+		if err != nil {
+			slog.ErrorContext(ctx, "error loading interceptor plugin", "error", err)
+			return cli.Exit("Error loading interceptor plugin", 1)
+		}
+
+		ca, err := tinyca.New(cert, key, gauntlet)
 		if err != nil {
 			slog.ErrorContext(ctx, "error creating CA", "error", err)
 			return cli.Exit("Error creating CA", 1)
