@@ -78,13 +78,6 @@ var caServeCmd = &cli.Command{
 			Value:       false,
 			Destination: &exposeMetrics,
 		},
-		&cli.StringFlag{
-			Name:        "gauntlet-plugin",
-			Aliases:     []string{"g", "plugin"},
-			Sources:     cli.EnvVars("GAUNTLET_PLUGIN"),
-			Usage:       "path to a gauntlet plugin file",
-			Destination: &gauntletPlugin,
-		},
 	},
 	Action: func(ctx context.Context, _ *cli.Command) error {
 		cert, key, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
