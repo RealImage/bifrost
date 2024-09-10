@@ -3,3 +3,4 @@
 *.pem
 ssllog.txt
 coverage.txt
+dist
