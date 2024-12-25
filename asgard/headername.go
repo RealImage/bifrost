@@ -1,4 +1,4 @@
-//go:generate stringer -linecomment -type=HeaderName
+//go:generate go run golang.org/x/tools/cmd/stringer@latest -linecomment -type=HeaderName
 package asgard
 
 type HeaderName int
