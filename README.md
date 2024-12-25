@@ -90,16 +90,18 @@ the `GAUNTLET_PLUGIN` environment variable or in the `--gauntlet-plugin` flag.
 
 ### Native
 
-Install Node.js & Go.
-Build static binaries on your machine for all supported platforms.
+Install [Go](https://go.dev) and [goreleaser](http://goreleaser.com).
+Build release artifacts on your machine for all supported platforms.
 
 ```console
-./build.sh
+goreleaser release --snapshot --clean
 ```
 
 ### Container
 
-Build an image with [`ko`](https://ko.build).
+Install [ko](https://ko.build).
+
+Build container images for all platforms.
 
 ```console
 ko build --local ./cmd/bf

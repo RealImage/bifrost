@@ -1,8 +1,3 @@
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
-
-# The lines below are called `modelines`. See `:help modeline`
-# Feel free to remove those if you don't want/need to use them.
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj
 
@@ -17,22 +12,21 @@ builds:
   - main: ./cmd/bf
     env:
       - CGO_ENABLED=0
-    overrides:
-      - goos: linux
-        goarch: amd64
-        env:
-          - CGO_ENABLED=1
-          - CC=zig cc -target x86_64-linux-musl
-          - CXX=zig c++ -target x86_64-linux-musl
-      - goos: linux
-        goarch: arm64
-        env:
-          - CGO_ENABLED=1
-          - CC=zig cc -target aarch64-linux-musl
-          - CXX=zig c++ -target aarch64-linux-musl
+  - main: ./cmd/bf
+    id: lambda
+    binary: bootstrap
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
 
 archives:
   - format: tar.gz
+    builds:
+      - main
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -48,6 +42,15 @@ archives:
     files:
       - LICENSE
       - README.md
+      - docs/ca-openapi.yml
+  - id: lambda
+    builds:
+      - lambda
+    name_template: "{{ .ProjectName }}_lambda_bundle_{{ .Os }}_{{ .Arch }}_{{ .Version }}"
+    format: zip
+    wrap_in_directory: false
+    files:
+      - none*
 
 changelog:
   sort: asc
@@ -55,3 +58,14 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+
+kos:
+  - main: ./cmd/bf
+    tags:
+      - latest
+      - "v{{ .Version }}"
+    bare: true
+    preserve_import_paths: true
+    platforms:
+      - linux/amd64
+      - linux/arm64

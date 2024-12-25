@@ -25,30 +25,14 @@ jobs:
 
       - uses: ko-build/setup-ko@v0.7
 
-      - name: Build
-        env:
-          VERSION: ${{ github.ref_name }}
-          TAGS: ${{ github.ref_name }},${{ github.sha }},latest
-        shell: bash
-        run: |
-          ./build.sh "$VERSION"
-          export KO_DOCKER_REPO="ghcr.io/${GITHUB_REPOSITORY@L}"
-          ko build --bare --platform=all --tags=$TAGS ./cmd/bf
+      - name: Set up container image name
+        run: echo "KO_DOCKER_REPO=ghcr.io/${GITHUB_REPOSITORY@L}" >> "${GITHUB_ENV}"
 
-      - uses: actions/upload-artifact@v4
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
         with:
-          name: bifrost
-          path: |
-            bin/*
-            docs/ca-openapi.yml
-
-      - uses: softprops/action-gh-release@v2
-        with:
-          append_body: true
-          generate_release_notes: true
-          files: |
-            bin/*
-            docs/ca-openapi.yml
+          version: "~> v2"
+          args: release --clean
 
   build_web:
     runs-on: ubuntu-latest
@@ -59,7 +43,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: web/package.json
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: |
             web/package-lock.json
 
