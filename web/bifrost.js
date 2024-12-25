@@ -73,9 +73,11 @@ export async function exportPrivateKey(privateKey, format = "pem") {
 export async function publicKeyFingerprint(publicKey) {
   const key = await crypto.subtle.exportKey("raw", publicKey);
   const msgBuffer = new TextEncoder().encode(key);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const hashHex = hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
   return hashHex;
 }
 
@@ -145,9 +147,16 @@ export async function bifrostId(namespace, pubKey) {
  */
 function formatPEM(type, buffer) {
   return `-----BEGIN ${type}-----\n${toBase64(
-    arrayBufferToString(buffer)).replace(/(.{64})/g, "$1\n")}\n-----END ${type}-----`;
+    arrayBufferToString(buffer),
+  ).replace(/(.{64})/g, "$1\n")}\n-----END ${type}-----`;
 }
 
+/**
+ *
+ * @param {string} signAlg
+ * @param {string} hashAlg
+ * @returns {pkijs.CryptoEngineAlgorithmParams}
+ */
 function getAlgorithm(signAlg, hashAlg) {
   const algorithm = getAlgorithmParameters(signAlg, "generatekey");
   if ("hash" in algorithm.algorithm) algorithm.algorithm.hash.name = hashAlg;
