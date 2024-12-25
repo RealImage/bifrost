@@ -33,6 +33,8 @@ jobs:
         with:
           version: "~> v2"
           args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build_web:
     runs-on: ubuntu-latest
