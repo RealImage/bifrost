@@ -7,7 +7,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"log/slog"
 
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/cafiles"
@@ -35,7 +34,8 @@ var newCmd = &cli.Command{
 				}
 				defer func() {
 					if err := cls(); err != nil {
-						slog.ErrorContext(ctx, "error closing output writer", "error", err)
+						bifrost.Logger().
+							ErrorContext(ctx, "error closing output writer", "error", err)
 					}
 				}()
 
@@ -67,7 +67,8 @@ var newCmd = &cli.Command{
 				}
 				defer func() {
 					if err := cls(); err != nil {
-						slog.ErrorContext(ctx, "error closing output writer", "error", err)
+						bifrost.Logger().
+							ErrorContext(ctx, "error closing output writer", "error", err)
 					}
 				}()
 
@@ -110,7 +111,8 @@ var newCmd = &cli.Command{
 				}
 				defer func() {
 					if err := cls(); err != nil {
-						slog.ErrorContext(ctx, "error closing output writer", "error", err)
+						bifrost.Logger().
+							ErrorContext(ctx, "error closing output writer", "error", err)
 					}
 				}()
 
@@ -173,7 +175,8 @@ var newCmd = &cli.Command{
 				}
 				defer func() {
 					if err := cls(); err != nil {
-						slog.ErrorContext(ctx, "error closing output writer", "error", err)
+						bifrost.Logger().
+							ErrorContext(ctx, "error closing output writer", "error", err)
 					}
 				}()
 

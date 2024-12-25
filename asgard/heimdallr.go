@@ -13,7 +13,6 @@ package asgard
 import (
 	"context"
 	"encoding/pem"
-	"log/slog"
 	"net/http"
 	"net/url"
 
@@ -51,14 +50,14 @@ func Heimdallr(h HeaderName, ns uuid.UUID) func(http.Handler) http.Handler {
 
 			certHeader := r.Header.Get(h.String())
 			if certHeader == "" {
-				slog.ErrorContext(ctx, "missing authorization header")
+				bifrost.Logger().ErrorContext(ctx, "missing authorization header")
 				http.Error(w, errBadAuthHeader, http.StatusServiceUnavailable)
 				return
 			}
 
 			certPEM, err := url.PathUnescape(certHeader)
 			if err != nil {
-				slog.ErrorContext(
+				bifrost.Logger().ErrorContext(
 					ctx, "error decoding header",
 					"headerName", h.String(),
 					"headerValue", certHeader,
@@ -69,7 +68,7 @@ func Heimdallr(h HeaderName, ns uuid.UUID) func(http.Handler) http.Handler {
 
 			block, _ := pem.Decode([]byte(certPEM))
 			if block == nil {
-				slog.ErrorContext(
+				bifrost.Logger().ErrorContext(
 					ctx, "no PEM data found in authorization header",
 					"headerName", h.String(),
 					"headerValue", certPEM,
@@ -80,13 +79,13 @@ func Heimdallr(h HeaderName, ns uuid.UUID) func(http.Handler) http.Handler {
 
 			cert, err := bifrost.ParseCertificate(block.Bytes)
 			if err != nil {
-				slog.ErrorContext(ctx, "error parsing client certificate", "error", err)
+				bifrost.Logger().ErrorContext(ctx, "error parsing client certificate", "error", err)
 				http.Error(w, errBadAuthHeader, http.StatusServiceUnavailable)
 				return
 			}
 
 			if cert.Namespace != ns {
-				slog.ErrorContext(
+				bifrost.Logger().ErrorContext(
 					ctx, "client certificate namespace mismatch",
 					"expected", ns,
 					"actual", cert.Namespace,

@@ -5,15 +5,19 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/RealImage/bifrost"
 	"github.com/urfave/cli/v3"
 )
 
 var version = "devel"
 
 func main() {
-	logLevel := new(slog.LevelVar)
-	hdlr := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})
-	slog.SetDefault(slog.New(hdlr))
+	logger := slog.New(
+		slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: bifrost.LogLevel}),
+	)
+
+	slog.SetDefault(logger)
+	bifrost.SetLogger(logger)
 
 	cli := &cli.Command{
 		Name:    "bifrost",
@@ -27,7 +31,7 @@ func main() {
 				Sources: cli.EnvVars("LOG_LEVEL"),
 				Value:   slog.LevelInfo.String(),
 				Action: func(_ context.Context, _ *cli.Command, level string) error {
-					return logLevel.UnmarshalText([]byte(level))
+					return bifrost.LogLevel.UnmarshalText([]byte(level))
 				},
 			},
 		},

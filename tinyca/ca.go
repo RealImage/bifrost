@@ -17,13 +17,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"math"
 	"math/big"
 	"net/http"
 	"time"
 
 	"github.com/RealImage/bifrost"
+
 	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/google/uuid"
@@ -163,7 +163,7 @@ func (ca *CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "error writing certificate response", "err", err)
+		bifrost.Logger().ErrorContext(ctx, "error writing certificate response", "err", err)
 	}
 }
 
@@ -177,7 +177,7 @@ func (ca *CA) AddRoutes(mux *http.ServeMux, metrics bool) {
 	mux.Handle("POST /issue", ca)
 
 	if metrics {
-		slog.Info("metrics enabled")
+		bifrost.Logger().Info("metrics enabled")
 		mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
 			bifrost.StatsForNerds.WritePrometheus(w)
 		})
@@ -244,7 +244,7 @@ func (ca *CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([
 	ca.issueSize.Update(float64(len(certBytes)))
 	ca.issuedTotal.Inc()
 
-	slog.Debug("certificate issued", "to", csr.ID, "duration", time.Since(issueStart))
+	bifrost.Logger().Debug("certificate issued", "to", csr.ID, "duration", time.Since(issueStart))
 
 	return certBytes, nil
 }
@@ -289,13 +289,13 @@ func getNamespaceHandler(ns uuid.UUID) http.Handler {
 		}
 
 		if err != nil {
-			slog.Error("error writing namespace", "err", err)
+			bifrost.Logger().Error("error writing namespace", "err", err)
 		}
 	})
 }
 
 func writeHTTPError(ctx context.Context, w http.ResponseWriter, msg string, statusCode int) {
-	slog.ErrorContext(ctx, msg, "statusCode", statusCode)
+	bifrost.Logger().ErrorContext(ctx, msg, "statusCode", statusCode)
 	http.Error(w, msg, statusCode)
 }
 

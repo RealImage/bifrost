@@ -2,7 +2,6 @@ package asgard
 
 import (
 	"encoding/pem"
-	"log/slog"
 	"net/http"
 	"net/url"
 
@@ -29,13 +28,14 @@ func Hofund(h HeaderName, ns uuid.UUID) func(http.Handler) http.Handler {
 
 			cert, err := bifrost.NewCertificate(r.TLS.PeerCertificates[0])
 			if err != nil {
-				slog.ErrorContext(ctx, "error validating client certificate", "error", err)
+				bifrost.Logger().
+					ErrorContext(ctx, "error validating client certificate", "error", err)
 				http.Error(w, "invalid client certificate", http.StatusUnauthorized)
 				return
 			}
 
 			if cert.Namespace != ns {
-				slog.ErrorContext(
+				bifrost.Logger().ErrorContext(
 					ctx, "client certificate namespace mismatch",
 					"expected", ns,
 					"actual", cert.Namespace,
