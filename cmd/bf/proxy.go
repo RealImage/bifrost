@@ -8,7 +8,6 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -84,7 +83,7 @@ var proxyCmd = &cli.Command{
 	Action: func(ctx context.Context, _ *cli.Command) error {
 		caCert, caKey, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
 		if err != nil {
-			slog.ErrorContext(ctx, "error reading cert/key", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error reading cert/key", "error", err)
 			return cli.Exit("Error reading certificate/private key", 1)
 		}
 
@@ -94,7 +93,7 @@ var proxyCmd = &cli.Command{
 
 		burl, err := url.Parse(backendUrl)
 		if err != nil {
-			slog.ErrorContext(ctx, "error parsing backend url", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error parsing backend url", "error", err)
 			return cli.Exit("Error parsing backend URL", 1)
 		}
 		reverseProxy := &httputil.ReverseProxy{
@@ -121,19 +120,19 @@ var proxyCmd = &cli.Command{
 
 		serverKey, err := bifrost.NewPrivateKey()
 		if err != nil {
-			slog.ErrorContext(ctx, "error creating key", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error creating key", "error", err)
 			return cli.Exit("Error creating server key", 1)
 		}
 
 		serverCert, err := issueTLSCert(caCert, caKey, serverKey)
 		if err != nil {
-			slog.ErrorContext(ctx, "error creating certificate", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error creating certificate", "error", err)
 			return cli.Exit("Error creating server certificate", 1)
 		}
 
 		tlsCert, err := serverCert.ToTLSCertificate(*serverKey)
 		if err != nil {
-			slog.ErrorContext(ctx, "error converting certificate", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error converting certificate", "error", err)
 			return cli.Exit("Certificate error", 1)
 		}
 
@@ -149,7 +148,7 @@ var proxyCmd = &cli.Command{
 			},
 		}
 
-		slog.InfoContext(ctx, "proxying requests",
+		bifrost.Logger().InfoContext(ctx, "proxying requests",
 			"from", "https://"+addr,
 			"to", backendUrl,
 			"namespace", caCert.Namespace.String(),
@@ -158,7 +157,7 @@ var proxyCmd = &cli.Command{
 		go func() {
 			if err := server.ListenAndServeTLS("", ""); err != nil &&
 				!errors.Is(err, http.ErrServerClosed) {
-				slog.ErrorContext(ctx, "error starting server", "error", err)
+				bifrost.Logger().ErrorContext(ctx, "error starting server", "error", err)
 				os.Exit(1)
 			}
 		}()
@@ -174,7 +173,7 @@ var proxyCmd = &cli.Command{
 		if err := server.Shutdown(ctx); err != nil {
 			return err
 		}
-		slog.InfoContext(ctx, "shut down server")
+		bifrost.Logger().InfoContext(ctx, "shut down server")
 
 		return nil
 	},

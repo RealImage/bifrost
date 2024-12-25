@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/RealImage/bifrost"
 	"github.com/felixge/httpsnoop"
 )
 
@@ -21,7 +22,7 @@ func RequestLogger(h http.Handler) http.Handler {
 			level = slog.LevelError
 		}
 
-		slog.LogAttrs(
+		bifrost.Logger().LogAttrs(
 			r.Context(),
 			level,
 			fmt.Sprintf("%s %s", r.Method, r.RequestURI),

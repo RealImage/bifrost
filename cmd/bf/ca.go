@@ -8,12 +8,12 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
+	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/cafiles"
 	"github.com/RealImage/bifrost/internal/webapp"
 	"github.com/RealImage/bifrost/tinyca"
@@ -82,10 +82,10 @@ var caServeCmd = &cli.Command{
 	Action: func(ctx context.Context, _ *cli.Command) error {
 		cert, key, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
 		if err != nil {
-			slog.ErrorContext(ctx, "error reading cert/key", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error reading cert/key", "error", err)
 			return cli.Exit("Error reading cert/key", 1)
 		}
-		slog.DebugContext(
+		bifrost.Logger().DebugContext(
 			ctx, "loaded CA certificate and private key",
 			"subject", cert.Subject,
 			"notBefore", cert.NotBefore,
@@ -94,13 +94,13 @@ var caServeCmd = &cli.Command{
 
 		gauntlet, err := tinyca.LoadGauntlet(gauntletPlugin)
 		if err != nil {
-			slog.ErrorContext(ctx, "error loading interceptor plugin", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error loading interceptor plugin", "error", err)
 			return cli.Exit("Error loading interceptor plugin", 1)
 		}
 
 		ca, err := tinyca.New(cert, key, gauntlet)
 		if err != nil {
-			slog.ErrorContext(ctx, "error creating CA", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error creating CA", "error", err)
 			return cli.Exit("Error creating CA", 1)
 		}
 		defer ca.Close()
@@ -115,13 +115,14 @@ var caServeCmd = &cli.Command{
 		}
 
 		addr := fmt.Sprintf("%s:%d", caHost, caPort)
-		slog.InfoContext(ctx, "starting server", "address", addr, "namespace", cert.Namespace)
+		bifrost.Logger().
+			InfoContext(ctx, "starting server", "address", addr, "namespace", cert.Namespace)
 
 		server := http.Server{Addr: addr, Handler: hdlr}
 
 		go func() {
 			if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				slog.ErrorContext(ctx, "error starting server", "error", err)
+				bifrost.Logger().ErrorContext(ctx, "error starting server", "error", err)
 				os.Exit(1)
 			}
 		}()
@@ -134,11 +135,11 @@ var caServeCmd = &cli.Command{
 		ctx, cancel = context.WithTimeout(context.Background(), serverShutdownTimeout)
 		defer cancel()
 
-		slog.DebugContext(ctx, "shutting down server")
+		bifrost.Logger().DebugContext(ctx, "shutting down server")
 		if err := server.Shutdown(ctx); err != nil {
 			return err
 		}
-		slog.InfoContext(ctx, "server shut down")
+		bifrost.Logger().InfoContext(ctx, "server shut down")
 
 		return nil
 	},
@@ -174,20 +175,20 @@ var caIssueCmd = &cli.Command{
 	Action: func(ctx context.Context, _ *cli.Command) error {
 		caCert, caKey, err := cafiles.GetCertKey(ctx, caCertUri, caPrivKeyUri)
 		if err != nil {
-			slog.ErrorContext(ctx, "error reading cert/key", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error reading cert/key", "error", err)
 			return cli.Exit("Error reading cert/key", 1)
 		}
 
 		ca, err := tinyca.New(caCert, caKey, nil)
 		if err != nil {
-			slog.ErrorContext(ctx, "error creating CA", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error creating CA", "error", err)
 			return cli.Exit("Error creating CA", 1)
 		}
 		defer ca.Close()
 
 		clientKey, err := cafiles.GetPrivateKey(ctx, clientPrivKeyUri)
 		if err != nil {
-			slog.ErrorContext(ctx, "error reading client key", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error reading client key", "error", err)
 			return cli.Exit("Error reading client key", 1)
 		}
 
@@ -198,30 +199,30 @@ var caIssueCmd = &cli.Command{
 			},
 		}, clientKey)
 		if err != nil {
-			slog.ErrorContext(ctx, "error creating certificate request", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error creating certificate request", "error", err)
 			return cli.Exit("Error creating certificate request", 1)
 		}
 
 		notBefore, notAfter, err := tinyca.ParseValidity(notBeforeTime, notAfterTime)
 		if err != nil {
-			slog.ErrorContext(ctx, "error parsing validity", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error parsing validity", "error", err)
 			return cli.Exit("Error parsing validity", 1)
 		}
 
 		cert, err := ca.IssueCertificate(csr, notBefore, notAfter)
 		if err != nil {
-			slog.ErrorContext(ctx, "error issuing certificate", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error issuing certificate", "error", err)
 			return cli.Exit("Error issuing certificate", 1)
 		}
 
 		out, cls, err := getOutputWriter()
 		if err != nil {
-			slog.ErrorContext(ctx, "error getting output writer", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error getting output writer", "error", err)
 			return cli.Exit("Error getting output writer", 1)
 		}
 		defer func() {
 			if err := cls(); err != nil {
-				slog.ErrorContext(ctx, "error closing output writer", "error", err)
+				bifrost.Logger().ErrorContext(ctx, "error closing output writer", "error", err)
 			}
 		}()
 

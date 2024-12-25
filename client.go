@@ -54,7 +54,10 @@ func (cr *certRefresher) GetClientCertificate(
 	}
 
 	// If the certificate is nil or is going to expire soon, request a new one.
-	if cert := cr.cert.Load(); cert == nil || cert.NotAfter.Before(time.Now().Add(-time.Minute*10)) {
+	if cert := cr.cert.Load(); cert == nil ||
+		cert.NotAfter.Before(time.Now().Add(-time.Minute*10)) {
+		Logger().DebugContext(ctx, "refreshing client certificate")
+
 		cert, err := RequestCertificate(ctx, cr.url, cr.privkey)
 		if err != nil {
 			return nil, err
@@ -66,6 +69,7 @@ func (cr *certRefresher) GetClientCertificate(
 				break
 			}
 		}
+		Logger().InfoContext(ctx, "got new client certificate")
 	}
 
 	tlsCert := X509ToTLSCertificate(cr.cert.Load().Certificate, cr.privkey.PrivateKey)

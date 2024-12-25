@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/pem"
 	"fmt"
-	"log/slog"
 
 	"github.com/RealImage/bifrost"
 	"github.com/RealImage/bifrost/cafiles"
@@ -33,20 +32,20 @@ var requestCmd = &cli.Command{
 		if namespace == uuid.Nil {
 			var err error
 			if namespace, err = bifrost.GetNamespace(ctx, caUrl); err != nil {
-				slog.ErrorContext(ctx, "error fetching namespace", "error", err)
+				bifrost.Logger().ErrorContext(ctx, "error fetching namespace", "error", err)
 				return cli.Exit("Namespace not provided and could not be fetched", 1)
 			}
 		}
 
 		key, err := cafiles.GetPrivateKey(ctx, clientPrivKeyUri)
 		if err != nil {
-			slog.ErrorContext(ctx, "error reading private key", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error reading private key", "error", err)
 			return cli.Exit("Failed to read private key", 1)
 		}
 
 		cert, err := bifrost.RequestCertificate(ctx, caUrl, key)
 		if err != nil {
-			slog.ErrorContext(ctx, "error requesting certificate", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error requesting certificate", "error", err)
 			return cli.Exit("Failed to request certificate", 1)
 		}
 
@@ -57,17 +56,17 @@ var requestCmd = &cli.Command{
 
 		out, cls, err := getOutputWriter()
 		if err != nil {
-			slog.ErrorContext(ctx, "error opening output file", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error opening output file", "error", err)
 			return cli.Exit("Failed to open output file", 1)
 		}
 		defer func() {
 			if err := cls(); err != nil {
-				slog.ErrorContext(ctx, "error closing output writer", "error", err)
+				bifrost.Logger().ErrorContext(ctx, "error closing output writer", "error", err)
 			}
 		}()
 
 		if err := pem.Encode(out, block); err != nil {
-			slog.ErrorContext(ctx, "error writing certificate", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error writing certificate", "error", err)
 			return cli.Exit("Failed to write certificate", 1)
 		}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 
 	"github.com/RealImage/bifrost"
@@ -36,7 +35,7 @@ var idCmd = &cli.Command{
 
 		id, err := bifrost.ParseIdentity(data)
 		if err != nil {
-			slog.ErrorContext(ctx, "error parsing id file", "error", err)
+			bifrost.Logger().ErrorContext(ctx, "error parsing id file", "error", err)
 			return cli.Exit("Error parsing file", 1)
 		}
 
@@ -46,7 +45,8 @@ var idCmd = &cli.Command{
 
 		// Either we got a namespace from the file or the namespace flag is set
 		if id.Namespace != uuid.Nil && namespace != uuid.Nil && id.Namespace != namespace {
-			slog.ErrorContext(ctx, "namespace mismatch", "file", id.Namespace, "flag", namespace)
+			bifrost.Logger().
+				ErrorContext(ctx, "namespace mismatch", "file", id.Namespace, "flag", namespace)
 			return cli.Exit("Namespace mismatch", 1)
 		}
 
@@ -54,7 +54,7 @@ var idCmd = &cli.Command{
 			id.Namespace = namespace
 		}
 
-		slog.Debug("using", "namespace", id.Namespace)
+		bifrost.Logger().Debug("using", "namespace", id.Namespace)
 		fmt.Println(id.UUID())
 
 		return nil
