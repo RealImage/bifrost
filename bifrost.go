@@ -2,7 +2,6 @@
 package bifrost
 
 import (
-	"context"
 	"log/slog"
 	"sync/atomic"
 )
@@ -26,13 +25,5 @@ func SetLogger(l *slog.Logger) {
 }
 
 func init() {
-	SetLogger(slog.New(discardHandler{}))
+	SetLogger(slog.New(slog.DiscardHandler))
 }
-
-// discardHandler is an [slog.Handler] which is always disabled and therefore logs nothing.
-type discardHandler struct{}
-
-func (discardHandler) Enabled(context.Context, slog.Level) bool  { return false }
-func (discardHandler) Handle(context.Context, slog.Record) error { return nil }
-func (d discardHandler) WithAttrs([]slog.Attr) slog.Handler      { return d }
-func (d discardHandler) WithGroup(string) slog.Handler           { return d }

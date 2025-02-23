@@ -24,16 +24,19 @@ func HTTPClient(
 		url:     caUrl,
 		privkey: privkey,
 	}
-	if _, err := cr.GetClientCertificate(nil); err != nil {
+	if _, err := cr.getClientCertificate(nil); err != nil {
 		return nil, err
 	}
+
 	tlsConfig := &tls.Config{
-		GetClientCertificate: cr.GetClientCertificate,
+		GetClientCertificate: cr.getClientCertificate,
 		RootCAs:              roots,
 		KeyLogWriter:         ssllog,
 	}
+
 	tlsTransport := http.DefaultTransport.(*http.Transport).Clone()
 	tlsTransport.TLSClientConfig = tlsConfig
+
 	return &http.Client{
 		Transport: tlsTransport,
 	}, nil
@@ -45,7 +48,7 @@ type certRefresher struct {
 	cert    atomic.Pointer[Certificate]
 }
 
-func (cr *certRefresher) GetClientCertificate(
+func (cr *certRefresher) getClientCertificate(
 	info *tls.CertificateRequestInfo,
 ) (*tls.Certificate, error) {
 	ctx := context.Background()
@@ -53,9 +56,8 @@ func (cr *certRefresher) GetClientCertificate(
 		ctx = info.Context()
 	}
 
-	// If the certificate is nil or is going to expire soon, request a new one.
-	if cert := cr.cert.Load(); cert == nil ||
-		cert.NotAfter.Before(time.Now().Add(-time.Minute*10)) {
+	// If we don't have a certificate or it's about to expire, request a new one.
+	if cert := cr.cert.Load(); cert == nil || time.Until(cert.NotAfter) < 10*time.Minute {
 		Logger().DebugContext(ctx, "refreshing client certificate")
 
 		cert, err := RequestCertificate(ctx, cr.url, cr.privkey)
@@ -69,7 +71,8 @@ func (cr *certRefresher) GetClientCertificate(
 				break
 			}
 		}
-		Logger().InfoContext(ctx, "got new client certificate")
+		Logger().InfoContext(ctx, "got new client certificate",
+			"namespace", cert.Namespace, "uuid", cert.ID)
 	}
 
 	tlsCert := X509ToTLSCertificate(cr.cert.Load().Certificate, cr.privkey.PrivateKey)
