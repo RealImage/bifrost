@@ -195,7 +195,7 @@ func issueTLSCert(
 	if err != nil {
 		return nil, err
 	}
-	defer ca.Close()
+	defer ca.Stop()
 
 	caNs := caCert.Namespace
 	csr := x509.CertificateRequest{

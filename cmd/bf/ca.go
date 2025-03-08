@@ -103,7 +103,7 @@ var caServeCmd = &cli.Command{
 			bifrost.Logger().ErrorContext(ctx, "error creating CA", "error", err)
 			return cli.Exit("Error creating CA", 1)
 		}
-		defer ca.Close()
+		defer ca.Stop()
 
 		mux := http.NewServeMux()
 		ca.AddRoutes(mux, exposeMetrics)
@@ -184,7 +184,7 @@ var caIssueCmd = &cli.Command{
 			bifrost.Logger().ErrorContext(ctx, "error creating CA", "error", err)
 			return cli.Exit("Error creating CA", 1)
 		}
-		defer ca.Close()
+		defer ca.Stop()
 
 		clientKey, err := cafiles.GetPrivateKey(ctx, clientPrivKeyUri)
 		if err != nil {

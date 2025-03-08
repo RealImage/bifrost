@@ -217,7 +217,7 @@ func TestCA_ServeHTTP(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer ca.Close()
+			defer ca.Stop()
 
 			method := http.MethodPost
 			if tc.requestMethod != "" {
@@ -309,7 +309,7 @@ func TestCA_gauntlet_panic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ca.Close()
+	defer ca.Stop()
 
 	rr := httptest.NewRecorder()
 	req, err := http.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte(validCsr)))

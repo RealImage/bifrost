@@ -156,11 +156,3 @@ func (gh *gauntletThrower) throw(csr *bifrost.CertificateRequest) (*x509.Certifi
 		return tmpl, nil
 	}
 }
-
-func (gh *gauntletThrower) Close() error {
-	if gh.wg != nil {
-		gh.wg.Wait()
-	}
-
-	return nil
-}
