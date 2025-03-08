@@ -6,9 +6,6 @@ import (
 	"time"
 )
 
-// MaxIssueValidity is the maximum validity period for issued certificates.
-const MaxIssueValidity = 30 * 24 * time.Hour
-
 // ParseValidity parses notBefore and notAfter into time.Time values.
 // notBefore and notAfter can either be in RFC3339 format or a duration
 // offset from the current time.
@@ -16,7 +13,11 @@ const MaxIssueValidity = 30 * 24 * time.Hour
 // If notBefore is empty or set to "now", it defaults to the current time.
 // If notAfter is empty, it behaves as if it is set to "+1h".
 // Negative validity periods are not allowed.
-func ParseValidity(notBefore string, notAfter string) (time.Time, time.Time, error) {
+func ParseValidity(
+	notBefore string,
+	notAfter string,
+	maxIssueValidity time.Duration,
+) (time.Time, time.Time, error) {
 	now := time.Now()
 	nbf := now
 	if notBefore != "" && notBefore != "now" {
@@ -38,7 +39,7 @@ func ParseValidity(notBefore string, notAfter string) (time.Time, time.Time, err
 		return time.Time{}, time.Time{}, errors.New("negative validity period")
 	}
 
-	if naf.Sub(nbf) > MaxIssueValidity {
+	if naf.Sub(nbf) > maxIssueValidity {
 		return time.Time{}, time.Time{}, errors.New("validity period is too long")
 	}
 

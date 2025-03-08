@@ -146,7 +146,11 @@ var newCmd = &cli.Command{
 				}
 
 				id := key.UUID(namespace)
-				notBefore, notAfter, err := tinyca.ParseValidity(notBeforeTime, notAfterTime)
+				notBefore, notAfter, err := tinyca.ParseValidity(
+					notBeforeTime,
+					notAfterTime,
+					tinyca.MaximumCACertValidity,
+				)
 				if err != nil {
 					return err
 				}

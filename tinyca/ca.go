@@ -29,6 +29,11 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	MaximumIssueValidity  = 24 * time.Hour           // 1 day
+	MaximumCACertValidity = 5 * 365 * 24 * time.Hour // 5 year
+)
+
 // CA is a simple Certificate Authority.
 // The CA issues client certificates signed by a root certificate and private key.
 // The CA provides an HTTP handler to issue certificates.
@@ -92,7 +97,7 @@ func (ca *CA) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	notBefore, notAfter, err := ParseValidity(nb, na)
+	notBefore, notAfter, err := ParseValidity(nb, na, MaximumIssueValidity)
 	if err != nil {
 		writeHTTPError(ctx, w, err.Error(), http.StatusBadRequest)
 		return

@@ -203,7 +203,11 @@ var caIssueCmd = &cli.Command{
 			return cli.Exit("Error creating certificate request", 1)
 		}
 
-		notBefore, notAfter, err := tinyca.ParseValidity(notBeforeTime, notAfterTime)
+		notBefore, notAfter, err := tinyca.ParseValidity(
+			notBeforeTime,
+			notAfterTime,
+			tinyca.MaximumIssueValidity,
+		)
 		if err != nil {
 			bifrost.Logger().ErrorContext(ctx, "error parsing validity", "error", err)
 			return cli.Exit("Error parsing validity", 1)
