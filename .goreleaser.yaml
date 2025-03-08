@@ -24,7 +24,8 @@ builds:
       - arm64
 
 archives:
-  - format: tar.gz
+  - formats:
+      - tar.gz
     builds:
       - bifrost
     name_template: >-
@@ -36,9 +37,11 @@ archives:
       {{- if .Arm }}v{{ .Arm }}{{ end }}
     format_overrides:
       - goos: linux
-        format: tar.zst
+        formats:
+          - tar.zst
       - goos: windows
-        format: zip
+        formats:
+          - zip
     files:
       - LICENSE
       - README.md
@@ -47,7 +50,8 @@ archives:
     builds:
       - lambda
     name_template: "{{ .ProjectName }}_lambda_bundle_{{ .Os }}_{{ .Arch }}_{{ .Version }}"
-    format: zip
+    formats:
+      - zip
     wrap_in_directory: false
     files:
       - none*
