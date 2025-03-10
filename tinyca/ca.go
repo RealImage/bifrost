@@ -254,7 +254,7 @@ func (ca *CA) IssueCertificate(asn1CSR []byte, notBefore, notAfter time.Time) ([
 
 // Stop releases resources held by the CA.
 func (ca *CA) Stop() {
-	if ca.gh != nil {
+	if ca.gh != nil && ca.gh.wg != nil {
 		ca.gh.wg.Wait()
 	}
 }
